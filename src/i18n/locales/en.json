@@ -1,0 +1,74 @@
+{
+  "home": {
+    "title": "FLOQQ",
+    "subtitle": "Find a taxi to share at the airport.",
+    "newRequestButton": "New ride request",
+    "adminButton": "Admin"
+  },
+  "onboarding": {
+    "title": "Welcome to FLOQQ",
+    "subtitle": "Share a taxi with fellow travelers leaving the same airport.",
+    "locationTitle": "Location access",
+    "locationDescription": "We use your location to match you with travelers near you at the airport.",
+    "notificationsTitle": "Notifications",
+    "notificationsDescription": "Get notified as soon as we find a taxi match for you.",
+    "note": "You can change these permissions anytime in your phone settings.",
+    "continue": "Get Started"
+  },
+  "auth": {
+    "loginTitle": "Welcome back",
+    "signUpTitle": "Create your account",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Password",
+    "loginButton": "Log In",
+    "signUpButton": "Sign Up",
+    "noAccount": "Don't have an account?",
+    "signUpLink": "Sign up",
+    "haveAccount": "Already have an account?",
+    "loginLink": "Log in",
+    "confirmEmailMessage": "Check your inbox to confirm your email before logging in.",
+    "logout": "Log Out"
+  },
+  "newRequest": {
+    "title": "New ride request",
+    "flightNumberLabel": "Flight number",
+    "flightNumberPlaceholder": "e.g. AF1234",
+    "arrivalDateLabel": "Arrival date",
+    "arrivalTimeLabel": "Arrival time",
+    "destinationLabel": "Destination address",
+    "destinationPlaceholder": "e.g. 12 Rue de Rivoli, Paris",
+    "bagsLabel": "Number of bags",
+    "maxWaitLabel": "Maximum waiting time (minutes)",
+    "submit": "Submit request",
+    "cancel": "Cancel",
+    "done": "Done",
+    "missingFieldsError": "Please fill in the flight number and destination address.",
+    "invalidNumberError": "Please enter valid numbers for bags and waiting time.",
+    "successTitle": "Request submitted!"
+  },
+  "admin": {
+    "title": "Pending requests",
+    "back": "Back",
+    "loading": "Loading requests…",
+    "empty": "No pending requests right now.",
+    "bagsAndWait": "{{bags}} bags · up to {{wait}} min wait",
+    "selectedCount": "{{count}} / {{max}} selected",
+    "maxSelectedError": "You can select up to {{max}} requests per group.",
+    "createGroup": "Create group",
+    "groupCreatedTitle": "Group created!",
+    "createGroupError": "Failed to create group.",
+    "groupsTitle": "Groups",
+    "noGroups": "No groups created yet.",
+    "groupFareSet": "Total fare: {{amount}} €",
+    "groupFareNotSet": "Fare not calculated yet"
+  },
+  "groupDetail": {
+    "title": "Group fare split",
+    "totalFareLabel": "Total fare (€)",
+    "distanceLabel": "Distance from airport (km)",
+    "calculate": "Calculate split",
+    "resultsTitle": "Fare per passenger",
+    "invalidFareError": "Enter a valid total fare greater than 0.",
+    "invalidDistanceError": "Enter a valid distance greater than 0 for every passenger."
+  }
+}

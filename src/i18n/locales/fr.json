@@ -1,0 +1,74 @@
+{
+  "home": {
+    "title": "FLOQQ",
+    "subtitle": "Trouvez un taxi à partager à l'aéroport.",
+    "newRequestButton": "Nouvelle demande de trajet",
+    "adminButton": "Administration"
+  },
+  "onboarding": {
+    "title": "Bienvenue sur FLOQQ",
+    "subtitle": "Partagez un taxi avec d'autres voyageurs qui quittent le même aéroport.",
+    "locationTitle": "Accès à la position",
+    "locationDescription": "Nous utilisons votre position pour vous mettre en relation avec des voyageurs proches de vous à l'aéroport.",
+    "notificationsTitle": "Notifications",
+    "notificationsDescription": "Soyez averti dès que nous trouvons un taxi à partager pour vous.",
+    "note": "Vous pouvez modifier ces autorisations à tout moment dans les réglages de votre téléphone.",
+    "continue": "Commencer"
+  },
+  "auth": {
+    "loginTitle": "Content de vous revoir",
+    "signUpTitle": "Créez votre compte",
+    "emailPlaceholder": "E-mail",
+    "passwordPlaceholder": "Mot de passe",
+    "loginButton": "Se connecter",
+    "signUpButton": "S'inscrire",
+    "noAccount": "Vous n'avez pas de compte ?",
+    "signUpLink": "Inscrivez-vous",
+    "haveAccount": "Vous avez déjà un compte ?",
+    "loginLink": "Connectez-vous",
+    "confirmEmailMessage": "Consultez votre boîte mail pour confirmer votre adresse avant de vous connecter.",
+    "logout": "Se déconnecter"
+  },
+  "newRequest": {
+    "title": "Nouvelle demande de trajet",
+    "flightNumberLabel": "Numéro de vol",
+    "flightNumberPlaceholder": "ex. AF1234",
+    "arrivalDateLabel": "Date d'arrivée",
+    "arrivalTimeLabel": "Heure d'arrivée",
+    "destinationLabel": "Adresse de destination",
+    "destinationPlaceholder": "ex. 12 rue de Rivoli, Paris",
+    "bagsLabel": "Nombre de bagages",
+    "maxWaitLabel": "Temps d'attente maximum (minutes)",
+    "submit": "Envoyer la demande",
+    "cancel": "Annuler",
+    "done": "Valider",
+    "missingFieldsError": "Veuillez renseigner le numéro de vol et l'adresse de destination.",
+    "invalidNumberError": "Veuillez entrer des nombres valides pour les bagages et le temps d'attente.",
+    "successTitle": "Demande envoyée !"
+  },
+  "admin": {
+    "title": "Demandes en attente",
+    "back": "Retour",
+    "loading": "Chargement des demandes…",
+    "empty": "Aucune demande en attente pour le moment.",
+    "bagsAndWait": "{{bags}} bagages · jusqu'à {{wait}} min d'attente",
+    "selectedCount": "{{count}} / {{max}} sélectionnées",
+    "maxSelectedError": "Vous pouvez sélectionner jusqu'à {{max}} demandes par groupe.",
+    "createGroup": "Créer le groupe",
+    "groupCreatedTitle": "Groupe créé !",
+    "createGroupError": "Échec de la création du groupe.",
+    "groupsTitle": "Groupes",
+    "noGroups": "Aucun groupe créé pour l'instant.",
+    "groupFareSet": "Tarif total : {{amount}} €",
+    "groupFareNotSet": "Tarif non calculé"
+  },
+  "groupDetail": {
+    "title": "Répartition du tarif",
+    "totalFareLabel": "Tarif total (€)",
+    "distanceLabel": "Distance depuis l'aéroport (km)",
+    "calculate": "Calculer la répartition",
+    "resultsTitle": "Montant par passager",
+    "invalidFareError": "Saisissez un tarif total valide supérieur à 0.",
+    "invalidDistanceError": "Saisissez une distance valide supérieure à 0 pour chaque passager."
+  }
+}
