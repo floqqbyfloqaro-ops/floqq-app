@@ -5,6 +5,8 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-
 
 import AuthTextInput from '../components/AuthTextInput';
 import PrimaryButton from '../components/PrimaryButton';
+import { fetchEstimatedLandingTime } from '../services/flightStatus';
+import { geocodeAddress } from '../services/geocoding';
 import { createPassengerRequest } from '../services/passengerRequests';
 import { colors } from '../theme/colors';
 
@@ -26,6 +28,8 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
   const [maxWaitMinutes, setMaxWaitMinutes] = useState('15');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLookingUpFlight, setIsLookingUpFlight] = useState(false);
+  const [flightLookupNote, setFlightLookupNote] = useState<string | null>(null);
 
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
@@ -34,6 +38,31 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
     if (event.type === 'set' && selectedDate) {
       setArrivalDate(selectedDate);
     }
+  };
+
+  const handleFlightNumberBlur = async () => {
+    if (!flightNumber.trim()) {
+      return;
+    }
+
+    setIsLookingUpFlight(true);
+    setFlightLookupNote(null);
+
+    const estimate = await fetchEstimatedLandingTime(flightNumber);
+    setIsLookingUpFlight(false);
+
+    if (!estimate) {
+      setFlightLookupNote(t('newRequest.flightLookupNotFound'));
+      return;
+    }
+
+    setArrivalDate(estimate.estimatedLandingAt);
+    setArrivalTime(estimate.estimatedLandingAt);
+    setFlightLookupNote(
+      t('newRequest.flightLookupFound', {
+        time: estimate.estimatedLandingAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      })
+    );
   };
 
   const handleTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
@@ -64,10 +93,20 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
     arrivalAt.setHours(arrivalTime.getHours(), arrivalTime.getMinutes(), 0, 0);
 
     setIsSubmitting(true);
+
+    const geocoded = await geocodeAddress(destinationAddress.trim());
+    if (!geocoded) {
+      setIsSubmitting(false);
+      setErrorMessage(t('newRequest.geocodeError'));
+      return;
+    }
+
     const { error } = await createPassengerRequest({
       flightNumber: flightNumber.trim(),
       arrivalAt,
       destinationAddress: destinationAddress.trim(),
+      destinationLat: geocoded.lat,
+      destinationLng: geocoded.lng,
       bagsCount: bags,
       maxWaitMinutes: maxWait,
     });
@@ -90,9 +129,18 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
       <AuthTextInput
         placeholder={t('newRequest.flightNumberPlaceholder')}
         value={flightNumber}
-        onChangeText={setFlightNumber}
+        onChangeText={(text) => {
+          setFlightNumber(text);
+          setFlightLookupNote(null);
+        }}
+        onBlur={handleFlightNumberBlur}
         autoCapitalize="characters"
       />
+      {isLookingUpFlight ? (
+        <Text style={styles.flightLookupNote}>{t('newRequest.flightLookupChecking')}</Text>
+      ) : flightLookupNote ? (
+        <Text style={styles.flightLookupNote}>{flightLookupNote}</Text>
+      ) : null}
 
       <Text style={styles.label}>{t('newRequest.arrivalDateLabel')}</Text>
       <Pressable style={styles.pickerField} onPress={() => setShowDatePicker(true)}>
@@ -184,6 +232,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 8,
     fontSize: 13,
+  },
+  flightLookupNote: {
+    color: colors.accent,
+    fontSize: 12,
+    marginTop: -10,
+    marginBottom: 16,
   },
   pickerField: {
     backgroundColor: colors.surface,

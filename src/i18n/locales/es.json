@@ -44,7 +44,11 @@
     "done": "Listo",
     "missingFieldsError": "Por favor completa el número de vuelo y la dirección de destino.",
     "invalidNumberError": "Por favor introduce números válidos para las maletas y el tiempo de espera.",
-    "successTitle": "¡Solicitud enviada!"
+    "successTitle": "¡Solicitud enviada!",
+    "geocodeError": "No pudimos localizar esa dirección. Compruébala e inténtalo de nuevo.",
+    "flightLookupChecking": "Consultando el estado del vuelo…",
+    "flightLookupFound": "Llegada estimada: {{time}}",
+    "flightLookupNotFound": "No encontramos el estado del vuelo en vivo. Por favor, ajusta la hora manualmente."
   },
   "admin": {
     "title": "Solicitudes pendientes",
@@ -60,7 +64,14 @@
     "groupsTitle": "Grupos",
     "noGroups": "Aún no se han creado grupos.",
     "groupFareSet": "Tarifa total: {{amount}} €",
-    "groupFareNotSet": "Tarifa no calculada"
+    "groupFareNotSet": "Tarifa no calculada",
+    "suggestGroups": "Sugerir grupos",
+    "suggestionsLoading": "Buscando coincidencias…",
+    "suggestionsTitle": "Grupos sugeridos",
+    "noSuggestions": "No hay sugerencias de grupo por ahora.",
+    "detourLabel": "+{{minutes}} min de desvío",
+    "waitLabel": "{{minutes}} min de espera",
+    "estimatedFareLabel": "~{{amount}} €"
   },
   "groupDetail": {
     "title": "Reparto de la tarifa",
@@ -69,6 +80,10 @@
     "calculate": "Calcular reparto",
     "resultsTitle": "Importe por pasajero",
     "invalidFareError": "Introduce una tarifa total válida mayor que 0.",
-    "invalidDistanceError": "Introduce una distancia válida mayor que 0 para cada pasajero."
+    "invalidDistanceError": "Introduce una distancia válida mayor que 0 para cada pasajero.",
+    "statusUnconfirmed": "Sin confirmar - aún sujeto a recálculo",
+    "statusConfirmed": "Confirmado",
+    "confirmGroup": "Confirmar grupo",
+    "detourAndWait": "+{{detour}} min de desvío · {{wait}} min de espera"
   }
 }

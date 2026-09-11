@@ -4,6 +4,8 @@ export type PassengerRequestInput = {
   flightNumber: string;
   arrivalAt: Date;
   destinationAddress: string;
+  destinationLat: number;
+  destinationLng: number;
   bagsCount: number;
   maxWaitMinutes: number;
 };
@@ -22,6 +24,8 @@ export async function createPassengerRequest(input: PassengerRequestInput) {
     flight_number: input.flightNumber,
     arrival_at: input.arrivalAt.toISOString(),
     destination_address: input.destinationAddress,
+    destination_lat: input.destinationLat,
+    destination_lng: input.destinationLng,
     bags_count: input.bagsCount,
     max_wait_minutes: input.maxWaitMinutes,
   });

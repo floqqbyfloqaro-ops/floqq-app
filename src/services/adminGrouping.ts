@@ -7,12 +7,16 @@ export type PendingPassengerRequest = {
   destination_address: string;
   bags_count: number;
   max_wait_minutes: number;
+  destination_lat: number | null;
+  destination_lng: number | null;
 };
 
 export function fetchPendingRequests() {
   return supabase
     .from('passenger_requests')
-    .select('id, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes')
+    .select(
+      'id, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng'
+    )
     .eq('status', 'pending')
     .order('arrival_at', { ascending: true });
 }
@@ -48,21 +52,24 @@ export async function createTaxiGroup(requestIds: string[]) {
   return { data: group, error: null };
 }
 
+export type TaxiGroupStatus = 'unconfirmed' | 'confirmed';
+
 export type TaxiGroupSummary = {
   id: string;
   created_at: string;
   total_fare: number | null;
+  status: TaxiGroupStatus;
 };
 
 export function fetchTaxiGroups() {
   return supabase
     .from('taxi_groups')
-    .select('id, created_at, total_fare')
+    .select('id, created_at, total_fare, status')
     .order('created_at', { ascending: false });
 }
 
 export function fetchGroupById(groupId: string) {
-  return supabase.from('taxi_groups').select('id, created_at, total_fare').eq('id', groupId).single();
+  return supabase.from('taxi_groups').select('id, created_at, total_fare, status').eq('id', groupId).single();
 }
 
 export type TaxiGroupMember = {
@@ -71,12 +78,17 @@ export type TaxiGroupMember = {
   destination_address: string;
   bags_count: number;
   distance_km: number | null;
+  extra_detour_minutes: number | null;
+  waiting_minutes: number | null;
+  individual_score: number | null;
 };
 
 export function fetchGroupMembers(groupId: string) {
   return supabase
     .from('passenger_requests')
-    .select('id, flight_number, destination_address, bags_count, distance_km')
+    .select(
+      'id, flight_number, destination_address, bags_count, distance_km, extra_detour_minutes, waiting_minutes, individual_score'
+    )
     .eq('group_id', groupId);
 }
 
@@ -86,4 +98,8 @@ export function updatePassengerDistance(requestId: string, distanceKm: number) {
 
 export function updateGroupTotalFare(groupId: string, totalFare: number) {
   return supabase.from('taxi_groups').update({ total_fare: totalFare }).eq('id', groupId);
+}
+
+export function confirmTaxiGroup(groupId: string) {
+  return supabase.from('taxi_groups').update({ status: 'confirmed' as TaxiGroupStatus }).eq('id', groupId);
 }

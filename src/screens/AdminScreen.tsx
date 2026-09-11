@@ -11,7 +11,10 @@ import {
   fetchTaxiGroups,
   PendingPassengerRequest,
   TaxiGroupSummary,
+  updateGroupTotalFare,
+  updatePassengerDistance,
 } from '../services/adminGrouping';
+import { MatchSuggestion, suggestTaxiGroups } from '../services/matchingEngine';
 import { colors } from '../theme/colors';
 import GroupDetailScreen from './GroupDetailScreen';
 
@@ -31,6 +34,9 @@ export default function AdminScreen({ session, onBack }: Props) {
   const [isCreating, setIsCreating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<MatchSuggestion[]>([]);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [creatingSuggestionKey, setCreatingSuggestionKey] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -109,6 +115,43 @@ export default function AdminScreen({ session, onBack }: Props) {
     setOpenGroupId(data.id);
   };
 
+  const handleSuggestGroups = async () => {
+    setErrorMessage(null);
+    setIsSuggesting(true);
+    try {
+      const result = await suggestTaxiGroups(requests);
+      setSuggestions(result);
+    } catch {
+      setErrorMessage(t('admin.createGroupError'));
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  const handleCreateFromSuggestion = async (suggestion: MatchSuggestion) => {
+    const key = suggestion.requestIds.join(',');
+    setErrorMessage(null);
+    setCreatingSuggestionKey(key);
+
+    const { data, error } = await createTaxiGroup(suggestion.requestIds);
+    if (error || !data) {
+      setCreatingSuggestionKey(null);
+      setErrorMessage(error?.message ?? t('admin.createGroupError'));
+      return;
+    }
+
+    const estimatedTotalFare = suggestion.members.reduce((sum, m) => sum + m.fareAmount, 0);
+    await Promise.all([
+      updateGroupTotalFare(data.id, estimatedTotalFare),
+      ...suggestion.members.map((m) => updatePassengerDistance(m.id, m.distanceKm)),
+    ]);
+
+    setCreatingSuggestionKey(null);
+    setSuggestions((prev) => prev.filter((s) => s.requestIds.join(',') !== key));
+    await loadData();
+    setOpenGroupId(data.id);
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
@@ -119,6 +162,47 @@ export default function AdminScreen({ session, onBack }: Props) {
       </View>
 
       {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+
+      <View style={styles.suggestionsSection}>
+        <PrimaryButton
+          label={t('admin.suggestGroups')}
+          onPress={handleSuggestGroups}
+          loading={isSuggesting}
+          disabled={requests.length < 2}
+        />
+
+        {isSuggesting ? (
+          <Text style={styles.emptyText}>{t('admin.suggestionsLoading')}</Text>
+        ) : suggestions.length > 0 ? (
+          <>
+            <Text style={styles.sectionTitle}>{t('admin.suggestionsTitle')}</Text>
+            {suggestions.map((suggestion) => {
+              const key = suggestion.requestIds.join(',');
+              return (
+                <View key={key} style={styles.suggestionCard}>
+                  {suggestion.members.map((member) => (
+                    <View key={member.id} style={styles.suggestionMemberRow}>
+                      <Text style={styles.rowTitle}>{member.flightNumber}</Text>
+                      <Text style={styles.rowMeta}>
+                        {t('admin.detourLabel', { minutes: Math.round(member.extraDetourMinutes) })}
+                        {'  ·  '}
+                        {t('admin.waitLabel', { minutes: Math.round(member.waitingMinutes) })}
+                        {'  ·  '}
+                        {t('admin.estimatedFareLabel', { amount: member.fareAmount.toFixed(2) })}
+                      </Text>
+                    </View>
+                  ))}
+                  <PrimaryButton
+                    label={t('admin.createGroup')}
+                    onPress={() => handleCreateFromSuggestion(suggestion)}
+                    loading={creatingSuggestionKey === key}
+                  />
+                </View>
+              );
+            })}
+          </>
+        ) : null}
+      </View>
 
       {isLoading ? (
         <Text style={styles.emptyText}>{t('admin.loading')}</Text>
@@ -168,6 +252,9 @@ export default function AdminScreen({ session, onBack }: Props) {
                 {group.total_fare != null
                   ? t('admin.groupFareSet', { amount: group.total_fare.toFixed(2) })
                   : t('admin.groupFareNotSet')}
+              </Text>
+              <Text style={styles.groupStatusBadge}>
+                {group.status === 'confirmed' ? t('groupDetail.statusConfirmed') : t('groupDetail.statusUnconfirmed')}
               </Text>
             </Pressable>
           ))
@@ -259,6 +346,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
   },
+  suggestionsSection: {
+    marginBottom: 16,
+  },
+  suggestionCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  suggestionMemberRow: {
+    marginBottom: 10,
+  },
   footer: {
     paddingVertical: 16,
   },
@@ -296,5 +397,10 @@ const styles = StyleSheet.create({
   groupSubtitle: {
     color: colors.accent,
     fontSize: 13,
+  },
+  groupStatusBadge: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: 4,
   },
 });

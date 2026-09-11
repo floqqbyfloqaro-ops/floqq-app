@@ -44,7 +44,11 @@
     "done": "Done",
     "missingFieldsError": "Please fill in the flight number and destination address.",
     "invalidNumberError": "Please enter valid numbers for bags and waiting time.",
-    "successTitle": "Request submitted!"
+    "successTitle": "Request submitted!",
+    "geocodeError": "We couldn't locate that address. Please check it and try again.",
+    "flightLookupChecking": "Checking live flight status…",
+    "flightLookupFound": "Estimated landing: {{time}}",
+    "flightLookupNotFound": "Couldn't find live flight status — please set the arrival time manually."
   },
   "admin": {
     "title": "Pending requests",
@@ -60,7 +64,14 @@
     "groupsTitle": "Groups",
     "noGroups": "No groups created yet.",
     "groupFareSet": "Total fare: {{amount}} €",
-    "groupFareNotSet": "Fare not calculated yet"
+    "groupFareNotSet": "Fare not calculated yet",
+    "suggestGroups": "Suggest groups",
+    "suggestionsLoading": "Finding matches…",
+    "suggestionsTitle": "Suggested groups",
+    "noSuggestions": "No group suggestions right now.",
+    "detourLabel": "+{{minutes}} min detour",
+    "waitLabel": "{{minutes}} min wait",
+    "estimatedFareLabel": "~{{amount}} €"
   },
   "groupDetail": {
     "title": "Group fare split",
@@ -69,6 +80,10 @@
     "calculate": "Calculate split",
     "resultsTitle": "Fare per passenger",
     "invalidFareError": "Enter a valid total fare greater than 0.",
-    "invalidDistanceError": "Enter a valid distance greater than 0 for every passenger."
+    "invalidDistanceError": "Enter a valid distance greater than 0 for every passenger.",
+    "statusUnconfirmed": "Unconfirmed - still open to rescoring",
+    "statusConfirmed": "Confirmed",
+    "confirmGroup": "Confirm group",
+    "detourAndWait": "+{{detour}} min detour · {{wait}} min wait"
   }
 }

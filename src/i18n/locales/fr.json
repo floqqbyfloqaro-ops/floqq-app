@@ -44,7 +44,11 @@
     "done": "Valider",
     "missingFieldsError": "Veuillez renseigner le numéro de vol et l'adresse de destination.",
     "invalidNumberError": "Veuillez entrer des nombres valides pour les bagages et le temps d'attente.",
-    "successTitle": "Demande envoyée !"
+    "successTitle": "Demande envoyée !",
+    "geocodeError": "Nous n'avons pas trouvé cette adresse. Vérifiez-la et réessayez.",
+    "flightLookupChecking": "Vérification du statut du vol…",
+    "flightLookupFound": "Atterrissage estimé : {{time}}",
+    "flightLookupNotFound": "Statut du vol indisponible en direct — veuillez régler l'heure manuellement."
   },
   "admin": {
     "title": "Demandes en attente",
@@ -60,7 +64,14 @@
     "groupsTitle": "Groupes",
     "noGroups": "Aucun groupe créé pour l'instant.",
     "groupFareSet": "Tarif total : {{amount}} €",
-    "groupFareNotSet": "Tarif non calculé"
+    "groupFareNotSet": "Tarif non calculé",
+    "suggestGroups": "Suggérer des groupes",
+    "suggestionsLoading": "Recherche de correspondances…",
+    "suggestionsTitle": "Groupes suggérés",
+    "noSuggestions": "Aucune suggestion de groupe pour le moment.",
+    "detourLabel": "+{{minutes}} min de détour",
+    "waitLabel": "{{minutes}} min d'attente",
+    "estimatedFareLabel": "~{{amount}} €"
   },
   "groupDetail": {
     "title": "Répartition du tarif",
@@ -69,6 +80,10 @@
     "calculate": "Calculer la répartition",
     "resultsTitle": "Montant par passager",
     "invalidFareError": "Saisissez un tarif total valide supérieur à 0.",
-    "invalidDistanceError": "Saisissez une distance valide supérieure à 0 pour chaque passager."
+    "invalidDistanceError": "Saisissez une distance valide supérieure à 0 pour chaque passager.",
+    "statusUnconfirmed": "Non confirmé - encore sujet à un nouveau calcul",
+    "statusConfirmed": "Confirmé",
+    "confirmGroup": "Confirmer le groupe",
+    "detourAndWait": "+{{detour}} min de détour · {{wait}} min d'attente"
   }
 }
