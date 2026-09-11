@@ -5,9 +5,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AuthTextInput from '../components/AuthTextInput';
 import PrimaryButton from '../components/PrimaryButton';
 import {
+  confirmTaxiGroup,
   fetchGroupById,
   fetchGroupMembers,
   TaxiGroupMember,
+  TaxiGroupStatus,
   updateGroupTotalFare,
   updatePassengerDistance,
 } from '../services/adminGrouping';
@@ -29,6 +31,8 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [results, setResults] = useState<FareSplitResult[] | null>(null);
+  const [groupStatus, setGroupStatus] = useState<TaxiGroupStatus>('unconfirmed');
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -42,6 +46,10 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
     if (membersResult.error) {
       setErrorMessage(membersResult.error.message);
       return;
+    }
+
+    if (groupResult.data) {
+      setGroupStatus(groupResult.data.status);
     }
 
     const list = membersResult.data ?? [];
@@ -103,6 +111,20 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
 
   const memberById = (id: string) => members.find((m) => m.id === id);
 
+  const handleConfirm = async () => {
+    setErrorMessage(null);
+    setIsConfirming(true);
+    const { error } = await confirmTaxiGroup(groupId);
+    setIsConfirming(false);
+
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+
+    setGroupStatus('confirmed');
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Pressable onPress={onBack}>
@@ -114,6 +136,14 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
         <Text style={styles.emptyText}>{t('admin.loading')}</Text>
       ) : (
         <>
+          <Text style={styles.statusBadge}>
+            {groupStatus === 'confirmed' ? t('groupDetail.statusConfirmed') : t('groupDetail.statusUnconfirmed')}
+          </Text>
+
+          {groupStatus === 'unconfirmed' ? (
+            <PrimaryButton label={t('groupDetail.confirmGroup')} onPress={handleConfirm} loading={isConfirming} />
+          ) : null}
+
           <Text style={styles.label}>{t('groupDetail.totalFareLabel')}</Text>
           <AuthTextInput
             placeholder="e.g. 32.50"
@@ -126,6 +156,14 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
             <View key={member.id} style={styles.memberCard}>
               <Text style={styles.memberTitle}>{member.flight_number}</Text>
               <Text style={styles.memberSubtitle}>{member.destination_address}</Text>
+              {member.extra_detour_minutes != null && member.waiting_minutes != null ? (
+                <Text style={styles.memberScoreNote}>
+                  {t('groupDetail.detourAndWait', {
+                    detour: Math.round(member.extra_detour_minutes),
+                    wait: Math.round(member.waiting_minutes),
+                  })}
+                </Text>
+              ) : null}
               <Text style={styles.label}>{t('groupDetail.distanceLabel')}</Text>
               <AuthTextInput
                 placeholder="e.g. 12.5"
@@ -185,6 +223,17 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 8,
     fontSize: 13,
+  },
+  statusBadge: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  memberScoreNote: {
+    color: colors.accent,
+    fontSize: 12,
+    marginBottom: 8,
   },
   memberCard: {
     backgroundColor: colors.surface,
