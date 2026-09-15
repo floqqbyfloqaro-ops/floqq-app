@@ -5,8 +5,10 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import AdminScreen from './src/screens/AdminScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import MyRideScreen from './src/screens/MyRideScreen';
 import NewRequestScreen from './src/screens/NewRequestScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
@@ -19,8 +21,8 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [mainScreen, setMainScreen] = useState<'home' | 'newRequest' | 'admin'>('home');
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgotPassword'>('login');
+  const [mainScreen, setMainScreen] = useState<'home' | 'newRequest' | 'myRide' | 'admin'>('home');
 
   useEffect(() => {
     Promise.all([hasCompletedOnboarding(), supabase.auth.getSession()]).then(([completed, { data }]) => {
@@ -58,8 +60,11 @@ export default function App() {
   }
 
   if (!session) {
+    if (authMode === 'forgotPassword') {
+      return <ForgotPasswordScreen onBackToLogin={() => setAuthMode('login')} />;
+    }
     return authMode === 'login' ? (
-      <LoginScreen onSwitchToSignUp={() => setAuthMode('signup')} />
+      <LoginScreen onSwitchToSignUp={() => setAuthMode('signup')} onForgotPassword={() => setAuthMode('forgotPassword')} />
     ) : (
       <SignUpScreen onSwitchToLogin={() => setAuthMode('login')} />
     );
@@ -74,6 +79,10 @@ export default function App() {
     );
   }
 
+  if (mainScreen === 'myRide') {
+    return <MyRideScreen onBack={() => setMainScreen('home')} />;
+  }
+
   if (mainScreen === 'admin') {
     return <AdminScreen session={session} onBack={() => setMainScreen('home')} />;
   }
@@ -81,6 +90,7 @@ export default function App() {
   return (
     <HomeScreen
       onCreateRequest={() => setMainScreen('newRequest')}
+      onOpenMyRide={() => setMainScreen('myRide')}
       isAdmin={session.user?.email === ADMIN_EMAIL}
       onOpenAdmin={() => setMainScreen('admin')}
     />

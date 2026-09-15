@@ -8,11 +8,12 @@ import { colors } from '../theme/colors';
 
 type Props = {
   onCreateRequest: () => void;
+  onOpenMyRide: () => void;
   isAdmin: boolean;
   onOpenAdmin: () => void;
 };
 
-export default function HomeScreen({ onCreateRequest, isAdmin, onOpenAdmin }: Props) {
+export default function HomeScreen({ onCreateRequest, onOpenMyRide, isAdmin, onOpenAdmin }: Props) {
   const { t } = useTranslation();
 
   return (
@@ -21,6 +22,10 @@ export default function HomeScreen({ onCreateRequest, isAdmin, onOpenAdmin }: Pr
       <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
 
       <PrimaryButton label={t('home.newRequestButton')} onPress={onCreateRequest} />
+
+      <Pressable style={styles.myRideButton} onPress={onOpenMyRide}>
+        <Text style={styles.myRideText}>{t('home.myRideButton')}</Text>
+      </Pressable>
 
       {isAdmin ? (
         <Pressable style={styles.adminButton} onPress={onOpenAdmin}>
@@ -55,6 +60,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 32,
     textAlign: 'center',
+  },
+  myRideButton: {
+    marginTop: 4,
+  },
+  myRideText: {
+    color: colors.primary,
+    fontWeight: '600',
   },
   adminButton: {
     marginTop: 16,

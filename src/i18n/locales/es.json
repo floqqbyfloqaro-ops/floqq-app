@@ -3,6 +3,7 @@
     "title": "FLOQQ",
     "subtitle": "Encuentra un taxi para compartir en el aeropuerto.",
     "newRequestButton": "Nueva solicitud de trayecto",
+    "myRideButton": "Mi trayecto",
     "adminButton": "Administración"
   },
   "onboarding": {
@@ -27,7 +28,20 @@
     "haveAccount": "¿Ya tienes una cuenta?",
     "loginLink": "Inicia sesión",
     "confirmEmailMessage": "Revisa tu correo para confirmar tu cuenta antes de iniciar sesión.",
-    "logout": "Cerrar sesión"
+    "logout": "Cerrar sesión",
+    "forgotPasswordLink": "¿Olvidaste tu contraseña?",
+    "resetPasswordTitle": "Restablece tu contraseña",
+    "resetPasswordSubtitle": "Introduce tu correo y te enviaremos un enlace para restablecer tu contraseña.",
+    "sendResetLink": "Enviar enlace",
+    "resetEmailSentMessage": "Revisa tu correo para ver el enlace de restablecimiento de contraseña.",
+    "missingEmailError": "Por favor introduce tu dirección de correo electrónico.",
+    "backToLogin": "Volver a iniciar sesión",
+    "newPasswordTitle": "Elige una nueva contraseña",
+    "newPasswordPlaceholder": "Nueva contraseña",
+    "confirmPasswordPlaceholder": "Confirma la nueva contraseña",
+    "updatePasswordButton": "Actualizar contraseña",
+    "passwordMismatchError": "Las contraseñas no coinciden.",
+    "passwordTooShortError": "La contraseña debe tener al menos 6 caracteres."
   },
   "newRequest": {
     "title": "Nueva solicitud de trayecto",
@@ -85,5 +99,18 @@
     "statusConfirmed": "Confirmado",
     "confirmGroup": "Confirmar grupo",
     "detourAndWait": "+{{detour}} min de desvío · {{wait}} min de espera"
+  },
+  "myRide": {
+    "title": "Mi trayecto",
+    "empty": "Aún no tienes una solicitud de trayecto activa.",
+    "statusPending": "Buscando una coincidencia…",
+    "statusUnconfirmed": "Emparejado — esperando a que se confirme el grupo.",
+    "statusConfirmed": "¡Tu grupo está confirmado!",
+    "statusPaid": "Grupo confirmado — tasa de servicio pagada ✓",
+    "feeNote": "Se aplica una tasa de servicio fija de FLOQQ de {{amount}} € por pasajero. Es independiente de la tarifa del taxi, que se reparte y se paga directamente con el grupo.",
+    "payButton": "Pagar tasa de servicio ({{amount}} €)",
+    "pendingNote": "Pago en curso — esto se actualizará automáticamente en cuanto se confirme.",
+    "checkoutError": "No se pudo iniciar el pago. Inténtalo de nuevo.",
+    "refresh": "Actualizar"
   }
 }

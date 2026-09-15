@@ -3,6 +3,7 @@
     "title": "FLOQQ",
     "subtitle": "Find a taxi to share at the airport.",
     "newRequestButton": "New ride request",
+    "myRideButton": "My ride",
     "adminButton": "Admin"
   },
   "onboarding": {
@@ -27,7 +28,20 @@
     "haveAccount": "Already have an account?",
     "loginLink": "Log in",
     "confirmEmailMessage": "Check your inbox to confirm your email before logging in.",
-    "logout": "Log Out"
+    "logout": "Log Out",
+    "forgotPasswordLink": "Forgot password?",
+    "resetPasswordTitle": "Reset your password",
+    "resetPasswordSubtitle": "Enter your email and we'll send you a link to reset your password.",
+    "sendResetLink": "Send reset link",
+    "resetEmailSentMessage": "Check your inbox for a link to reset your password.",
+    "missingEmailError": "Please enter your email address.",
+    "backToLogin": "Back to login",
+    "newPasswordTitle": "Choose a new password",
+    "newPasswordPlaceholder": "New password",
+    "confirmPasswordPlaceholder": "Confirm new password",
+    "updatePasswordButton": "Update password",
+    "passwordMismatchError": "Passwords don't match.",
+    "passwordTooShortError": "Password must be at least 6 characters."
   },
   "newRequest": {
     "title": "New ride request",
@@ -85,5 +99,18 @@
     "statusConfirmed": "Confirmed",
     "confirmGroup": "Confirm group",
     "detourAndWait": "+{{detour}} min detour · {{wait}} min wait"
+  },
+  "myRide": {
+    "title": "My ride",
+    "empty": "You don't have an active ride request yet.",
+    "statusPending": "Looking for a match…",
+    "statusUnconfirmed": "Matched — waiting for the group to be confirmed.",
+    "statusConfirmed": "Your group is confirmed!",
+    "statusPaid": "Group confirmed — service fee paid ✓",
+    "feeNote": "A fixed {{amount}} € FLOQQ service fee is due per passenger. This is separate from the taxi fare, which is split and settled directly with the group.",
+    "payButton": "Pay service fee ({{amount}} €)",
+    "pendingNote": "Payment in progress — this updates automatically once it's confirmed.",
+    "checkoutError": "Couldn't start checkout. Please try again.",
+    "refresh": "Refresh"
   }
 }

@@ -3,6 +3,7 @@
     "title": "FLOQQ",
     "subtitle": "Trouvez un taxi à partager à l'aéroport.",
     "newRequestButton": "Nouvelle demande de trajet",
+    "myRideButton": "Mon trajet",
     "adminButton": "Administration"
   },
   "onboarding": {
@@ -27,7 +28,20 @@
     "haveAccount": "Vous avez déjà un compte ?",
     "loginLink": "Connectez-vous",
     "confirmEmailMessage": "Consultez votre boîte mail pour confirmer votre adresse avant de vous connecter.",
-    "logout": "Se déconnecter"
+    "logout": "Se déconnecter",
+    "forgotPasswordLink": "Mot de passe oublié ?",
+    "resetPasswordTitle": "Réinitialisez votre mot de passe",
+    "resetPasswordSubtitle": "Entrez votre e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
+    "sendResetLink": "Envoyer le lien",
+    "resetEmailSentMessage": "Consultez votre boîte mail pour le lien de réinitialisation.",
+    "missingEmailError": "Veuillez entrer votre adresse e-mail.",
+    "backToLogin": "Retour à la connexion",
+    "newPasswordTitle": "Choisissez un nouveau mot de passe",
+    "newPasswordPlaceholder": "Nouveau mot de passe",
+    "confirmPasswordPlaceholder": "Confirmez le nouveau mot de passe",
+    "updatePasswordButton": "Mettre à jour le mot de passe",
+    "passwordMismatchError": "Les mots de passe ne correspondent pas.",
+    "passwordTooShortError": "Le mot de passe doit contenir au moins 6 caractères."
   },
   "newRequest": {
     "title": "Nouvelle demande de trajet",
@@ -85,5 +99,18 @@
     "statusConfirmed": "Confirmé",
     "confirmGroup": "Confirmer le groupe",
     "detourAndWait": "+{{detour}} min de détour · {{wait}} min d'attente"
+  },
+  "myRide": {
+    "title": "Mon trajet",
+    "empty": "Vous n'avez pas encore de demande de trajet active.",
+    "statusPending": "Recherche d'une correspondance…",
+    "statusUnconfirmed": "Groupé — en attente de confirmation du groupe.",
+    "statusConfirmed": "Votre groupe est confirmé !",
+    "statusPaid": "Groupe confirmé — frais de service payés ✓",
+    "feeNote": "Des frais de service FLOQQ fixes de {{amount}} € s'appliquent par passager. Ceci est indépendant du tarif du taxi, qui est réparti et réglé directement avec le groupe.",
+    "payButton": "Payer les frais de service ({{amount}} €)",
+    "pendingNote": "Paiement en cours — cette page se mettra à jour automatiquement une fois confirmé.",
+    "checkoutError": "Impossible de démarrer le paiement. Veuillez réessayer.",
+    "refresh": "Actualiser"
   }
 }

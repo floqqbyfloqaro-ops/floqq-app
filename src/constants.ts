@@ -37,3 +37,8 @@ export const SCORE_WEIGHTS = {
 // A candidate group is discarded outright if any single passenger's extra detour exceeds this,
 // regardless of how good the group's average looks.
 export const MAX_DETOUR_MINUTES = 15;
+
+// Fixed FLOQQ service fee charged per passenger once their taxi group is confirmed. This is
+// separate from the taxi fare itself, which is still split via fareSplit.ts and settled directly
+// between passengers/driver - no automatic splitting of that fare is handled by this app yet.
+export const SERVICE_FEE_EUR = 2.49;

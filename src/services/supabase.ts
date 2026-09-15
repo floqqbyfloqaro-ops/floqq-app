@@ -16,5 +16,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // Implicit (not PKCE): the password-reset link is completed on a plain web page (see the
+    // reset-password-page Edge Function), not back in this app, so there's no device-local PKCE
+    // code_verifier available to complete an exchange. Implicit puts the tokens straight in the
+    // link instead, which any page can use directly.
+    flowType: 'implicit',
   },
 });

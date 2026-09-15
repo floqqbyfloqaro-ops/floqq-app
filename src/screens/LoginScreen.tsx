@@ -9,9 +9,10 @@ import { colors } from '../theme/colors';
 
 type Props = {
   onSwitchToSignUp: () => void;
+  onForgotPassword: () => void;
 };
 
-export default function LoginScreen({ onSwitchToSignUp }: Props) {
+export default function LoginScreen({ onSwitchToSignUp, onForgotPassword }: Props) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,6 +52,10 @@ export default function LoginScreen({ onSwitchToSignUp }: Props) {
 
       <PrimaryButton label={t('auth.loginButton')} onPress={handleLogin} loading={isSubmitting} />
 
+      <Pressable onPress={onForgotPassword}>
+        <Text style={styles.forgotPasswordText}>{t('auth.forgotPasswordLink')}</Text>
+      </Pressable>
+
       <Pressable onPress={onSwitchToSignUp}>
         <Text style={styles.switchText}>
           {t('auth.noAccount')} <Text style={styles.switchLink}>{t('auth.signUpLink')}</Text>
@@ -78,6 +83,11 @@ const styles = StyleSheet.create({
     color: colors.error,
     marginBottom: 16,
     textAlign: 'center',
+  },
+  forgotPasswordText: {
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 20,
   },
   switchText: {
     color: colors.textSecondary,

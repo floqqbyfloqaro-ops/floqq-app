@@ -27,3 +27,5 @@ export const SCORE_WEIGHTS = {
 };
 
 export const MAX_DETOUR_MINUTES = 15;
+
+export const SERVICE_FEE_EUR = 2.49;
