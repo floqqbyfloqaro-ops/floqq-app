@@ -5,17 +5,16 @@
     "version": "1.0.0",
     "scheme": "floqq",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon-full.png",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0A0A12",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#0B0F19",
+        "foregroundImage": "./assets/icon-adaptive-fg.png",
+        "monochromeImage": "./assets/icon-mono.png"
       },
       "predictiveBackGestureEnabled": false
     },

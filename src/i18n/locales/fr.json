@@ -1,4 +1,7 @@
 {
+  "common": {
+    "retry": "Réessayer"
+  },
   "home": {
     "title": "FLOQQ",
     "subtitle": "Trouvez un taxi à partager à l'aéroport.",
@@ -41,7 +44,10 @@
     "confirmPasswordPlaceholder": "Confirmez le nouveau mot de passe",
     "updatePasswordButton": "Mettre à jour le mot de passe",
     "passwordMismatchError": "Les mots de passe ne correspondent pas.",
-    "passwordTooShortError": "Le mot de passe doit contenir au moins 6 caractères."
+    "passwordTooShortError": "Le mot de passe doit contenir au moins 6 caractères.",
+    "loginError": "Impossible de vous connecter. Vérifiez votre e-mail et votre mot de passe puis réessayez.",
+    "signUpError": "Impossible de créer votre compte. Veuillez réessayer.",
+    "resetLinkError": "Impossible d'envoyer le lien de réinitialisation. Vérifiez votre e-mail et réessayez."
   },
   "newRequest": {
     "title": "Nouvelle demande de trajet",
@@ -62,13 +68,16 @@
     "geocodeError": "Nous n'avons pas trouvé cette adresse. Vérifiez-la et réessayez.",
     "flightLookupChecking": "Vérification du statut du vol…",
     "flightLookupFound": "Atterrissage estimé : {{time}}",
-    "flightLookupNotFound": "Statut du vol indisponible en direct — veuillez régler l'heure manuellement."
+    "flightLookupNotFound": "Statut du vol indisponible en direct — veuillez régler l'heure manuellement.",
+    "submitError": "Impossible d'envoyer votre demande. Vérifiez votre connexion et réessayez."
   },
   "admin": {
     "title": "Demandes en attente",
     "back": "Retour",
     "loading": "Chargement des demandes…",
     "empty": "Aucune demande en attente pour le moment.",
+    "emptyAction": "Actualiser",
+    "loadError": "Impossible de charger les demandes en attente.",
     "bagsAndWait": "{{bags}} bagages · jusqu'à {{wait}} min d'attente",
     "selectedCount": "{{count}} / {{max}} sélectionnées",
     "maxSelectedError": "Vous pouvez sélectionner jusqu'à {{max}} demandes par groupe.",
@@ -98,11 +107,16 @@
     "statusUnconfirmed": "Non confirmé - encore sujet à un nouveau calcul",
     "statusConfirmed": "Confirmé",
     "confirmGroup": "Confirmer le groupe",
-    "detourAndWait": "+{{detour}} min de détour · {{wait}} min d'attente"
+    "detourAndWait": "+{{detour}} min de détour · {{wait}} min d'attente",
+    "loadError": "Impossible de charger ce groupe.",
+    "saveError": "Impossible d'enregistrer la répartition du tarif.",
+    "confirmError": "Impossible de confirmer le groupe."
   },
   "myRide": {
     "title": "Mon trajet",
     "empty": "Vous n'avez pas encore de demande de trajet active.",
+    "emptyAction": "Demander un trajet",
+    "loadError": "Impossible de charger le statut de votre trajet.",
     "statusPending": "Recherche d'une correspondance…",
     "statusUnconfirmed": "Groupé — en attente de confirmation du groupe.",
     "statusConfirmed": "Votre groupe est confirmé !",

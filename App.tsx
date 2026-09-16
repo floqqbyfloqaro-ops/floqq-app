@@ -43,7 +43,7 @@ export default function App() {
   if (!isReady) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.accentPrimary} />
       </View>
     );
   }
@@ -80,7 +80,9 @@ export default function App() {
   }
 
   if (mainScreen === 'myRide') {
-    return <MyRideScreen onBack={() => setMainScreen('home')} />;
+    return (
+      <MyRideScreen onBack={() => setMainScreen('home')} onCreateRequest={() => setMainScreen('newRequest')} />
+    );
   }
 
   if (mainScreen === 'admin') {
@@ -100,7 +102,7 @@ export default function App() {
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.bgPrimary,
     alignItems: 'center',
     justifyContent: 'center',
   },

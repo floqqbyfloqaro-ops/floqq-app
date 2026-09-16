@@ -1,4 +1,7 @@
 {
+  "common": {
+    "retry": "Reintentar"
+  },
   "home": {
     "title": "FLOQQ",
     "subtitle": "Encuentra un taxi para compartir en el aeropuerto.",
@@ -41,7 +44,10 @@
     "confirmPasswordPlaceholder": "Confirma la nueva contraseña",
     "updatePasswordButton": "Actualizar contraseña",
     "passwordMismatchError": "Las contraseñas no coinciden.",
-    "passwordTooShortError": "La contraseña debe tener al menos 6 caracteres."
+    "passwordTooShortError": "La contraseña debe tener al menos 6 caracteres.",
+    "loginError": "No pudimos iniciar tu sesión. Comprueba tu correo y contraseña e inténtalo de nuevo.",
+    "signUpError": "No pudimos crear tu cuenta. Inténtalo de nuevo.",
+    "resetLinkError": "No pudimos enviar el enlace de restablecimiento. Comprueba tu correo e inténtalo de nuevo."
   },
   "newRequest": {
     "title": "Nueva solicitud de trayecto",
@@ -62,13 +68,16 @@
     "geocodeError": "No pudimos localizar esa dirección. Compruébala e inténtalo de nuevo.",
     "flightLookupChecking": "Consultando el estado del vuelo…",
     "flightLookupFound": "Llegada estimada: {{time}}",
-    "flightLookupNotFound": "No encontramos el estado del vuelo en vivo. Por favor, ajusta la hora manualmente."
+    "flightLookupNotFound": "No encontramos el estado del vuelo en vivo. Por favor, ajusta la hora manualmente.",
+    "submitError": "No pudimos enviar tu solicitud. Comprueba tu conexión e inténtalo de nuevo."
   },
   "admin": {
     "title": "Solicitudes pendientes",
     "back": "Volver",
     "loading": "Cargando solicitudes…",
     "empty": "No hay solicitudes pendientes por ahora.",
+    "emptyAction": "Actualizar",
+    "loadError": "No pudimos cargar las solicitudes pendientes.",
     "bagsAndWait": "{{bags}} maletas · hasta {{wait}} min de espera",
     "selectedCount": "{{count}} / {{max}} seleccionadas",
     "maxSelectedError": "Puedes seleccionar hasta {{max}} solicitudes por grupo.",
@@ -98,11 +107,16 @@
     "statusUnconfirmed": "Sin confirmar - aún sujeto a recálculo",
     "statusConfirmed": "Confirmado",
     "confirmGroup": "Confirmar grupo",
-    "detourAndWait": "+{{detour}} min de desvío · {{wait}} min de espera"
+    "detourAndWait": "+{{detour}} min de desvío · {{wait}} min de espera",
+    "loadError": "No pudimos cargar este grupo.",
+    "saveError": "No pudimos guardar el reparto de la tarifa.",
+    "confirmError": "No pudimos confirmar el grupo."
   },
   "myRide": {
     "title": "Mi trayecto",
     "empty": "Aún no tienes una solicitud de trayecto activa.",
+    "emptyAction": "Solicitar un trayecto",
+    "loadError": "No pudimos cargar el estado de tu trayecto.",
     "statusPending": "Buscando una coincidencia…",
     "statusUnconfirmed": "Emparejado — esperando a que se confirme el grupo.",
     "statusConfirmed": "¡Tu grupo está confirmado!",

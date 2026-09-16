@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import PrimaryButton from '../components/PrimaryButton';
+import ScreenBackground from '../components/ScreenBackground';
+import SecondaryButton from '../components/SecondaryButton';
 import { supabase } from '../services/supabase';
-import { colors } from '../theme/colors';
+import { baseText, colors, overlays, spacing } from '../theme/colors';
 
 type Props = {
   onCreateRequest: () => void;
@@ -17,69 +19,64 @@ export default function HomeScreen({ onCreateRequest, onOpenMyRide, isAdmin, onO
   const { t } = useTranslation();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{t('home.title')}</Text>
-      <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
+    <ScreenBackground
+      source={require('../../assets/bg-content.png')}
+      naturalWidth={317}
+      naturalHeight={1536}
+      scrimColor={overlays.scrimMedium}
+    >
+      <View style={styles.container}>
+        <Text style={styles.title}>{t('home.title')}</Text>
+        <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
 
-      <PrimaryButton label={t('home.newRequestButton')} onPress={onCreateRequest} />
+        <View style={styles.actions}>
+          <PrimaryButton label={t('home.newRequestButton')} onPress={onCreateRequest} />
+          <SecondaryButton label={t('home.myRideButton')} onPress={onOpenMyRide} />
+          {isAdmin ? <SecondaryButton label={t('home.adminButton')} onPress={onOpenAdmin} /> : null}
+        </View>
 
-      <Pressable style={styles.myRideButton} onPress={onOpenMyRide}>
-        <Text style={styles.myRideText}>{t('home.myRideButton')}</Text>
-      </Pressable>
-
-      {isAdmin ? (
-        <Pressable style={styles.adminButton} onPress={onOpenAdmin}>
-          <Text style={styles.adminText}>{t('home.adminButton')}</Text>
+        <Pressable
+          style={styles.logoutButton}
+          onPress={() => supabase.auth.signOut()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('auth.logout')}
+        >
+          <Text style={styles.logoutText}>{t('auth.logout')}</Text>
         </Pressable>
-      ) : null}
 
-      <Pressable style={styles.logoutButton} onPress={() => supabase.auth.signOut()}>
-        <Text style={styles.logoutText}>{t('auth.logout')}</Text>
-      </Pressable>
-
-      <StatusBar style="light" />
-    </View>
+        <StatusBar style="light" />
+      </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.x6,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 8,
+    ...baseText.h1,
+    marginBottom: spacing.x2,
   },
   subtitle: {
+    ...baseText.body,
     color: colors.textSecondary,
-    marginBottom: 32,
+    marginBottom: spacing.x8,
     textAlign: 'center',
   },
-  myRideButton: {
-    marginTop: 4,
-  },
-  myRideText: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  adminButton: {
-    marginTop: 16,
-  },
-  adminText: {
-    color: colors.accent,
-    fontWeight: '600',
+  actions: {
+    alignSelf: 'stretch',
+    gap: spacing.x2,
   },
   logoutButton: {
-    marginTop: 24,
+    marginTop: spacing.x6,
   },
   logoutText: {
-    color: colors.textSecondary,
+    ...baseText.caption,
     textDecorationLine: 'underline',
   },
 });

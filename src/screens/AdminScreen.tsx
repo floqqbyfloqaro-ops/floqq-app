@@ -1,9 +1,25 @@
 import type { Session } from '@supabase/supabase-js';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  LayoutAnimation,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  UIManager,
+  View,
+} from 'react-native';
 
+import Card from '../components/Card';
+import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
+import ScreenBackground from '../components/ScreenBackground';
+import SecondaryButton from '../components/SecondaryButton';
+import Skeleton from '../components/Skeleton';
+import StatusPill from '../components/StatusPill';
 import { ADMIN_EMAIL, MAX_PASSENGERS_PER_TAXI } from '../constants';
 import {
   createTaxiGroup,
@@ -15,8 +31,19 @@ import {
   updatePassengerDistance,
 } from '../services/adminGrouping';
 import { MatchSuggestion, suggestTaxiGroups } from '../services/matchingEngine';
-import { colors } from '../theme/colors';
+import { baseText, colors, motion, overlays, spacing } from '../theme/colors';
 import GroupDetailScreen from './GroupDetailScreen';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const LIST_LAYOUT_ANIMATION = {
+  duration: motion.durationBase,
+  update: { type: LayoutAnimation.Types.easeInEaseOut },
+  create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+};
 
 type Props = {
   session: Session | null;
@@ -30,6 +57,7 @@ export default function AdminScreen({ session, onBack }: Props) {
   const [requests, setRequests] = useState<PendingPassengerRequest[]>([]);
   const [groups, setGroups] = useState<TaxiGroupSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -37,24 +65,31 @@ export default function AdminScreen({ session, onBack }: Props) {
   const [suggestions, setSuggestions] = useState<MatchSuggestion[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [creatingSuggestionKey, setCreatingSuggestionKey] = useState<string | null>(null);
+  const hasLoadedOnce = useRef(false);
 
   const loadData = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoading(!hasLoadedOnce.current);
     const [pendingResult, groupsResult] = await Promise.all([fetchPendingRequests(), fetchTaxiGroups()]);
+    hasLoadedOnce.current = true;
     setIsLoading(false);
+    setIsRefreshing(false);
+
+    LayoutAnimation.configureNext(LIST_LAYOUT_ANIMATION);
 
     if (pendingResult.error) {
-      setErrorMessage(pendingResult.error.message);
+      console.warn('fetchPendingRequests failed', pendingResult.error);
+      setErrorMessage(t('admin.loadError'));
     } else {
       setRequests(pendingResult.data ?? []);
     }
 
     if (groupsResult.error) {
-      setErrorMessage(groupsResult.error.message);
+      console.warn('fetchTaxiGroups failed', groupsResult.error);
+      setErrorMessage(t('admin.loadError'));
     } else {
       setGroups(groupsResult.data ?? []);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -84,6 +119,11 @@ export default function AdminScreen({ session, onBack }: Props) {
     );
   }
 
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    loadData();
+  };
+
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       if (prev.includes(id)) {
@@ -106,7 +146,8 @@ export default function AdminScreen({ session, onBack }: Props) {
     setIsCreating(false);
 
     if (error || !data) {
-      setErrorMessage(error?.message ?? t('admin.createGroupError'));
+      console.warn('createTaxiGroup failed', error);
+      setErrorMessage(t('admin.createGroupError'));
       return;
     }
 
@@ -121,7 +162,8 @@ export default function AdminScreen({ session, onBack }: Props) {
     try {
       const result = await suggestTaxiGroups(requests);
       setSuggestions(result);
-    } catch {
+    } catch (error) {
+      console.warn('suggestTaxiGroups failed', error);
       setErrorMessage(t('admin.createGroupError'));
     } finally {
       setIsSuggesting(false);
@@ -135,8 +177,9 @@ export default function AdminScreen({ session, onBack }: Props) {
 
     const { data, error } = await createTaxiGroup(suggestion.requestIds);
     if (error || !data) {
+      console.warn('createTaxiGroup (suggestion) failed', error);
       setCreatingSuggestionKey(null);
-      setErrorMessage(error?.message ?? t('admin.createGroupError'));
+      setErrorMessage(t('admin.createGroupError'));
       return;
     }
 
@@ -152,168 +195,232 @@ export default function AdminScreen({ session, onBack }: Props) {
     setOpenGroupId(data.id);
   };
 
+  const isEmpty = !isLoading && requests.length === 0;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack}>
-          <Text style={styles.backText}>{t('admin.back')}</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('admin.title')}</Text>
-      </View>
+    <ScreenBackground
+      source={isEmpty ? require('../../assets/bg-empty-state.png') : require('../../assets/bg-content.png')}
+      naturalWidth={isEmpty ? 330 : 317}
+      naturalHeight={1536}
+      scrimColor={overlays.scrimMedium}
+    >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.accentPrimaryStrong} />
+        }
+      >
+        <View style={styles.header}>
+          <Pressable
+            onPress={onBack}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('admin.back')}
+          >
+            <Text style={styles.backText}>{t('admin.back')}</Text>
+          </Pressable>
+          <Text style={styles.title}>{t('admin.title')}</Text>
+        </View>
 
-      {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+        {errorMessage ? <ErrorNotice message={errorMessage} onRetry={loadData} retryLabel={t('common.retry')} /> : null}
 
-      <View style={styles.suggestionsSection}>
-        <PrimaryButton
-          label={t('admin.suggestGroups')}
-          onPress={handleSuggestGroups}
-          loading={isSuggesting}
-          disabled={requests.length < 2}
-        />
+        <View style={styles.suggestionsSection}>
+          <PrimaryButton
+            label={t('admin.suggestGroups')}
+            onPress={handleSuggestGroups}
+            loading={isSuggesting}
+            disabled={requests.length < 2}
+          />
 
-        {isSuggesting ? (
-          <Text style={styles.emptyText}>{t('admin.suggestionsLoading')}</Text>
-        ) : suggestions.length > 0 ? (
-          <>
-            <Text style={styles.sectionTitle}>{t('admin.suggestionsTitle')}</Text>
-            {suggestions.map((suggestion) => {
-              const key = suggestion.requestIds.join(',');
-              return (
-                <View key={key} style={styles.suggestionCard}>
-                  {suggestion.members.map((member) => (
-                    <View key={member.id} style={styles.suggestionMemberRow}>
-                      <Text style={styles.rowTitle}>{member.flightNumber}</Text>
-                      <Text style={styles.rowMeta}>
-                        {t('admin.detourLabel', { minutes: Math.round(member.extraDetourMinutes) })}
-                        {'  ·  '}
-                        {t('admin.waitLabel', { minutes: Math.round(member.waitingMinutes) })}
-                        {'  ·  '}
-                        {t('admin.estimatedFareLabel', { amount: member.fareAmount.toFixed(2) })}
-                      </Text>
-                    </View>
-                  ))}
-                  <PrimaryButton
-                    label={t('admin.createGroup')}
-                    onPress={() => handleCreateFromSuggestion(suggestion)}
-                    loading={creatingSuggestionKey === key}
-                  />
+          {isSuggesting ? (
+            <Text style={styles.emptyText}>{t('admin.suggestionsLoading')}</Text>
+          ) : suggestions.length > 0 ? (
+            <>
+              <Text style={styles.sectionTitle}>{t('admin.suggestionsTitle')}</Text>
+              {suggestions.map((suggestion) => {
+                const key = suggestion.requestIds.join(',');
+                return (
+                  <Card key={key} style={styles.suggestionCard}>
+                    {suggestion.members.map((member) => (
+                      <View key={member.id} style={styles.suggestionMemberRow}>
+                        <Text style={styles.rowTitle}>{member.flightNumber}</Text>
+                        <Text style={styles.rowMeta}>
+                          {t('admin.detourLabel', { minutes: Math.round(member.extraDetourMinutes) })}
+                          {'  ·  '}
+                          {t('admin.waitLabel', { minutes: Math.round(member.waitingMinutes) })}
+                          {'  ·  '}
+                          {t('admin.estimatedFareLabel', { amount: member.fareAmount.toFixed(2) })}
+                        </Text>
+                      </View>
+                    ))}
+                    <PrimaryButton
+                      label={t('admin.createGroup')}
+                      onPress={() => handleCreateFromSuggestion(suggestion)}
+                      loading={creatingSuggestionKey === key}
+                    />
+                  </Card>
+                );
+              })}
+            </>
+          ) : null}
+        </View>
+
+        {isLoading ? (
+          <View accessible accessibilityLabel={t('admin.loading')}>
+            {[0, 1, 2].map((i) => (
+              <Card key={i} style={styles.row}>
+                <View style={styles.rowInner}>
+                  <Skeleton width={24} height={24} radius={6} />
+                  <View style={styles.rowText}>
+                    <Skeleton width={100} height={18} style={styles.skeletonGap} />
+                    <Skeleton width={160} height={14} style={styles.skeletonGap} />
+                    <Skeleton width={140} height={14} />
+                  </View>
                 </View>
-              );
-            })}
-          </>
-        ) : null}
-      </View>
-
-      {isLoading ? (
-        <Text style={styles.emptyText}>{t('admin.loading')}</Text>
-      ) : requests.length === 0 ? (
-        <Text style={styles.emptyText}>{t('admin.empty')}</Text>
-      ) : (
-        requests.map((item) => {
-          const isSelected = selectedIds.includes(item.id);
-          return (
-            <Pressable key={item.id} style={styles.row} onPress={() => toggleSelect(item.id)}>
-              <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                {isSelected ? <Text style={styles.checkmark}>✓</Text> : null}
-              </View>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{item.flight_number}</Text>
-                <Text style={styles.rowSubtitle}>
-                  {new Date(item.arrival_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                </Text>
-                <Text style={styles.rowSubtitle}>{item.destination_address}</Text>
-                <Text style={styles.rowMeta}>
-                  {t('admin.bagsAndWait', { bags: item.bags_count, wait: item.max_wait_minutes })}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        })
-      )}
-
-      <View style={styles.footer}>
-        <Text style={styles.selectionCount}>
-          {t('admin.selectedCount', { count: selectedIds.length, max: MAX_PASSENGERS_PER_TAXI })}
-        </Text>
-        <PrimaryButton label={t('admin.createGroup')} onPress={handleCreateGroup} loading={isCreating} />
-      </View>
-
-      <View style={styles.groupsSection}>
-        <Text style={styles.sectionTitle}>{t('admin.groupsTitle')}</Text>
-        {groups.length === 0 ? (
-          <Text style={styles.emptyText}>{t('admin.noGroups')}</Text>
+              </Card>
+            ))}
+          </View>
+        ) : requests.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>{t('admin.empty')}</Text>
+            <SecondaryButton label={t('admin.emptyAction')} onPress={handleRefresh} loading={isRefreshing} />
+          </View>
         ) : (
-          groups.map((group) => (
-            <Pressable key={group.id} style={styles.groupRow} onPress={() => setOpenGroupId(group.id)}>
-              <Text style={styles.groupTitle}>
-                {new Date(group.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-              </Text>
-              <Text style={styles.groupSubtitle}>
-                {group.total_fare != null
-                  ? t('admin.groupFareSet', { amount: group.total_fare.toFixed(2) })
-                  : t('admin.groupFareNotSet')}
-              </Text>
-              <Text style={styles.groupStatusBadge}>
-                {group.status === 'confirmed' ? t('groupDetail.statusConfirmed') : t('groupDetail.statusUnconfirmed')}
-              </Text>
-            </Pressable>
-          ))
+          requests.map((item) => {
+            const isSelected = selectedIds.includes(item.id);
+            const rowLabel = `${item.flight_number}, ${new Date(item.arrival_at).toLocaleString([], {
+              dateStyle: 'short',
+              timeStyle: 'short',
+            })}, ${item.destination_address}, ${t('admin.bagsAndWait', {
+              bags: item.bags_count,
+              wait: item.max_wait_minutes,
+            })}`;
+            return (
+              <Card
+                key={item.id}
+                onPress={() => toggleSelect(item.id)}
+                style={styles.row}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected }}
+                accessibilityLabel={rowLabel}
+              >
+                <View style={styles.rowInner}>
+                  <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                    {isSelected ? (
+                      <Text style={styles.checkmark} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                        ✓
+                      </Text>
+                    ) : null}
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={styles.rowTitle}>{item.flight_number}</Text>
+                    <Text style={styles.rowSubtitle}>
+                      {new Date(item.arrival_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                    </Text>
+                    <Text style={styles.rowSubtitle}>{item.destination_address}</Text>
+                    <Text style={styles.rowMeta}>
+                      {t('admin.bagsAndWait', { bags: item.bags_count, wait: item.max_wait_minutes })}
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+            );
+          })
         )}
-      </View>
-    </ScrollView>
+
+        <View style={styles.footer}>
+          <Text style={styles.selectionCount}>
+            {t('admin.selectedCount', { count: selectedIds.length, max: MAX_PASSENGERS_PER_TAXI })}
+          </Text>
+          <PrimaryButton label={t('admin.createGroup')} onPress={handleCreateGroup} loading={isCreating} />
+        </View>
+
+        <View style={styles.groupsSection}>
+          <Text style={styles.sectionTitle}>{t('admin.groupsTitle')}</Text>
+          {groups.length === 0 ? (
+            <Text style={styles.emptyText}>{t('admin.noGroups')}</Text>
+          ) : (
+            groups.map((group) => {
+              const fareLabel =
+                group.total_fare != null
+                  ? t('admin.groupFareSet', { amount: group.total_fare.toFixed(2) })
+                  : t('admin.groupFareNotSet');
+              const statusLabel =
+                group.status === 'confirmed' ? t('groupDetail.statusConfirmed') : t('groupDetail.statusUnconfirmed');
+              return (
+                <Card
+                  key={group.id}
+                  onPress={() => setOpenGroupId(group.id)}
+                  style={styles.groupRow}
+                  accessibilityLabel={`${new Date(group.created_at).toLocaleString([], {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                  })}, ${fareLabel}, ${statusLabel}`}
+                >
+                  <Text style={styles.groupTitle}>
+                    {new Date(group.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                  </Text>
+                  <Text style={styles.groupSubtitle}>{fareLabel}</Text>
+                  <StatusPill status={group.status === 'confirmed' ? 'Group Confirmed' : 'Searching'} label={statusLabel} />
+                </Card>
+              );
+            })
+          )}
+        </View>
+      </ScrollView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   content: {
-    paddingTop: 48,
-    paddingHorizontal: 24,
-    paddingBottom: 48,
+    paddingTop: spacing.x12,
+    paddingHorizontal: spacing.x6,
+    paddingBottom: spacing.x12,
   },
   header: {
-    marginBottom: 16,
+    marginBottom: spacing.x4,
   },
   backText: {
-    color: colors.primary,
-    fontWeight: '600',
-    marginBottom: 12,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+    marginBottom: spacing.x3,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
+    ...baseText.h2,
   },
   row: {
+    marginBottom: spacing.x3,
+  },
+  rowInner: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
     alignItems: 'flex-start',
-    gap: 12,
+    gap: spacing.x3,
+  },
+  skeletonGap: {
+    marginBottom: spacing.x2,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
   checkboxSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.accentPrimaryStrong,
+    borderColor: colors.accentPrimaryStrong,
   },
   checkmark: {
-    color: colors.text,
+    color: colors.white,
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -321,86 +428,67 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowTitle: {
-    color: colors.text,
-    fontSize: 16,
+    ...baseText.body,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: spacing.x1,
   },
   rowSubtitle: {
-    color: colors.textSecondary,
-    fontSize: 13,
+    ...baseText.caption,
   },
   rowMeta: {
-    color: colors.accent,
-    fontSize: 12,
-    marginTop: 4,
+    ...baseText.caption,
+    color: colors.info,
+    marginTop: spacing.x1,
+  },
+  emptyState: {
+    alignItems: 'stretch',
+    marginTop: spacing.x6,
+    marginBottom: spacing.x6,
   },
   emptyText: {
+    ...baseText.body,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginTop: 24,
-    marginBottom: 24,
-  },
-  error: {
-    color: colors.error,
-    marginBottom: 12,
-    textAlign: 'center',
+    marginBottom: spacing.x4,
   },
   suggestionsSection: {
-    marginBottom: 16,
+    marginBottom: spacing.x4,
   },
   suggestionCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    marginBottom: spacing.x3,
   },
   suggestionMemberRow: {
-    marginBottom: 10,
+    marginBottom: spacing.x2,
   },
   footer: {
-    paddingVertical: 16,
+    paddingVertical: spacing.x4,
   },
   selectionCount: {
-    color: colors.textSecondary,
+    ...baseText.bodySmall,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.x3,
   },
   groupsSection: {
-    marginTop: 16,
+    marginTop: spacing.x4,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 24,
+    borderTopColor: colors.borderSubtle,
+    paddingTop: spacing.x6,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 12,
+    ...baseText.h3,
+    marginBottom: spacing.x3,
   },
   groupRow: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    marginBottom: spacing.x3,
   },
   groupTitle: {
-    color: colors.text,
-    fontSize: 15,
+    ...baseText.body,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: spacing.x1,
   },
   groupSubtitle: {
-    color: colors.accent,
-    fontSize: 13,
-  },
-  groupStatusBadge: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 4,
+    ...baseText.caption,
+    color: colors.info,
+    marginBottom: spacing.x2,
   },
 });

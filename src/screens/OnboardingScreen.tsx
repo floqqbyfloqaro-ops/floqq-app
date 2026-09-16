@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import Card from '../components/Card';
+import PrimaryButton from '../components/PrimaryButton';
+import ScreenBackground from '../components/ScreenBackground';
 import { requestLocationPermission, requestNotificationPermission } from '../services/permissions';
-import { colors } from '../theme/colors';
+import { baseText, colors, overlays, spacing } from '../theme/colors';
 
 type Props = {
   onComplete: () => void;
@@ -22,76 +25,85 @@ export default function OnboardingScreen({ onComplete }: Props) {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{t('onboarding.title')}</Text>
-        <Text style={styles.subtitle}>{t('onboarding.subtitle')}</Text>
-      </View>
-
-      <View style={styles.permissions}>
-        <View style={styles.permissionCard}>
-          <Text style={styles.permissionIcon}>📍</Text>
-          <View style={styles.permissionText}>
-            <Text style={styles.permissionTitle}>{t('onboarding.locationTitle')}</Text>
-            <Text style={styles.permissionDescription}>{t('onboarding.locationDescription')}</Text>
-          </View>
+    <ScreenBackground
+      source={require('../../assets/bg-hero.png')}
+      naturalWidth={329}
+      naturalHeight={1536}
+      scrimColor={overlays.scrimHeavy}
+    >
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>{t('onboarding.title')}</Text>
+          <Text style={styles.subtitle}>{t('onboarding.subtitle')}</Text>
         </View>
 
-        <View style={styles.permissionCard}>
-          <Text style={styles.permissionIcon}>🔔</Text>
-          <View style={styles.permissionText}>
-            <Text style={styles.permissionTitle}>{t('onboarding.notificationsTitle')}</Text>
-            <Text style={styles.permissionDescription}>{t('onboarding.notificationsDescription')}</Text>
-          </View>
+        <View style={styles.permissions}>
+          <Card>
+            <View style={styles.permissionRow}>
+              <Text
+                style={styles.permissionIcon}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                📍
+              </Text>
+              <View style={styles.permissionText}>
+                <Text style={styles.permissionTitle}>{t('onboarding.locationTitle')}</Text>
+                <Text style={styles.permissionDescription}>{t('onboarding.locationDescription')}</Text>
+              </View>
+            </View>
+          </Card>
+
+          <Card>
+            <View style={styles.permissionRow}>
+              <Text
+                style={styles.permissionIcon}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                🔔
+              </Text>
+              <View style={styles.permissionText}>
+                <Text style={styles.permissionTitle}>{t('onboarding.notificationsTitle')}</Text>
+                <Text style={styles.permissionDescription}>{t('onboarding.notificationsDescription')}</Text>
+              </View>
+            </View>
+          </Card>
         </View>
+
+        <Text style={styles.note}>{t('onboarding.note')}</Text>
+
+        <PrimaryButton label={t('onboarding.continue')} onPress={handleContinue} loading={isRequesting} />
       </View>
-
-      <Text style={styles.note}>{t('onboarding.note')}</Text>
-
-      <Pressable style={styles.button} onPress={handleContinue} disabled={isRequesting}>
-        {isRequesting ? (
-          <ActivityIndicator color={colors.text} />
-        ) : (
-          <Text style={styles.buttonText}>{t('onboarding.continue')}</Text>
-        )}
-      </Pressable>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    padding: 24,
+    padding: spacing.x6,
     justifyContent: 'center',
   },
   header: {
-    marginBottom: 40,
+    marginBottom: spacing.x8,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
+    ...baseText.h1,
+    marginBottom: spacing.x2,
   },
   subtitle: {
-    fontSize: 16,
+    ...baseText.body,
     color: colors.textSecondary,
   },
   permissions: {
-    gap: 16,
-    marginBottom: 24,
+    gap: spacing.x4,
+    marginBottom: spacing.x6,
   },
-  permissionCard: {
+  permissionRow: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.x3,
   },
   permissionIcon: {
     fontSize: 28,
@@ -100,30 +112,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   permissionTitle: {
-    fontSize: 16,
+    ...baseText.body,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
+    marginBottom: spacing.x1,
   },
   permissionDescription: {
-    fontSize: 13,
-    color: colors.textSecondary,
+    ...baseText.caption,
   },
   note: {
-    fontSize: 12,
-    color: colors.accent,
+    ...baseText.caption,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
-  },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '600',
+    marginBottom: spacing.x6,
   },
 });
