@@ -1,6 +1,11 @@
 {
   "common": {
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "comingSoon": "Bientôt disponible"
+  },
+  "splash": {
+    "tagline": "Partagez le trajet. Divisez le tarif.",
+    "caption": "Covoiturage en taxi à l'aéroport"
   },
   "home": {
     "title": "FLOQQ",
@@ -21,10 +26,16 @@
   },
   "auth": {
     "loginTitle": "Content de vous revoir",
+    "loginSubtitle": "Connectez-vous pour planifier votre prochain trajet",
     "signUpTitle": "Créez votre compte",
     "emailPlaceholder": "E-mail",
     "passwordPlaceholder": "Mot de passe",
     "loginButton": "Se connecter",
+    "orSeparator": "ou",
+    "continueWithApple": "Continuer avec Apple",
+    "continueWithGoogle": "Continuer avec Google",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
     "signUpButton": "S'inscrire",
     "noAccount": "Vous n'avez pas de compte ?",
     "signUpLink": "Inscrivez-vous",

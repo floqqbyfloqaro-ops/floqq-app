@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRef } from 'react';
 import { ActivityIndicator, Animated, Pressable, Text } from 'react-native';
 
@@ -9,9 +10,10 @@ type Props = {
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
+  icon?: keyof typeof Ionicons.glyphMap;
 };
 
-export default function SecondaryButton({ label, onPress, loading, disabled }: Props) {
+export default function SecondaryButton({ label, onPress, loading, disabled, icon }: Props) {
   const isDisabled = disabled || loading;
   const press = useRef(new Animated.Value(0)).current;
 
@@ -58,7 +60,10 @@ export default function SecondaryButton({ label, onPress, loading, disabled }: P
         {loading ? (
           <ActivityIndicator color={colors.textPrimary} />
         ) : (
-          <Text style={components.secondaryButton.label}>{label}</Text>
+          <>
+            {icon ? <Ionicons name={icon} size={18} color={colors.textPrimary} /> : null}
+            <Text style={components.secondaryButton.label}>{label}</Text>
+          </>
         )}
       </Animated.View>
     </Pressable>

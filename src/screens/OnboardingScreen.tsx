@@ -26,9 +26,9 @@ export default function OnboardingScreen({ onComplete }: Props) {
 
   return (
     <ScreenBackground
-      source={require('../../assets/bg-hero.png')}
-      naturalWidth={329}
-      naturalHeight={1536}
+      source={require('../../assets/bg-airport-arrival.png')}
+      naturalWidth={941}
+      naturalHeight={1672}
       scrimColor={overlays.scrimHeavy}
     >
       <View style={styles.container}>

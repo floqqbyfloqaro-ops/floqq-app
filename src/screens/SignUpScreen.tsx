@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import AuthTextInput from '../components/AuthTextInput';
 import ErrorNotice from '../components/ErrorNotice';
@@ -17,6 +17,7 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -41,54 +42,79 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
 
   return (
     <ScreenBackground
-      source={require('../../assets/bg-hero.png')}
-      naturalWidth={329}
-      naturalHeight={1536}
+      source={require('../../assets/bg-airport-arrival.png')}
+      naturalWidth={941}
+      naturalHeight={1672}
       scrimColor={overlays.scrimHeavy}
     >
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Text style={styles.title}>{t('auth.signUpTitle')}</Text>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Image source={require('../../assets/icon-full.png')} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.wordmark}>FLOQQ</Text>
 
-        <AuthTextInput
-          placeholder={t('auth.emailPlaceholder')}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-        />
-        <AuthTextInput
-          placeholder={t('auth.passwordPlaceholder')}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+          <Text style={styles.title}>{t('auth.signUpTitle')}</Text>
 
-        {errorMessage ? <ErrorNotice message={errorMessage} onRetry={handleSignUp} retryLabel={t('common.retry')} /> : null}
-        {infoMessage ? <Text style={styles.info}>{infoMessage}</Text> : null}
+          <AuthTextInput
+            variant="card"
+            leadingIcon="mail-outline"
+            placeholder={t('auth.emailPlaceholder')}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+          />
+          <AuthTextInput
+            variant="card"
+            leadingIcon="lock-closed-outline"
+            trailingIcon={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+            onTrailingIconPress={() => setIsPasswordVisible((v) => !v)}
+            trailingIconLabel={isPasswordVisible ? t('auth.hidePassword') : t('auth.showPassword')}
+            placeholder={t('auth.passwordPlaceholder')}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!isPasswordVisible}
+          />
 
-        <PrimaryButton label={t('auth.signUpButton')} onPress={handleSignUp} loading={isSubmitting} />
+          {errorMessage ? <ErrorNotice message={errorMessage} onRetry={handleSignUp} retryLabel={t('common.retry')} /> : null}
+          {infoMessage ? <Text style={styles.info}>{infoMessage}</Text> : null}
 
-        <Pressable
-          onPress={onSwitchToLogin}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          accessibilityRole="button"
-          accessibilityLabel={`${t('auth.haveAccount')} ${t('auth.loginLink')}`}
-        >
-          <Text style={styles.switchText}>
-            {t('auth.haveAccount')} <Text style={styles.switchLink}>{t('auth.loginLink')}</Text>
-          </Text>
-        </Pressable>
+          <PrimaryButton label={t('auth.signUpButton')} onPress={handleSignUp} loading={isSubmitting} />
+
+          <Pressable
+            onPress={onSwitchToLogin}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('auth.haveAccount')} ${t('auth.loginLink')}`}
+          >
+            <Text style={styles.switchText}>
+              {t('auth.haveAccount')} <Text style={styles.switchLink}>{t('auth.loginLink')}</Text>
+            </Text>
+          </Pressable>
+        </ScrollView>
       </KeyboardAvoidingView>
     </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  flex: {
     flex: 1,
-    padding: spacing.x6,
-    justifyContent: 'center',
+  },
+  content: {
+    paddingTop: spacing.x12,
+    paddingHorizontal: spacing.x6,
+    paddingBottom: spacing.x12,
+    alignItems: 'center',
+  },
+  logo: {
+    width: 64,
+    height: 64,
+  },
+  wordmark: {
+    ...baseText.h1,
+    marginTop: spacing.x2,
+    marginBottom: spacing.x6,
   },
   title: {
     ...baseText.h1,
@@ -103,7 +129,9 @@ const styles = StyleSheet.create({
   },
   switchText: {
     ...baseText.bodySmall,
+    color: colors.textSecondary,
     textAlign: 'center',
+    marginTop: spacing.x6,
   },
   switchLink: {
     color: colors.textPrimary,

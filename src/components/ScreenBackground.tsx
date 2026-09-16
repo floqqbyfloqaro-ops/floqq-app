@@ -1,25 +1,54 @@
-import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
+import { Image, ImageSourcePropType, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 type Props = {
   source: ImageSourcePropType;
-  // The source PNGs are unusually tall/narrow (~1:4.7) compared to a phone screen (~1:2.2).
-  // resizeMode="cover" centers its crop, which on this aspect ratio hides the artwork's
-  // focal point (a glow near the top) entirely. Anchoring the image to the top instead -
-  // via absolute position rather than relying on cover's built-in centering - keeps that
-  // focal point visible and crops the excess off the bottom instead.
+  // True "cover" scaling (matches whichever dimension - width or height - needs more scale to
+  // fill the screen) computed from the source's real pixel size, then anchored to the TOP rather
+  // than centered. Some source images concentrate their focal point near the top; a standard
+  // centered crop can hide it entirely on images that are tall/narrow relative to the screen.
+  // Images wide/short relative to the screen get no vertical crop at all under this scaling, so
+  // top-anchoring is a no-op for them - this one computation handles both cases correctly.
   naturalWidth: number;
   naturalHeight: number;
   scrimColor: string;
   children: React.ReactNode;
+  // Which edge stays flush with the screen once the image is scaled to cover - 'top' (default)
+  // keeps today's behavior for every other screen. 'bottom' crops excess off the top instead,
+  // useful when a photo's focal point sits lower in the frame.
+  verticalAlign?: 'top' | 'bottom';
+  // Extra scale beyond the minimum needed to cover the screen, so there's crop room for
+  // verticalAlign to actually trim something. 1 (default) = the old exact behavior.
+  zoom?: number;
 };
 
-export default function ScreenBackground({ source, naturalWidth, naturalHeight, scrimColor, children }: Props) {
+export default function ScreenBackground({
+  source,
+  naturalWidth,
+  naturalHeight,
+  scrimColor,
+  children,
+  verticalAlign = 'top',
+  zoom = 1,
+}: Props) {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
+  const scale = Math.max(screenWidth / naturalWidth, screenHeight / naturalHeight) * zoom;
+  const renderedWidth = naturalWidth * scale;
+  const renderedHeight = naturalHeight * scale;
+  const top = verticalAlign === 'bottom' ? screenHeight - renderedHeight : 0;
+
   return (
     <View style={styles.container}>
       <Image
         source={source}
         resizeMode="cover"
-        style={[styles.image, { aspectRatio: naturalWidth / naturalHeight }]}
+        style={{
+          position: 'absolute',
+          top,
+          left: (screenWidth - renderedWidth) / 2,
+          width: renderedWidth,
+          height: renderedHeight,
+        }}
       />
       <View style={[styles.scrim, { backgroundColor: scrimColor }]} />
       {children}
@@ -30,13 +59,9 @@ export default function ScreenBackground({ source, naturalWidth, naturalHeight, 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
+    height: '100%',
     overflow: 'hidden',
-  },
-  image: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
   },
   scrim: {
     ...StyleSheet.absoluteFill,

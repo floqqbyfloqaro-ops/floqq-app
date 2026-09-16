@@ -99,13 +99,11 @@ export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
     await Linking.openURL(url);
   };
 
-  const isEmpty = !isLoading && !request;
-
   return (
     <ScreenBackground
-      source={isEmpty ? require('../../assets/bg-empty-state.png') : require('../../assets/bg-content.png')}
-      naturalWidth={isEmpty ? 330 : 317}
-      naturalHeight={1536}
+      source={require('../../assets/bg-airport-arrival.png')}
+      naturalWidth={941}
+      naturalHeight={1672}
       scrimColor={overlays.scrimMedium}
     >
       <ScrollView
