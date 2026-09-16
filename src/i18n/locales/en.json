@@ -1,4 +1,7 @@
 {
+  "common": {
+    "retry": "Try again"
+  },
   "home": {
     "title": "FLOQQ",
     "subtitle": "Find a taxi to share at the airport.",
@@ -41,7 +44,10 @@
     "confirmPasswordPlaceholder": "Confirm new password",
     "updatePasswordButton": "Update password",
     "passwordMismatchError": "Passwords don't match.",
-    "passwordTooShortError": "Password must be at least 6 characters."
+    "passwordTooShortError": "Password must be at least 6 characters.",
+    "loginError": "We couldn't log you in. Check your email and password and try again.",
+    "signUpError": "We couldn't create your account. Please try again.",
+    "resetLinkError": "We couldn't send the reset link. Check your email and try again."
   },
   "newRequest": {
     "title": "New ride request",
@@ -62,13 +68,16 @@
     "geocodeError": "We couldn't locate that address. Please check it and try again.",
     "flightLookupChecking": "Checking live flight status…",
     "flightLookupFound": "Estimated landing: {{time}}",
-    "flightLookupNotFound": "Couldn't find live flight status — please set the arrival time manually."
+    "flightLookupNotFound": "Couldn't find live flight status — please set the arrival time manually.",
+    "submitError": "We couldn't submit your request. Check your connection and try again."
   },
   "admin": {
     "title": "Pending requests",
     "back": "Back",
     "loading": "Loading requests…",
     "empty": "No pending requests right now.",
+    "emptyAction": "Refresh",
+    "loadError": "We couldn't load pending requests.",
     "bagsAndWait": "{{bags}} bags · up to {{wait}} min wait",
     "selectedCount": "{{count}} / {{max}} selected",
     "maxSelectedError": "You can select up to {{max}} requests per group.",
@@ -98,11 +107,16 @@
     "statusUnconfirmed": "Unconfirmed - still open to rescoring",
     "statusConfirmed": "Confirmed",
     "confirmGroup": "Confirm group",
-    "detourAndWait": "+{{detour}} min detour · {{wait}} min wait"
+    "detourAndWait": "+{{detour}} min detour · {{wait}} min wait",
+    "loadError": "We couldn't load this group.",
+    "saveError": "We couldn't save the fare split.",
+    "confirmError": "We couldn't confirm the group."
   },
   "myRide": {
     "title": "My ride",
     "empty": "You don't have an active ride request yet.",
+    "emptyAction": "Request a ride",
+    "loadError": "We couldn't load your ride status.",
     "statusPending": "Looking for a match…",
     "statusUnconfirmed": "Matched — waiting for the group to be confirmed.",
     "statusConfirmed": "Your group is confirmed!",

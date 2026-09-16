@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import AuthTextInput from '../components/AuthTextInput';
+import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
+import ScreenBackground from '../components/ScreenBackground';
 import { fetchEstimatedLandingTime } from '../services/flightStatus';
 import { geocodeAddress } from '../services/geocoding';
 import { createPassengerRequest } from '../services/passengerRequests';
-import { colors } from '../theme/colors';
+import { baseText, colors, components, overlays, spacing } from '../theme/colors';
 
 type Props = {
   onSubmitted: () => void;
@@ -113,7 +115,8 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
     setIsSubmitting(false);
 
     if (error) {
-      setErrorMessage(error.message);
+      console.warn('createPassengerRequest failed', error);
+      setErrorMessage(t('newRequest.submitError'));
       return;
     }
 
@@ -122,12 +125,19 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScreenBackground
+      source={require('../../assets/bg-content.png')}
+      naturalWidth={317}
+      naturalHeight={1536}
+      scrimColor={overlays.scrimMedium}
+    >
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>{t('newRequest.title')}</Text>
 
       <Text style={styles.label}>{t('newRequest.flightNumberLabel')}</Text>
       <AuthTextInput
         placeholder={t('newRequest.flightNumberPlaceholder')}
+        accessibilityLabel={t('newRequest.flightNumberLabel')}
         value={flightNumber}
         onChangeText={(text) => {
           setFlightNumber(text);
@@ -143,7 +153,12 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
       ) : null}
 
       <Text style={styles.label}>{t('newRequest.arrivalDateLabel')}</Text>
-      <Pressable style={styles.pickerField} onPress={() => setShowDatePicker(true)}>
+      <Pressable
+        style={styles.pickerField}
+        onPress={() => setShowDatePicker(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('newRequest.arrivalDateLabel')}: ${arrivalDate.toLocaleDateString()}`}
+      >
         <Text style={styles.pickerValue}>{arrivalDate.toLocaleDateString()}</Text>
       </Pressable>
       {showDatePicker ? (
@@ -155,7 +170,12 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
             onChange={handleDateChange}
           />
           {Platform.OS === 'ios' ? (
-            <Pressable onPress={() => setShowDatePicker(false)}>
+            <Pressable
+              onPress={() => setShowDatePicker(false)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('newRequest.done')}
+            >
               <Text style={styles.doneText}>{t('newRequest.done')}</Text>
             </Pressable>
           ) : null}
@@ -163,7 +183,12 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
       ) : null}
 
       <Text style={styles.label}>{t('newRequest.arrivalTimeLabel')}</Text>
-      <Pressable style={styles.pickerField} onPress={() => setShowTimePicker(true)}>
+      <Pressable
+        style={styles.pickerField}
+        onPress={() => setShowTimePicker(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('newRequest.arrivalTimeLabel')}: ${arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+      >
         <Text style={styles.pickerValue}>
           {arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </Text>
@@ -177,7 +202,12 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
             onChange={handleTimeChange}
           />
           {Platform.OS === 'ios' ? (
-            <Pressable onPress={() => setShowTimePicker(false)}>
+            <Pressable
+              onPress={() => setShowTimePicker(false)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('newRequest.done')}
+            >
               <Text style={styles.doneText}>{t('newRequest.done')}</Text>
             </Pressable>
           ) : null}
@@ -187,85 +217,86 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
       <Text style={styles.label}>{t('newRequest.destinationLabel')}</Text>
       <AuthTextInput
         placeholder={t('newRequest.destinationPlaceholder')}
+        accessibilityLabel={t('newRequest.destinationLabel')}
         value={destinationAddress}
         onChangeText={setDestinationAddress}
       />
 
       <Text style={styles.label}>{t('newRequest.bagsLabel')}</Text>
-      <AuthTextInput placeholder="1" value={bagsCount} onChangeText={setBagsCount} keyboardType="number-pad" />
+      <AuthTextInput
+        placeholder="1"
+        accessibilityLabel={t('newRequest.bagsLabel')}
+        value={bagsCount}
+        onChangeText={setBagsCount}
+        keyboardType="number-pad"
+      />
 
       <Text style={styles.label}>{t('newRequest.maxWaitLabel')}</Text>
       <AuthTextInput
         placeholder="15"
+        accessibilityLabel={t('newRequest.maxWaitLabel')}
         value={maxWaitMinutes}
         onChangeText={setMaxWaitMinutes}
         keyboardType="number-pad"
       />
 
-      {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+      {errorMessage ? <ErrorNotice message={errorMessage} onRetry={handleSubmit} retryLabel={t('common.retry')} /> : null}
 
       <PrimaryButton label={t('newRequest.submit')} onPress={handleSubmit} loading={isSubmitting} />
 
-      <Pressable onPress={onCancel}>
+      <Pressable
+        onPress={onCancel}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityRole="button"
+        accessibilityLabel={t('newRequest.cancel')}
+      >
         <Text style={styles.cancelText}>{t('newRequest.cancel')}</Text>
       </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   content: {
-    padding: 24,
-    paddingBottom: 48,
+    padding: spacing.x6,
+    paddingBottom: spacing.x12,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 24,
+    ...baseText.h2,
+    marginBottom: spacing.x6,
   },
   label: {
-    color: colors.textSecondary,
-    marginBottom: 8,
-    fontSize: 13,
+    ...baseText.label,
+    marginBottom: spacing.x2,
   },
   flightLookupNote: {
-    color: colors.accent,
-    fontSize: 12,
-    marginTop: -10,
-    marginBottom: 16,
+    ...baseText.caption,
+    color: colors.info,
+    marginTop: -spacing.x2,
+    marginBottom: spacing.x4,
   },
   pickerField: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 16,
+    ...components.input.base,
+    justifyContent: 'center',
+    marginBottom: spacing.x4,
   },
   pickerValue: {
-    color: colors.text,
-    fontSize: 16,
+    ...baseText.body,
   },
   doneText: {
-    color: colors.primary,
-    fontWeight: '600',
+    color: colors.textPrimary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
     textAlign: 'center',
-    marginBottom: 16,
-  },
-  error: {
-    color: colors.error,
-    marginBottom: 16,
-    textAlign: 'center',
+    marginBottom: spacing.x4,
   },
   cancelText: {
-    color: colors.textSecondary,
+    ...baseText.bodySmall,
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: spacing.x4,
   },
 });

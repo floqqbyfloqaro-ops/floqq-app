@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text } from 'react-native';
 
 import AuthTextInput from '../components/AuthTextInput';
+import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
+import ScreenBackground from '../components/ScreenBackground';
 import { supabase } from '../services/supabase';
-import { colors } from '../theme/colors';
+import { baseText, colors, overlays, spacing } from '../theme/colors';
 
 type Props = {
   onSwitchToLogin: () => void;
@@ -27,7 +29,8 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
     setIsSubmitting(false);
 
     if (error) {
-      setErrorMessage(error.message);
+      console.warn('signUp failed', error);
+      setErrorMessage(t('auth.signUpError'));
       return;
     }
 
@@ -37,68 +40,74 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Text style={styles.title}>{t('auth.signUpTitle')}</Text>
+    <ScreenBackground
+      source={require('../../assets/bg-hero.png')}
+      naturalWidth={329}
+      naturalHeight={1536}
+      scrimColor={overlays.scrimHeavy}
+    >
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Text style={styles.title}>{t('auth.signUpTitle')}</Text>
 
-      <AuthTextInput
-        placeholder={t('auth.emailPlaceholder')}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-      />
-      <AuthTextInput
-        placeholder={t('auth.passwordPlaceholder')}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
+        <AuthTextInput
+          placeholder={t('auth.emailPlaceholder')}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+        />
+        <AuthTextInput
+          placeholder={t('auth.passwordPlaceholder')}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
 
-      {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-      {infoMessage ? <Text style={styles.info}>{infoMessage}</Text> : null}
+        {errorMessage ? <ErrorNotice message={errorMessage} onRetry={handleSignUp} retryLabel={t('common.retry')} /> : null}
+        {infoMessage ? <Text style={styles.info}>{infoMessage}</Text> : null}
 
-      <PrimaryButton label={t('auth.signUpButton')} onPress={handleSignUp} loading={isSubmitting} />
+        <PrimaryButton label={t('auth.signUpButton')} onPress={handleSignUp} loading={isSubmitting} />
 
-      <Pressable onPress={onSwitchToLogin}>
-        <Text style={styles.switchText}>
-          {t('auth.haveAccount')} <Text style={styles.switchLink}>{t('auth.loginLink')}</Text>
-        </Text>
-      </Pressable>
-    </KeyboardAvoidingView>
+        <Pressable
+          onPress={onSwitchToLogin}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel={`${t('auth.haveAccount')} ${t('auth.loginLink')}`}
+        >
+          <Text style={styles.switchText}>
+            {t('auth.haveAccount')} <Text style={styles.switchLink}>{t('auth.loginLink')}</Text>
+          </Text>
+        </Pressable>
+      </KeyboardAvoidingView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    padding: 24,
+    padding: spacing.x6,
     justifyContent: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 32,
+    ...baseText.h1,
     textAlign: 'center',
-  },
-  error: {
-    color: colors.error,
-    marginBottom: 16,
-    textAlign: 'center',
+    marginBottom: spacing.x8,
   },
   info: {
-    color: colors.accent,
-    marginBottom: 16,
+    ...baseText.bodySmall,
+    color: colors.info,
+    marginBottom: spacing.x4,
     textAlign: 'center',
   },
   switchText: {
-    color: colors.textSecondary,
+    ...baseText.bodySmall,
     textAlign: 'center',
   },
   switchLink: {
-    color: colors.primary,
-    fontWeight: '600',
+    color: colors.textPrimary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });
