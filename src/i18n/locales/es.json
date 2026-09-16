@@ -1,6 +1,7 @@
 {
   "common": {
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "comingSoon": "Próximamente"
   },
   "home": {
     "title": "FLOQQ",
@@ -21,10 +22,16 @@
   },
   "auth": {
     "loginTitle": "Bienvenido de nuevo",
+    "loginSubtitle": "Inicia sesión para planear tu próximo viaje",
     "signUpTitle": "Crea tu cuenta",
     "emailPlaceholder": "Correo electrónico",
     "passwordPlaceholder": "Contraseña",
     "loginButton": "Iniciar sesión",
+    "orSeparator": "o",
+    "continueWithApple": "Continuar con Apple",
+    "continueWithGoogle": "Continuar con Google",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña",
     "signUpButton": "Registrarse",
     "noAccount": "¿No tienes una cuenta?",
     "signUpLink": "Regístrate",

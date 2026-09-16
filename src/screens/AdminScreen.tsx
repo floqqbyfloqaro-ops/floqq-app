@@ -195,13 +195,11 @@ export default function AdminScreen({ session, onBack }: Props) {
     setOpenGroupId(data.id);
   };
 
-  const isEmpty = !isLoading && requests.length === 0;
-
   return (
     <ScreenBackground
-      source={isEmpty ? require('../../assets/bg-empty-state.png') : require('../../assets/bg-content.png')}
-      naturalWidth={isEmpty ? 330 : 317}
-      naturalHeight={1536}
+      source={require('../../assets/bg-airport-arrival.png')}
+      naturalWidth={941}
+      naturalHeight={1672}
       scrimColor={overlays.scrimMedium}
     >
       <ScrollView

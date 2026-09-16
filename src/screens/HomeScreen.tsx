@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
@@ -20,12 +20,13 @@ export default function HomeScreen({ onCreateRequest, onOpenMyRide, isAdmin, onO
 
   return (
     <ScreenBackground
-      source={require('../../assets/bg-content.png')}
-      naturalWidth={317}
-      naturalHeight={1536}
+      source={require('../../assets/bg-airport-arrival.png')}
+      naturalWidth={941}
+      naturalHeight={1672}
       scrimColor={overlays.scrimMedium}
     >
       <View style={styles.container}>
+        <Image source={require('../../assets/icon-full.png')} style={styles.logo} resizeMode="contain" />
         <Text style={styles.title}>{t('home.title')}</Text>
         <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
 
@@ -57,6 +58,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.x6,
+  },
+  logo: {
+    width: 64,
+    height: 64,
+    marginBottom: spacing.x2,
   },
   title: {
     ...baseText.h1,

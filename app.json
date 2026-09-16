@@ -29,7 +29,8 @@
           "locationWhenInUsePermission": "FLOQQ uses your location to match you with nearby travelers at the airport."
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
     ]
   }
 }

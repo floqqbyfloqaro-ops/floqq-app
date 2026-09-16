@@ -139,9 +139,9 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
 
   return (
     <ScreenBackground
-      source={require('../../assets/bg-content.png')}
-      naturalWidth={317}
-      naturalHeight={1536}
+      source={require('../../assets/bg-airport-arrival.png')}
+      naturalWidth={941}
+      naturalHeight={1672}
       scrimColor={overlays.scrimMedium}
     >
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -190,6 +190,8 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
 
             <Text style={styles.label}>{t('groupDetail.totalFareLabel')}</Text>
             <AuthTextInput
+              variant="card"
+              leadingIcon="cash-outline"
               placeholder="e.g. 32.50"
               accessibilityLabel={t('groupDetail.totalFareLabel')}
               value={totalFareInput}
@@ -211,6 +213,8 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 ) : null}
                 <Text style={styles.label}>{t('groupDetail.distanceLabel')}</Text>
                 <AuthTextInput
+                  variant="card"
+                  leadingIcon="navigate-outline"
                   placeholder="e.g. 12.5"
                   accessibilityLabel={`${member.flight_number} ${t('groupDetail.distanceLabel')}`}
                   value={distanceInputs[member.id] ?? ''}

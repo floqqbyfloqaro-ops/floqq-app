@@ -1,6 +1,11 @@
 {
   "common": {
-    "retry": "Try again"
+    "retry": "Try again",
+    "comingSoon": "Coming soon"
+  },
+  "splash": {
+    "tagline": "Share the ride. Split the fare.",
+    "caption": "Airport taxi pooling"
   },
   "home": {
     "title": "FLOQQ",
@@ -21,10 +26,16 @@
   },
   "auth": {
     "loginTitle": "Welcome back",
+    "loginSubtitle": "Sign in to plan your next journey",
     "signUpTitle": "Create your account",
     "emailPlaceholder": "Email",
     "passwordPlaceholder": "Password",
-    "loginButton": "Log In",
+    "loginButton": "Sign In",
+    "orSeparator": "or",
+    "continueWithApple": "Continue with Apple",
+    "continueWithGoogle": "Continue with Google",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "signUpButton": "Sign Up",
     "noAccount": "Don't have an account?",
     "signUpLink": "Sign up",

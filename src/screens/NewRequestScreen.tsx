@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,7 +11,7 @@ import ScreenBackground from '../components/ScreenBackground';
 import { fetchEstimatedLandingTime } from '../services/flightStatus';
 import { geocodeAddress } from '../services/geocoding';
 import { createPassengerRequest } from '../services/passengerRequests';
-import { baseText, colors, components, overlays, spacing } from '../theme/colors';
+import { baseText, borders, colors, elevation, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
   onSubmitted: () => void;
@@ -126,16 +127,18 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
 
   return (
     <ScreenBackground
-      source={require('../../assets/bg-content.png')}
-      naturalWidth={317}
-      naturalHeight={1536}
-      scrimColor={overlays.scrimMedium}
+      source={require('../../assets/bg-airport-arrival.png')}
+      naturalWidth={941}
+      naturalHeight={1672}
+      scrimColor={overlays.scrimHeavy}
     >
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>{t('newRequest.title')}</Text>
 
       <Text style={styles.label}>{t('newRequest.flightNumberLabel')}</Text>
       <AuthTextInput
+        variant="card"
+        leadingIcon="airplane-outline"
         placeholder={t('newRequest.flightNumberPlaceholder')}
         accessibilityLabel={t('newRequest.flightNumberLabel')}
         value={flightNumber}
@@ -159,6 +162,7 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
         accessibilityRole="button"
         accessibilityLabel={`${t('newRequest.arrivalDateLabel')}: ${arrivalDate.toLocaleDateString()}`}
       >
+        <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
         <Text style={styles.pickerValue}>{arrivalDate.toLocaleDateString()}</Text>
       </Pressable>
       {showDatePicker ? (
@@ -189,6 +193,7 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
         accessibilityRole="button"
         accessibilityLabel={`${t('newRequest.arrivalTimeLabel')}: ${arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
       >
+        <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
         <Text style={styles.pickerValue}>
           {arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </Text>
@@ -216,6 +221,8 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
 
       <Text style={styles.label}>{t('newRequest.destinationLabel')}</Text>
       <AuthTextInput
+        variant="card"
+        leadingIcon="location-outline"
         placeholder={t('newRequest.destinationPlaceholder')}
         accessibilityLabel={t('newRequest.destinationLabel')}
         value={destinationAddress}
@@ -224,6 +231,8 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
 
       <Text style={styles.label}>{t('newRequest.bagsLabel')}</Text>
       <AuthTextInput
+        variant="card"
+        leadingIcon="briefcase-outline"
         placeholder="1"
         accessibilityLabel={t('newRequest.bagsLabel')}
         value={bagsCount}
@@ -233,6 +242,8 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
 
       <Text style={styles.label}>{t('newRequest.maxWaitLabel')}</Text>
       <AuthTextInput
+        variant="card"
+        leadingIcon="hourglass-outline"
         placeholder="15"
         accessibilityLabel={t('newRequest.maxWaitLabel')}
         value={maxWaitMinutes}
@@ -262,7 +273,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: spacing.x6,
+    paddingTop: spacing.x12,
+    paddingHorizontal: spacing.x6,
     paddingBottom: spacing.x12,
   },
   title: {
@@ -280,9 +292,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.x4,
   },
   pickerField: {
-    ...components.input.base,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 52,
+    paddingHorizontal: spacing.x4,
+    borderRadius: radii.lg,
+    borderWidth: borders.regular,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceCard,
+    gap: spacing.x3,
     marginBottom: spacing.x4,
+    ...elevation.resting,
   },
   pickerValue: {
     ...baseText.body,

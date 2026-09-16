@@ -2,7 +2,6 @@ import './src/i18n';
 
 import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import AdminScreen from './src/screens/AdminScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
@@ -12,13 +11,20 @@ import MyRideScreen from './src/screens/MyRideScreen';
 import NewRequestScreen from './src/screens/NewRequestScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
+import WelcomeSplashScreen from './src/screens/WelcomeSplashScreen';
 import { ADMIN_EMAIL } from './src/constants';
 import { hasCompletedOnboarding, setOnboardingCompleted } from './src/services/onboarding';
 import { supabase } from './src/services/supabase';
-import { colors } from './src/theme/colors';
+
+// The splash screen was designed with no buttons, so it auto-advances instead of waiting for a
+// tap. This also doubles as the "loading" cover while the session/onboarding check resolves -
+// isReady and this minimum timer both have to clear before we move on, so a fast session check
+// doesn't make the splash flash by instantly.
+const MIN_SPLASH_MS = 1800;
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
+  const [minSplashElapsed, setMinSplashElapsed] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgotPassword'>('login');
@@ -35,17 +41,16 @@ export default function App() {
       setSession(newSession);
     });
 
+    const timer = setTimeout(() => setMinSplashElapsed(true), MIN_SPLASH_MS);
+
     return () => {
       authListener.subscription.unsubscribe();
+      clearTimeout(timer);
     };
   }, []);
 
-  if (!isReady) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.accentPrimary} />
-      </View>
-    );
+  if (!isReady || !minSplashElapsed) {
+    return <WelcomeSplashScreen />;
   }
 
   if (showOnboarding) {
@@ -98,12 +103,3 @@ export default function App() {
     />
   );
 }
-
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    backgroundColor: colors.bgPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
