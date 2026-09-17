@@ -64,18 +64,22 @@
     "arrivalTimeLabel": "Hora de llegada",
     "destinationLabel": "Dirección de destino",
     "destinationPlaceholder": "ej. Calle Mayor 12, Madrid",
-    "bagsLabel": "Número de maletas",
-    "maxWaitLabel": "Tiempo máximo de espera (minutos)",
+    "largeLuggageLabel": "Maleta grande (máx. 30 kg)",
+    "handLuggageLabel": "Equipaje de mano",
+    "maxWaitLabel": "Espera máx. para formar el grupo (minutos)",
+    "maxWaitHelper": "Cuánto tiempo estás dispuesto a esperar a que otros pasajeros se unan a tu grupo.",
     "submit": "Enviar solicitud",
     "cancel": "Cancelar",
     "done": "Listo",
     "missingFieldsError": "Por favor completa el número de vuelo y la dirección de destino.",
-    "invalidNumberError": "Por favor introduce números válidos para las maletas y el tiempo de espera.",
+    "invalidNumberError": "Por favor introduce un número válido para el tiempo de espera.",
     "successTitle": "¡Solicitud enviada!",
     "geocodeError": "No pudimos localizar esa dirección. Compruébala e inténtalo de nuevo.",
     "flightLookupChecking": "Consultando el estado del vuelo…",
     "flightLookupFound": "Llegada estimada: {{time}}",
     "flightLookupNotFound": "No encontramos el estado del vuelo en vivo. Por favor, ajusta la hora manualmente.",
+    "arrivalTimeAutoNote": "Rellenado automáticamente desde el vuelo {{flightNumber}}",
+    "nowButtonLabel": "Ahora",
     "submitError": "No pudimos enviar tu solicitud. Comprueba tu conexión e inténtalo de nuevo."
   },
   "admin": {
@@ -124,6 +128,9 @@
     "empty": "Aún no tienes una solicitud de trayecto activa.",
     "emptyAction": "Solicitar un trayecto",
     "loadError": "No pudimos cargar el estado de tu trayecto.",
+    "destinationLabel": "Destino",
+    "arrivalLabel": "Llegada",
+    "statusCancelled": "Trayecto cancelado",
     "statusPending": "Buscando una coincidencia…",
     "statusUnconfirmed": "Emparejado — esperando a que se confirme el grupo.",
     "statusConfirmed": "¡Tu grupo está confirmado!",
@@ -133,5 +140,24 @@
     "pendingNote": "Pago en curso — esto se actualizará automáticamente en cuanto se confirme.",
     "checkoutError": "No se pudo iniciar el pago. Inténtalo de nuevo.",
     "refresh": "Actualizar"
+  },
+  "findingMatch": {
+    "title": "Buscando tu coincidencia...",
+    "subtitle": "Estamos buscando viajeros que van en la misma dirección.",
+    "maxWaitLabel": "Espera máx.",
+    "maxWaitValue": "{{minutes}} min",
+    "editButton": "Editar",
+    "tip": "¡Cuanto más flexible seas, mejor será la coincidencia!",
+    "cancelButton": "Cancelar trayecto",
+    "cancelling": "Cancelando…",
+    "cancelConfirmTitle": "¿Cancelar tu trayecto?",
+    "cancelConfirmMessage": "Esto cancelará tu solicitud de trayecto actual. Siempre puedes enviar una nueva.",
+    "cancelConfirmDismiss": "Seguir buscando",
+    "cancelConfirmAction": "Cancelar trayecto",
+    "cancelError": "No pudimos cancelar tu trayecto. Inténtalo de nuevo."
+  },
+  "groupDetailsPlaceholder": {
+    "title": "Detalles del grupo",
+    "body": "Esta pantalla llegará pronto — tu grupo está confirmado y aquí mostraremos todos los detalles."
   }
 }

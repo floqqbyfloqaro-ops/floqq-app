@@ -12,11 +12,15 @@ import { SERVICE_FEE_EUR } from '../constants';
 import { createServiceFeeCheckout } from '../services/payments';
 import { fetchMyGroupStatus, fetchMyLatestRequest, MyPassengerRequest, MyTaxiGroup } from '../services/passengerRequests';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
+import FindingMatchScreen from './FindingMatchScreen';
+import GroupDetailsScreen from './GroupDetailsScreen';
 
 type Props = {
   onBack: () => void;
   onCreateRequest: () => void;
 };
+
+type SubScreen = 'findingMatch' | 'groupDetails' | null;
 
 export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
   const { t } = useTranslation();
@@ -28,6 +32,7 @@ export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
   const [isPaying, setIsPaying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [subScreen, setSubScreen] = useState<SubScreen>(null);
 
   const loadData = useCallback(async () => {
     setErrorMessage(null);
@@ -99,6 +104,30 @@ export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
     await Linking.openURL(url);
   };
 
+  const handleCardPress = () => {
+    if (!request || request.status === 'cancelled') return;
+    const isSearchingPhase = !group || group.status === 'unconfirmed';
+    setSubScreen(isSearchingPhase ? 'findingMatch' : 'groupDetails');
+  };
+
+  if (subScreen === 'findingMatch' && request) {
+    return (
+      <FindingMatchScreen
+        request={request}
+        onBack={() => setSubScreen(null)}
+        onEdit={onCreateRequest}
+        onCancelled={() => {
+          setSubScreen(null);
+          loadData();
+        }}
+      />
+    );
+  }
+
+  if (subScreen === 'groupDetails') {
+    return <GroupDetailsScreen onBack={() => setSubScreen(null)} />;
+  }
+
   return (
     <ScreenBackground
       source={require('../../assets/bg-airport-arrival.png')}
@@ -137,9 +166,25 @@ export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
             <Text style={styles.emptyText}>{t('myRide.empty')}</Text>
             <PrimaryButton label={t('myRide.emptyAction')} onPress={onCreateRequest} />
           </View>
+        ) : request.status === 'cancelled' ? (
+          <View style={styles.emptyState}>
+            <Card style={styles.cancelledCard} accessibilityLabel={t('myRide.title')}>
+              <Text style={styles.flightNumber}>{request.flight_number}</Text>
+              <StatusPill status="Cancelled" label={t('myRide.statusCancelled')} />
+            </Card>
+            <PrimaryButton label={t('myRide.emptyAction')} onPress={onCreateRequest} />
+          </View>
         ) : (
-          <Card>
+          <Card onPress={handleCardPress} accessibilityLabel={t('myRide.title')}>
             <Text style={styles.flightNumber}>{request.flight_number}</Text>
+
+            <Text style={styles.fieldLabel}>{t('myRide.destinationLabel')}</Text>
+            <Text style={styles.destinationText}>{request.destination_address}</Text>
+
+            <Text style={styles.fieldLabel}>{t('myRide.arrivalLabel')}</Text>
+            <Text style={styles.arrivalText}>
+              {new Date(request.arrival_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+            </Text>
 
             {!group ? (
               <StatusPill status="Searching" label={t('myRide.statusPending')} />
@@ -206,6 +251,21 @@ const styles = StyleSheet.create({
   flightNumber: {
     ...baseText.h3,
     marginBottom: spacing.x3,
+  },
+  fieldLabel: {
+    ...baseText.label,
+    marginBottom: spacing.x1,
+  },
+  destinationText: {
+    ...baseText.body,
+    marginBottom: spacing.x3,
+  },
+  arrivalText: {
+    ...baseText.body,
+    marginBottom: spacing.x3,
+  },
+  cancelledCard: {
+    marginBottom: spacing.x6,
   },
   feeNote: {
     ...baseText.bodySmall,

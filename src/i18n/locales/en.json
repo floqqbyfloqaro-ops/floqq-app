@@ -68,18 +68,22 @@
     "arrivalTimeLabel": "Arrival time",
     "destinationLabel": "Destination address",
     "destinationPlaceholder": "e.g. 12 Rue de Rivoli, Paris",
-    "bagsLabel": "Number of bags",
-    "maxWaitLabel": "Maximum waiting time (minutes)",
+    "largeLuggageLabel": "Large luggage (max 30kg)",
+    "handLuggageLabel": "Hand luggage",
+    "maxWaitLabel": "Max wait for group to form (minutes)",
+    "maxWaitHelper": "How long you're willing to wait for other passengers to join your group.",
     "submit": "Submit request",
     "cancel": "Cancel",
     "done": "Done",
     "missingFieldsError": "Please fill in the flight number and destination address.",
-    "invalidNumberError": "Please enter valid numbers for bags and waiting time.",
+    "invalidNumberError": "Please enter a valid number for waiting time.",
     "successTitle": "Request submitted!",
     "geocodeError": "We couldn't locate that address. Please check it and try again.",
     "flightLookupChecking": "Checking live flight status…",
     "flightLookupFound": "Estimated landing: {{time}}",
     "flightLookupNotFound": "Couldn't find live flight status — please set the arrival time manually.",
+    "arrivalTimeAutoNote": "Auto-filled from flight {{flightNumber}}",
+    "nowButtonLabel": "Now",
     "submitError": "We couldn't submit your request. Check your connection and try again."
   },
   "admin": {
@@ -128,6 +132,9 @@
     "empty": "You don't have an active ride request yet.",
     "emptyAction": "Request a ride",
     "loadError": "We couldn't load your ride status.",
+    "destinationLabel": "Destination",
+    "arrivalLabel": "Arrival",
+    "statusCancelled": "Ride cancelled",
     "statusPending": "Looking for a match…",
     "statusUnconfirmed": "Matched — waiting for the group to be confirmed.",
     "statusConfirmed": "Your group is confirmed!",
@@ -137,5 +144,24 @@
     "pendingNote": "Payment in progress — this updates automatically once it's confirmed.",
     "checkoutError": "Couldn't start checkout. Please try again.",
     "refresh": "Refresh"
+  },
+  "findingMatch": {
+    "title": "Finding your match...",
+    "subtitle": "We're looking for travelers going in the same direction.",
+    "maxWaitLabel": "Max wait",
+    "maxWaitValue": "{{minutes}} min",
+    "editButton": "Edit",
+    "tip": "The more flexible you are, the better the match!",
+    "cancelButton": "Cancel ride",
+    "cancelling": "Cancelling…",
+    "cancelConfirmTitle": "Cancel your ride?",
+    "cancelConfirmMessage": "This will cancel your current ride request. You can always submit a new one.",
+    "cancelConfirmDismiss": "Keep searching",
+    "cancelConfirmAction": "Cancel ride",
+    "cancelError": "We couldn't cancel your ride. Please try again."
+  },
+  "groupDetailsPlaceholder": {
+    "title": "Group details",
+    "body": "This screen is coming soon — your group is confirmed, and we'll show the full details here."
   }
 }
