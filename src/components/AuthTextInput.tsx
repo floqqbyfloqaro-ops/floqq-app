@@ -117,7 +117,7 @@ export default function AuthTextInput({
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginBottom: 16,
+    marginBottom: spacing.x4,
   },
 });
 

@@ -68,18 +68,22 @@
     "arrivalTimeLabel": "Heure d'arrivée",
     "destinationLabel": "Adresse de destination",
     "destinationPlaceholder": "ex. 12 rue de Rivoli, Paris",
-    "bagsLabel": "Nombre de bagages",
-    "maxWaitLabel": "Temps d'attente maximum (minutes)",
+    "largeLuggageLabel": "Bagage en soute (max 30 kg)",
+    "handLuggageLabel": "Bagage à main",
+    "maxWaitLabel": "Attente max. pour former le groupe (minutes)",
+    "maxWaitHelper": "Le temps que vous êtes prêt à attendre pour que d'autres passagers rejoignent votre groupe.",
     "submit": "Envoyer la demande",
     "cancel": "Annuler",
     "done": "Valider",
     "missingFieldsError": "Veuillez renseigner le numéro de vol et l'adresse de destination.",
-    "invalidNumberError": "Veuillez entrer des nombres valides pour les bagages et le temps d'attente.",
+    "invalidNumberError": "Veuillez entrer un nombre valide pour le temps d'attente.",
     "successTitle": "Demande envoyée !",
     "geocodeError": "Nous n'avons pas trouvé cette adresse. Vérifiez-la et réessayez.",
     "flightLookupChecking": "Vérification du statut du vol…",
     "flightLookupFound": "Atterrissage estimé : {{time}}",
     "flightLookupNotFound": "Statut du vol indisponible en direct — veuillez régler l'heure manuellement.",
+    "arrivalTimeAutoNote": "Rempli automatiquement depuis le vol {{flightNumber}}",
+    "nowButtonLabel": "Maintenant",
     "submitError": "Impossible d'envoyer votre demande. Vérifiez votre connexion et réessayez."
   },
   "admin": {
@@ -128,6 +132,9 @@
     "empty": "Vous n'avez pas encore de demande de trajet active.",
     "emptyAction": "Demander un trajet",
     "loadError": "Impossible de charger le statut de votre trajet.",
+    "destinationLabel": "Destination",
+    "arrivalLabel": "Arrivée",
+    "statusCancelled": "Trajet annulé",
     "statusPending": "Recherche d'une correspondance…",
     "statusUnconfirmed": "Groupé — en attente de confirmation du groupe.",
     "statusConfirmed": "Votre groupe est confirmé !",
@@ -137,5 +144,24 @@
     "pendingNote": "Paiement en cours — cette page se mettra à jour automatiquement une fois confirmé.",
     "checkoutError": "Impossible de démarrer le paiement. Veuillez réessayer.",
     "refresh": "Actualiser"
+  },
+  "findingMatch": {
+    "title": "Recherche de votre correspondance...",
+    "subtitle": "Nous recherchons des voyageurs allant dans la même direction.",
+    "maxWaitLabel": "Attente max.",
+    "maxWaitValue": "{{minutes}} min",
+    "editButton": "Modifier",
+    "tip": "Plus vous êtes flexible, meilleure sera la correspondance !",
+    "cancelButton": "Annuler le trajet",
+    "cancelling": "Annulation…",
+    "cancelConfirmTitle": "Annuler votre trajet ?",
+    "cancelConfirmMessage": "Cela annulera votre demande de trajet actuelle. Vous pourrez toujours en soumettre une nouvelle.",
+    "cancelConfirmDismiss": "Continuer la recherche",
+    "cancelConfirmAction": "Annuler le trajet",
+    "cancelError": "Impossible d'annuler votre trajet. Veuillez réessayer."
+  },
+  "groupDetailsPlaceholder": {
+    "title": "Détails du groupe",
+    "body": "Cet écran arrive bientôt — votre groupe est confirmé, nous afficherons ici tous les détails."
   }
 }
