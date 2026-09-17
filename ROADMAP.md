@@ -19,8 +19,10 @@ FLOQQ is an MVP that matches airport-arrival passengers into shared taxi groups.
 - Forgot-password flow, including a GitHub Pages-hosted reset page
 - A full app design/UI pass across auth, onboarding, home, my-ride, and admin screens
 - A fare-split calculation utility (`src/services/fareSplit.ts`, proportional to distance) already exists and is wired into the admin's GroupDetailScreen, where an admin manually enters each passenger's distance and total fare to preview the split — this is an internal admin tool, not yet passenger-facing or tied to real payment collection
+- New Ride Request form rework: separate large/hand luggage picker fields, Google Places Autocomplete for the destination address, and an arrival time that auto-fills and locks once a flight's estimated landing time is found (falls back to a normal editable field, with a "Now" quick-select, if the lookup fails or the flight number is cleared)
+- A pre-match "Finding your match" screen (with a live pulsing search animation) shown while a request is still searching, plus the ability to cancel a pending request; the My Ride card now also shows destination, arrival time, and a status badge, and routes to either that screen or a placeholder group-details screen depending on status
 
-Today a passenger can sign up, log in, submit a ride request, get auto-matched into a group, and pay the fixed FLOQQ service fee in-app. Nothing yet exists for what happens between "group confirmed + fee paid" and "ride is over" — that gap is the roadmap below.
+Today a passenger can sign up, log in, submit a ride request (with the reworked luggage/destination/flight fields above), watch the new "Finding your match" screen or cancel while searching, get auto-matched into a group, and pay the fixed FLOQQ service fee in-app. Nothing yet exists for what happens between "group confirmed + fee paid" and "ride is over" — that gap is the roadmap below.
 
 ## Up next: the post-payment ride flow
 
@@ -41,3 +43,4 @@ Once the service fee is paid, six steps remain to take a group from "confirmed" 
 - **In-app taxi payment**: does FLOQQ take payment from the driver's side (driver has an app/terminal) or does one passenger pay the driver directly (cash/card) and get reimbursed via step 5? This determines whether step 4 needs a driver-facing surface at all. _(Open comment thread on the live doc — unresolved as of this snapshot.)_
 - **Settlement (step 5)**: reuses the existing Stripe integration (service fee already uses Checkout + webhook) or needs a payout/transfer mechanism (e.g. Stripe Connect) to move money between passengers?
 - **Finalize (step 6)**: what does "done" mean for a group/request in the data model — a new status value, a ride-history table? Any rating/feedback step expected here?
+- **Candidate visibility while searching**: the "Finding your match" screen currently shows generic placeholder avatars, not real candidate counts. The existing corridor-match DB function isn't security-definer, so RLS limits a passenger's query to their own row — showing a real count would need a new security-definer RPC returning just an anonymized number, which hasn't been built yet.
