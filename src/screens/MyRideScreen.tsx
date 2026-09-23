@@ -17,7 +17,7 @@ import GroupDetailsScreen from './GroupDetailsScreen';
 
 type Props = {
   onBack: () => void;
-  onCreateRequest: () => void;
+  onCreateRequest: (requestId?: string) => void;
 };
 
 type SubScreen = 'findingMatch' | 'groupDetails' | null;
@@ -115,7 +115,7 @@ export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
       <FindingMatchScreen
         request={request}
         onBack={() => setSubScreen(null)}
-        onEdit={onCreateRequest}
+        onEdit={() => onCreateRequest(request.id)}
         onCancelled={() => {
           setSubScreen(null);
           loadData();
@@ -164,7 +164,7 @@ export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
         ) : !request ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>{t('myRide.empty')}</Text>
-            <PrimaryButton label={t('myRide.emptyAction')} onPress={onCreateRequest} />
+            <PrimaryButton label={t('myRide.emptyAction')} onPress={() => onCreateRequest()} />
           </View>
         ) : request.status === 'cancelled' ? (
           <View style={styles.emptyState}>
@@ -172,7 +172,7 @@ export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
               <Text style={styles.flightNumber}>{request.flight_number}</Text>
               <StatusPill status="Cancelled" label={t('myRide.statusCancelled')} />
             </Card>
-            <PrimaryButton label={t('myRide.emptyAction')} onPress={onCreateRequest} />
+            <PrimaryButton label={t('myRide.emptyAction')} onPress={() => onCreateRequest()} />
           </View>
         ) : (
           <Card onPress={handleCardPress} accessibilityLabel={t('myRide.title')}>

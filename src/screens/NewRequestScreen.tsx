@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -10,13 +10,15 @@ import PlaceAutocompleteInput from '../components/PlaceAutocompleteInput';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SelectField from '../components/SelectField';
+import Skeleton from '../components/Skeleton';
 import { fetchEstimatedLandingTime } from '../services/flightStatus';
 import { geocodeAddress } from '../services/geocoding';
 import { PlaceDetails } from '../services/placesAutocomplete';
-import { createPassengerRequest } from '../services/passengerRequests';
+import { createPassengerRequest, fetchPassengerRequestById, updatePassengerRequest } from '../services/passengerRequests';
 import { baseText, borders, colors, components, elevation, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
+  requestId?: string;
   onSubmitted: () => void;
   onCancel: () => void;
 };
@@ -32,8 +34,12 @@ const HAND_LUGGAGE_OPTIONS = [
   { label: '2', value: 2 },
 ];
 
-export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
+export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: Props) {
   const { t } = useTranslation();
+  const isEditMode = Boolean(requestId);
+
+  const [isLoadingRequest, setIsLoadingRequest] = useState(isEditMode);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [flightNumber, setFlightNumber] = useState('');
   const [arrivalDate, setArrivalDate] = useState(new Date());
@@ -50,6 +56,44 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
   const [isLookingUpFlight, setIsLookingUpFlight] = useState(false);
   const [flightLookupNote, setFlightLookupNote] = useState<string | null>(null);
   const [hasFlightEstimate, setHasFlightEstimate] = useState(false);
+
+  const loadExistingRequest = useCallback(async () => {
+    if (!requestId) return;
+
+    setLoadError(null);
+    setIsLoadingRequest(true);
+    const { data, error } = await fetchPassengerRequestById(requestId);
+    setIsLoadingRequest(false);
+
+    if (error || !data) {
+      console.warn('fetchPassengerRequestById failed', error);
+      setLoadError(t('newRequest.loadError'));
+      return;
+    }
+
+    setFlightNumber(data.flight_number);
+    const arrival = new Date(data.arrival_at);
+    setArrivalDate(arrival);
+    setArrivalTime(arrival);
+    // Same rule as a fresh flight lookup: a flight number present on the stored ride means the
+    // arrival time came from (or should stay pinned to) that flight, so it loads read-only.
+    setHasFlightEstimate(Boolean(data.flight_number.trim()));
+    setDestinationAddress(data.destination_address);
+    if (data.destination_lat != null && data.destination_lng != null) {
+      setSelectedPlace({
+        formattedAddress: data.destination_address,
+        lat: data.destination_lat,
+        lng: data.destination_lng,
+      });
+    }
+    setLargeLuggageCount(data.large_luggage_count);
+    setHandLuggageCount(data.hand_luggage_count);
+    setMaxWaitMinutes(String(data.max_wait_minutes));
+  }, [requestId, t]);
+
+  useEffect(() => {
+    loadExistingRequest();
+  }, [loadExistingRequest]);
 
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
@@ -128,7 +172,7 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
       return;
     }
 
-    const { error } = await createPassengerRequest({
+    const payload = {
       flightNumber: flightNumber.trim(),
       arrivalAt,
       destinationAddress: destinationAddress.trim(),
@@ -137,16 +181,33 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
       largeLuggageCount,
       handLuggageCount,
       maxWaitMinutes: maxWait,
-    });
-    setIsSubmitting(false);
+    };
 
-    if (error) {
-      console.warn('createPassengerRequest failed', error);
-      setErrorMessage(t('newRequest.submitError'));
-      return;
+    if (isEditMode && requestId) {
+      const { error, blockedReason } = await updatePassengerRequest(requestId, payload);
+      setIsSubmitting(false);
+
+      if (blockedReason === 'group_confirmed') {
+        setErrorMessage(t('edit_locked_group_message'));
+        return;
+      }
+      if (error) {
+        console.warn('updatePassengerRequest failed', error);
+        setErrorMessage(t('newRequest.updateError'));
+        return;
+      }
+    } else {
+      const { error } = await createPassengerRequest(payload);
+      setIsSubmitting(false);
+
+      if (error) {
+        console.warn('createPassengerRequest failed', error);
+        setErrorMessage(t('newRequest.submitError'));
+        return;
+      }
     }
 
-    Alert.alert(t('newRequest.successTitle'));
+    Alert.alert(t(isEditMode ? 'newRequest.updateSuccessTitle' : 'newRequest.successTitle'));
     onSubmitted();
   };
 
@@ -166,8 +227,24 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-      <Text style={styles.title}>{t('newRequest.title')}</Text>
+      <Text style={styles.title}>{t(isEditMode ? 'edit_ride_title' : 'newRequest.title')}</Text>
 
+      {loadError ? (
+        <ErrorNotice message={loadError} onRetry={loadExistingRequest} retryLabel={t('common.retry')} />
+      ) : isLoadingRequest ? (
+        <View accessible accessibilityLabel={t('admin.loading')}>
+          <Skeleton width="50%" height={16} style={styles.skeletonGap} />
+          <Skeleton width="100%" height={52} radius={radii.lg} style={styles.skeletonGap} />
+          <Skeleton width="50%" height={16} style={styles.skeletonGap} />
+          <Skeleton width="100%" height={52} radius={radii.lg} style={styles.skeletonGap} />
+          <Skeleton width="50%" height={16} style={styles.skeletonGap} />
+          <Skeleton width="100%" height={52} radius={radii.lg} style={styles.skeletonGap} />
+          <Skeleton width="50%" height={16} style={styles.skeletonGap} />
+          <Skeleton width="100%" height={90} radius={radii.lg} style={styles.skeletonGap} />
+          <Skeleton width="100%" height={52} radius={radii.lg} />
+        </View>
+      ) : (
+      <>
       <Text style={styles.label}>{t('newRequest.arrivalDateLabel')}</Text>
       <Pressable
         style={styles.pickerField}
@@ -318,7 +395,13 @@ export default function NewRequestScreen({ onSubmitted, onCancel }: Props) {
 
       {errorMessage ? <ErrorNotice message={errorMessage} onRetry={handleSubmit} retryLabel={t('common.retry')} /> : null}
 
-      <PrimaryButton label={t('newRequest.submit')} onPress={handleSubmit} loading={isSubmitting} />
+      <PrimaryButton
+        label={t(isEditMode ? 'save_changes' : 'newRequest.submit')}
+        onPress={handleSubmit}
+        loading={isSubmitting}
+      />
+      </>
+      )}
 
       <Pressable
         onPress={onCancel}
@@ -350,6 +433,9 @@ const styles = StyleSheet.create({
   label: {
     ...baseText.label,
     marginBottom: spacing.x2,
+  },
+  skeletonGap: {
+    marginBottom: spacing.x4,
   },
   flightLookupNote: {
     ...baseText.caption,
