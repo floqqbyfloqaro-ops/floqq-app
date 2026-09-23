@@ -30,7 +30,7 @@ import {
   updateGroupTotalFare,
   updatePassengerDistance,
 } from '../services/adminGrouping';
-import { MatchSuggestion, suggestTaxiGroups } from '../services/matchingEngine';
+import { computeGroupScore, MatchSuggestion, suggestTaxiGroups } from '../services/matchingEngine';
 import { baseText, colors, motion, overlays, spacing } from '../theme/colors';
 import GroupDetailScreen from './GroupDetailScreen';
 
@@ -143,14 +143,35 @@ export default function AdminScreen({ session, onBack }: Props) {
     setErrorMessage(null);
     setIsCreating(true);
     const { data, error } = await createTaxiGroup(selectedIds);
-    setIsCreating(false);
 
     if (error || !data) {
+      setIsCreating(false);
       console.warn('createTaxiGroup failed', error);
       setErrorMessage(t('admin.createGroupError'));
       return;
     }
 
+    // Same route-distance calculation "Suggest groups" already uses, applied to this manually
+    // picked set of passengers too - so the admin never has to look up and type each member's
+    // distance from the airport by hand. Falls back to the manual field in GroupDetailScreen
+    // (left blank) if a destination is missing coordinates or the route lookup fails.
+    const group = requests.filter(
+      (r): r is PendingPassengerRequest & { destination_lat: number; destination_lng: number } =>
+        selectedIds.includes(r.id) && r.destination_lat != null && r.destination_lng != null
+    );
+
+    if (group.length === selectedIds.length) {
+      const suggestion = await computeGroupScore(group);
+      if (suggestion) {
+        const estimatedTotalFare = suggestion.members.reduce((sum, m) => sum + m.fareAmount, 0);
+        await Promise.all([
+          updateGroupTotalFare(data.id, estimatedTotalFare),
+          ...suggestion.members.map((m) => updatePassengerDistance(m.id, m.distanceKm)),
+        ]);
+      }
+    }
+
+    setIsCreating(false);
     setSelectedIds([]);
     await loadData();
     setOpenGroupId(data.id);
@@ -242,7 +263,8 @@ export default function AdminScreen({ session, onBack }: Props) {
                   <Card key={key} style={styles.suggestionCard}>
                     {suggestion.members.map((member) => (
                       <View key={member.id} style={styles.suggestionMemberRow}>
-                        <Text style={styles.rowTitle}>{member.flightNumber}</Text>
+                        <Text style={styles.rowTitle}>{member.passengerName?.trim() || member.flightNumber}</Text>
+                        <Text style={styles.rowSubtitle}>{member.flightNumber}</Text>
                         <Text style={styles.rowMeta}>
                           {t('admin.detourLabel', { minutes: Math.round(member.extraDetourMinutes) })}
                           {'  ·  '}
@@ -287,7 +309,8 @@ export default function AdminScreen({ session, onBack }: Props) {
         ) : (
           requests.map((item) => {
             const isSelected = selectedIds.includes(item.id);
-            const rowLabel = `${item.flight_number}, ${new Date(item.arrival_at).toLocaleString([], {
+            const displayName = item.passenger_name?.trim() || item.flight_number;
+            const rowLabel = `${displayName}, ${item.flight_number}, ${new Date(item.arrival_at).toLocaleString([], {
               dateStyle: 'short',
               timeStyle: 'short',
             })}, ${item.destination_address}, ${t('admin.bagsAndWait', {
@@ -312,8 +335,9 @@ export default function AdminScreen({ session, onBack }: Props) {
                     ) : null}
                   </View>
                   <View style={styles.rowText}>
-                    <Text style={styles.rowTitle}>{item.flight_number}</Text>
+                    <Text style={styles.rowTitle}>{displayName}</Text>
                     <Text style={styles.rowSubtitle}>
+                      {item.flight_number} ·{' '}
                       {new Date(item.arrival_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                     </Text>
                     <Text style={styles.rowSubtitle}>{item.destination_address}</Text>
@@ -345,7 +369,11 @@ export default function AdminScreen({ session, onBack }: Props) {
                   ? t('admin.groupFareSet', { amount: group.total_fare.toFixed(2) })
                   : t('admin.groupFareNotSet');
               const statusLabel =
-                group.status === 'confirmed' ? t('groupDetail.statusConfirmed') : t('groupDetail.statusUnconfirmed');
+                group.status === 'confirmed'
+                  ? t('groupDetail.statusConfirmed')
+                  : group.status === 'dissolved'
+                    ? t('groupDetail.statusDissolved')
+                    : t('groupDetail.statusUnconfirmed');
               return (
                 <Card
                   key={group.id}
@@ -360,7 +388,10 @@ export default function AdminScreen({ session, onBack }: Props) {
                     {new Date(group.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                   </Text>
                   <Text style={styles.groupSubtitle}>{fareLabel}</Text>
-                  <StatusPill status={group.status === 'confirmed' ? 'Group Confirmed' : 'Searching'} label={statusLabel} />
+                  <StatusPill
+                    status={group.status === 'confirmed' ? 'Group Confirmed' : group.status === 'dissolved' ? 'Cancelled' : 'Searching'}
+                    label={statusLabel}
+                  />
                 </Card>
               );
             })

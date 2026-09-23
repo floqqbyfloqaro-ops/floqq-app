@@ -1,6 +1,8 @@
 // Ported verbatim from src/services/fareSplit.ts for the Deno Edge Function runtime.
 // Keep both copies in sync - this is pure logic with zero runtime-specific dependencies.
 
+import { BARCELONA_TAXI_TARIFFS } from './constants.ts';
+
 export type FareSplitInput = {
   id: string;
   distanceKm: number;
@@ -12,6 +14,20 @@ export type FareSplitResult = FareSplitInput & {
 
 function roundToCents(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function isTariff2Time(date: Date): boolean {
+  const day = date.getDay();
+  const hour = date.getHours();
+  const isWeekend = day === 0 || day === 6;
+  const isNight = hour < 8 || hour >= 20;
+  return isWeekend || isNight;
+}
+
+export function calculateBarcelonaTaxiFare(distanceKm: number, rideDateTime: Date): number {
+  const tariff = isTariff2Time(rideDateTime) ? BARCELONA_TAXI_TARIFFS.tariff2 : BARCELONA_TAXI_TARIFFS.tariff1;
+  const metered = tariff.flagFallEur + tariff.perKmEur * distanceKm + BARCELONA_TAXI_TARIFFS.airportSupplementEur;
+  return roundToCents(Math.max(metered, BARCELONA_TAXI_TARIFFS.minimumFareEur));
 }
 
 // Splits totalFare proportionally to each passenger's distance from the airport,

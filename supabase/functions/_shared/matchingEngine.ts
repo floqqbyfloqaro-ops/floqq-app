@@ -10,15 +10,13 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import {
   AIRPORT,
   CORRIDOR_METERS,
-  FARE_BASE_EUR,
-  FARE_PER_KM_EUR,
   GROUP_DEPARTURE_BUFFER_MINUTES,
   MAX_BAGS_PER_TAXI,
   MAX_DETOUR_MINUTES,
   MAX_PASSENGERS_PER_TAXI,
   SCORE_WEIGHTS,
 } from './constants.ts';
-import { calculateFareSplit } from './fareSplit.ts';
+import { calculateBarcelonaTaxiFare, calculateFareSplit } from './fareSplit.ts';
 import { computeRouteMatrix, LatLng, RouteMatrixCell } from './googleRoutes.ts';
 
 export type PendingPassengerRequest = {
@@ -169,16 +167,17 @@ export async function computeGroupScore(group: GeoRequest[]): Promise<MatchSugge
   }
 
   const totalRouteDistanceKm = cumulativeMeters / 1000;
-  const estimatedTotalFare = FARE_BASE_EUR + FARE_PER_KM_EUR * totalRouteDistanceKm;
+
+  const latestArrivalMs = Math.max(...group.map((r) => new Date(r.arrival_at).getTime()));
+  const groupDepartureMs = latestArrivalMs + GROUP_DEPARTURE_BUFFER_MINUTES * 60000;
+
+  const estimatedTotalFare = calculateBarcelonaTaxiFare(totalRouteDistanceKm, new Date(groupDepartureMs));
 
   const fareInputs = group.map((request, index) => ({
     id: request.id,
     distanceKm: (cumulativeByPassengerIndex.get(index)?.meters ?? 0) / 1000,
   }));
   const fareById = new Map(calculateFareSplit(fareInputs, estimatedTotalFare).map((f) => [f.id, f.amount]));
-
-  const latestArrivalMs = Math.max(...group.map((r) => new Date(r.arrival_at).getTime()));
-  const groupDepartureMs = latestArrivalMs + GROUP_DEPARTURE_BUFFER_MINUTES * 60000;
 
   const members: MatchMember[] = group.map((request, index) => {
     const cumulative = cumulativeByPassengerIndex.get(index);
