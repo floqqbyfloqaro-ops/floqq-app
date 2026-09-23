@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 
 export type PendingPassengerRequest = {
   id: string;
+  passenger_name: string | null;
   flight_number: string;
   arrival_at: string;
   destination_address: string;
@@ -15,7 +16,7 @@ export function fetchPendingRequests() {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng'
+      'id, passenger_name, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng'
     )
     .eq('status', 'pending')
     .order('arrival_at', { ascending: true });
@@ -52,7 +53,7 @@ export async function createTaxiGroup(requestIds: string[]) {
   return { data: group, error: null };
 }
 
-export type TaxiGroupStatus = 'unconfirmed' | 'confirmed';
+export type TaxiGroupStatus = 'unconfirmed' | 'confirmed' | 'dissolved';
 
 export type TaxiGroupSummary = {
   id: string;
@@ -74,6 +75,7 @@ export function fetchGroupById(groupId: string) {
 
 export type TaxiGroupMember = {
   id: string;
+  passenger_name: string | null;
   flight_number: string;
   destination_address: string;
   bags_count: number;
@@ -87,7 +89,7 @@ export function fetchGroupMembers(groupId: string) {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, flight_number, destination_address, bags_count, distance_km, extra_detour_minutes, waiting_minutes, individual_score'
+      'id, passenger_name, flight_number, destination_address, bags_count, distance_km, extra_detour_minutes, waiting_minutes, individual_score'
     )
     .eq('group_id', groupId);
 }

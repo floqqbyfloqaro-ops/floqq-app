@@ -174,8 +174,14 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
           <>
             <View style={styles.statusRow}>
               <StatusPill
-                status={groupStatus === 'confirmed' ? 'Group Confirmed' : 'Searching'}
-                label={groupStatus === 'confirmed' ? t('groupDetail.statusConfirmed') : t('groupDetail.statusUnconfirmed')}
+                status={groupStatus === 'confirmed' ? 'Group Confirmed' : groupStatus === 'dissolved' ? 'Cancelled' : 'Searching'}
+                label={
+                  groupStatus === 'confirmed'
+                    ? t('groupDetail.statusConfirmed')
+                    : groupStatus === 'dissolved'
+                      ? t('groupDetail.statusDissolved')
+                      : t('groupDetail.statusUnconfirmed')
+                }
               />
             </View>
 
@@ -201,8 +207,10 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
 
             {members.map((member) => (
               <Card key={member.id} style={styles.memberCard}>
-                <Text style={styles.memberTitle}>{member.flight_number}</Text>
-                <Text style={styles.memberSubtitle}>{member.destination_address}</Text>
+                <Text style={styles.memberTitle}>{member.passenger_name?.trim() || member.flight_number}</Text>
+                <Text style={styles.memberSubtitle}>
+                  {member.flight_number} · {member.destination_address}
+                </Text>
                 {member.extra_detour_minutes != null && member.waiting_minutes != null ? (
                   <Text style={styles.memberScoreNote}>
                     {t('groupDetail.detourAndWait', {
@@ -233,14 +241,15 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 <Text style={styles.sectionTitle}>{t('groupDetail.resultsTitle')}</Text>
                 {results.map((r) => {
                   const member = memberById(r.id);
+                  const displayName = member?.passenger_name?.trim() || member?.flight_number;
                   return (
                     <Card
                       key={r.id}
                       style={styles.resultRow}
                       accessible
-                      accessibilityLabel={`${member?.flight_number}: ${r.amount.toFixed(2)} €`}
+                      accessibilityLabel={`${displayName}: ${r.amount.toFixed(2)} €`}
                     >
-                      <Text style={styles.resultFlight}>{member?.flight_number}</Text>
+                      <Text style={styles.resultFlight}>{displayName}</Text>
                       <Text style={styles.resultAmount}>{r.amount.toFixed(2)} €</Text>
                     </Card>
                   );
