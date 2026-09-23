@@ -15,6 +15,7 @@ type Props = {
 
 export default function SignUpScreen({ onSwitchToLogin }: Props) {
   const { t } = useTranslation();
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -25,8 +26,18 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
   const handleSignUp = async () => {
     setErrorMessage(null);
     setInfoMessage(null);
+
+    if (!fullName.trim()) {
+      setErrorMessage(t('auth.missingNameError'));
+      return;
+    }
+
     setIsSubmitting(true);
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName.trim() } },
+    });
     setIsSubmitting(false);
 
     if (error) {
@@ -54,6 +65,16 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
 
           <Text style={styles.title}>{t('auth.signUpTitle')}</Text>
 
+          <AuthTextInput
+            variant="card"
+            leadingIcon="person-outline"
+            placeholder={t('auth.fullNamePlaceholder')}
+            value={fullName}
+            onChangeText={setFullName}
+            autoCapitalize="words"
+            autoCorrect={false}
+            textContentType="name"
+          />
           <AuthTextInput
             variant="card"
             leadingIcon="mail-outline"

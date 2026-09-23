@@ -1,8 +1,6 @@
 import {
   AIRPORT,
   CORRIDOR_METERS,
-  FARE_BASE_EUR,
-  FARE_PER_KM_EUR,
   GROUP_DEPARTURE_BUFFER_MINUTES,
   MAX_BAGS_PER_TAXI,
   MAX_DETOUR_MINUTES,
@@ -10,7 +8,7 @@ import {
   SCORE_WEIGHTS,
 } from '../constants';
 import { PendingPassengerRequest } from './adminGrouping';
-import { calculateFareSplit } from './fareSplit';
+import { calculateBarcelonaTaxiFare, calculateFareSplit } from './fareSplit';
 import { computeRouteMatrix, LatLng, RouteMatrixCell } from './googleRoutes';
 import { supabase } from './supabase';
 
@@ -18,6 +16,7 @@ type GeoRequest = PendingPassengerRequest & { destination_lat: number; destinati
 
 export type MatchMember = {
   id: string;
+  passengerName: string | null;
   flightNumber: string;
   extraDetourMinutes: number;
   waitingMinutes: number;
@@ -153,7 +152,13 @@ export async function computeGroupScore(group: GeoRequest[]): Promise<MatchSugge
   }
 
   const totalRouteDistanceKm = cumulativeMeters / 1000;
-  const estimatedTotalFare = FARE_BASE_EUR + FARE_PER_KM_EUR * totalRouteDistanceKm;
+
+  const latestArrivalMs = Math.max(...group.map((r) => new Date(r.arrival_at).getTime()));
+  const groupDepartureMs = latestArrivalMs + GROUP_DEPARTURE_BUFFER_MINUTES * 60000;
+
+  // Real regulated Barcelona tariff (day/night/weekend rate + airport supplement) for the actual
+  // km driven, priced at the taxi's real departure time - not a flat per-km estimate.
+  const estimatedTotalFare = calculateBarcelonaTaxiFare(totalRouteDistanceKm, new Date(groupDepartureMs));
 
   // Reuses the Phase 1 fare-split module - each passenger's share of the estimated total fare,
   // weighted by how far along the shared route their stop is.
@@ -162,9 +167,6 @@ export async function computeGroupScore(group: GeoRequest[]): Promise<MatchSugge
     distanceKm: (cumulativeByPassengerIndex.get(index)?.meters ?? 0) / 1000,
   }));
   const fareById = new Map(calculateFareSplit(fareInputs, estimatedTotalFare).map((f) => [f.id, f.amount]));
-
-  const latestArrivalMs = Math.max(...group.map((r) => new Date(r.arrival_at).getTime()));
-  const groupDepartureMs = latestArrivalMs + GROUP_DEPARTURE_BUFFER_MINUTES * 60000;
 
   const members: MatchMember[] = group.map((request, index) => {
     const cumulative = cumulativeByPassengerIndex.get(index);
@@ -180,6 +182,7 @@ export async function computeGroupScore(group: GeoRequest[]): Promise<MatchSugge
 
     return {
       id: request.id,
+      passengerName: request.passenger_name,
       flightNumber: request.flight_number,
       extraDetourMinutes,
       waitingMinutes,
