@@ -13,6 +13,7 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeSplashScreen from './src/screens/WelcomeSplashScreen';
 import { ADMIN_EMAIL } from './src/constants';
+import WebAppFrame from './src/components/WebAppFrame';
 import { hasCompletedOnboarding, setOnboardingCompleted } from './src/services/onboarding';
 import { supabase } from './src/services/supabase';
 
@@ -23,12 +24,26 @@ import { supabase } from './src/services/supabase';
 const MIN_SPLASH_MS = 1800;
 
 export default function App() {
+  return (
+    <WebAppFrame>
+      <AppContent />
+    </WebAppFrame>
+  );
+}
+
+function AppContent() {
   const [isReady, setIsReady] = useState(false);
   const [minSplashElapsed, setMinSplashElapsed] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgotPassword'>('login');
   const [mainScreen, setMainScreen] = useState<'home' | 'newRequest' | 'myRide' | 'admin'>('home');
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+
+  const openNewRequest = (requestId?: string) => {
+    setEditingRequestId(requestId ?? null);
+    setMainScreen('newRequest');
+  };
 
   useEffect(() => {
     Promise.all([hasCompletedOnboarding(), supabase.auth.getSession()]).then(([completed, { data }]) => {
@@ -78,16 +93,21 @@ export default function App() {
   if (mainScreen === 'newRequest') {
     return (
       <NewRequestScreen
-        onSubmitted={() => setMainScreen('home')}
-        onCancel={() => setMainScreen('home')}
+        requestId={editingRequestId ?? undefined}
+        onSubmitted={() => {
+          setEditingRequestId(null);
+          setMainScreen('home');
+        }}
+        onCancel={() => {
+          setEditingRequestId(null);
+          setMainScreen('home');
+        }}
       />
     );
   }
 
   if (mainScreen === 'myRide') {
-    return (
-      <MyRideScreen onBack={() => setMainScreen('home')} onCreateRequest={() => setMainScreen('newRequest')} />
-    );
+    return <MyRideScreen onBack={() => setMainScreen('home')} onCreateRequest={openNewRequest} />;
   }
 
   if (mainScreen === 'admin') {
@@ -96,7 +116,7 @@ export default function App() {
 
   return (
     <HomeScreen
-      onCreateRequest={() => setMainScreen('newRequest')}
+      onCreateRequest={() => openNewRequest()}
       onOpenMyRide={() => setMainScreen('myRide')}
       isAdmin={session.user?.email === ADMIN_EMAIL}
       onOpenAdmin={() => setMainScreen('admin')}

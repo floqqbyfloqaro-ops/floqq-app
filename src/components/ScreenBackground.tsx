@@ -1,4 +1,5 @@
-import { Image, ImageSourcePropType, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useState } from 'react';
+import { Dimensions, Image, ImageSourcePropType, LayoutChangeEvent, StyleSheet, View } from 'react-native';
 
 type Props = {
   source: ImageSourcePropType;
@@ -30,22 +31,35 @@ export default function ScreenBackground({
   verticalAlign = 'top',
   zoom = 1,
 }: Props) {
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  // Measures its own rendered box rather than the window: on native the two are always the same
+  // (this sits directly under the full-screen root), but on web the window can be an arbitrary
+  // desktop-sized browser viewport while this component itself is constrained to a phone-width
+  // column by WebAppFrame - using the window here would compute the cover-scale against the
+  // wrong (much wider/shorter) box and leave the image mis-scaled or barely visible.
+  const initial = Dimensions.get('window');
+  const [size, setSize] = useState({ width: initial.width, height: initial.height });
 
-  const scale = Math.max(screenWidth / naturalWidth, screenHeight / naturalHeight) * zoom;
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    if (width !== size.width || height !== size.height) {
+      setSize({ width, height });
+    }
+  };
+
+  const scale = Math.max(size.width / naturalWidth, size.height / naturalHeight) * zoom;
   const renderedWidth = naturalWidth * scale;
   const renderedHeight = naturalHeight * scale;
-  const top = verticalAlign === 'bottom' ? screenHeight - renderedHeight : 0;
+  const top = verticalAlign === 'bottom' ? size.height - renderedHeight : 0;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={handleLayout}>
       <Image
         source={source}
         resizeMode="cover"
         style={{
           position: 'absolute',
           top,
-          left: (screenWidth - renderedWidth) / 2,
+          left: (size.width - renderedWidth) / 2,
           width: renderedWidth,
           height: renderedHeight,
         }}

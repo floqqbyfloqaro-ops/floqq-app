@@ -12,14 +12,41 @@ type Props = {
   onComplete: () => void;
 };
 
+// These permission prompts are advisory, not required (the copy on this screen already says as
+// much - "you can change these permissions anytime in settings"), so a slow or unresolved one
+// must never block onboarding forever. Two real ways that could happen without this: the browser
+// permission API can reject instead of resolving in some environments (e.g. an unsupported
+// platform), which with a plain sequential `await` and no try/catch stops execution before
+// onComplete() is ever called; and on web, an unanswered browser permission prompt (the user
+// switches tabs, or ignores it) can leave its promise pending indefinitely.
+const PERMISSION_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(null);
+      }
+    );
+  });
+}
+
 export default function OnboardingScreen({ onComplete }: Props) {
   const { t } = useTranslation();
   const [isRequesting, setIsRequesting] = useState(false);
 
   const handleContinue = async () => {
     setIsRequesting(true);
-    await requestLocationPermission();
-    await requestNotificationPermission();
+    await Promise.all([
+      withTimeout(requestLocationPermission(), PERMISSION_TIMEOUT_MS),
+      withTimeout(requestNotificationPermission(), PERMISSION_TIMEOUT_MS),
+    ]);
     setIsRequesting(false);
     onComplete();
   };
