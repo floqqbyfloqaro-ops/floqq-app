@@ -22,7 +22,11 @@ type Props = {
 // DB function isn't security-definer, so RLS limits a passenger's query to their own row, and
 // there's no avatar/photo concept anywhere in this app's schema. These are generic placeholders,
 // not a claim that this many travelers have actually been found.
-const PLACEHOLDER_AVATAR_COUNT = 3;
+const PLACEHOLDER_AVATARS = [
+  require('../../assets/avatars/avatar-1.png'),
+  require('../../assets/avatars/avatar-2.png'),
+  require('../../assets/avatars/avatar-3.png'),
+];
 
 export default function FindingMatchScreen({ request, onBack, onEdit, onCancelled }: Props) {
   const { t } = useTranslation();
@@ -30,6 +34,7 @@ export default function FindingMatchScreen({ request, onBack, onEdit, onCancelle
   const [cancelError, setCancelError] = useState<string | null>(null);
 
   const pulse = useRef(new Animated.Value(0)).current;
+  const breathe = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -44,9 +49,34 @@ export default function FindingMatchScreen({ request, onBack, onEdit, onCancelle
     return () => loop.stop();
   }, [pulse]);
 
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathe, {
+          toValue: 1,
+          duration: motion.durationSlow,
+          easing: easingStandard,
+          useNativeDriver: true,
+        }),
+        Animated.timing(breathe, {
+          toValue: 0,
+          duration: motion.durationSlow,
+          easing: easingStandard,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [breathe]);
+
   const ringStyle = {
     opacity: pulse.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0.55, 0.15, 0] }),
     transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] }) }],
+  };
+
+  const breatheStyle = {
+    transform: [{ scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) }],
   };
 
   const handleCancelPress = () => {
@@ -97,17 +127,20 @@ export default function FindingMatchScreen({ request, onBack, onEdit, onCancelle
         <Text style={styles.subtitle}>{t('findingMatch.subtitle')}</Text>
 
         <View style={styles.avatarRow}>
-          {Array.from({ length: PLACEHOLDER_AVATAR_COUNT }).map((_, index) => (
-            <View key={index} style={[styles.avatar, index > 0 && styles.avatarOverlap]}>
-              <Ionicons name="person" size={20} color={colors.textSecondary} />
-            </View>
+          {PLACEHOLDER_AVATARS.map((source, index) => (
+            <Animated.View
+              key={index}
+              style={[styles.avatarFrame, index === 1 && styles.avatarFrameRaised, breatheStyle]}
+            >
+              <Image source={source} style={styles.avatarImage} resizeMode="cover" />
+            </Animated.View>
           ))}
         </View>
 
         <View style={styles.centerStage}>
           <Animated.View style={[styles.pulseRing, ringStyle]} />
           <View style={styles.iconGlow}>
-            <Image source={require('../../assets/icon-full.png')} style={styles.centerIcon} resizeMode="contain" />
+            <Image source={require('../../assets/icon-adaptive-fg.png')} style={styles.centerIcon} resizeMode="contain" />
           </View>
         </View>
 
@@ -186,21 +219,28 @@ const styles = StyleSheet.create({
   },
   avatarRow: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.x4,
     marginBottom: spacing.x8,
   },
-  avatar: {
-    width: 48,
-    height: 48,
+  avatarFrame: {
+    width: 56,
+    height: 56,
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceCard,
     borderWidth: borders.regular,
     borderColor: colors.borderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     ...elevation.resting,
   },
-  avatarOverlap: {
-    marginLeft: -spacing.x3,
+  avatarFrameRaised: {
+    marginBottom: spacing.x3,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   centerStage: {
     width: 160,
@@ -228,8 +268,11 @@ const styles = StyleSheet.create({
     ...elevation.floating,
   },
   centerIcon: {
-    width: 64,
-    height: 64,
+    // icon-adaptive-fg.png carries a large built-in safe-zone margin (the glyph fills only
+    // ~58% x 43% of the source canvas), so it needs a bigger box than icon-full.png did to
+    // read at a comparable size inside the 108px glow circle.
+    width: 96,
+    height: 96,
   },
   infoCard: {
     width: '100%',
