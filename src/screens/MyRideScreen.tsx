@@ -105,7 +105,7 @@ export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
   };
 
   const handleCardPress = () => {
-    if (!request || request.status === 'cancelled') return;
+    if (!request || request.status === 'cancelled' || request.status === 'expired') return;
     const isSearchingPhase = !group || group.status === 'unconfirmed';
     setSubScreen(isSearchingPhase ? 'findingMatch' : 'groupDetails');
   };
@@ -166,11 +166,15 @@ export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
             <Text style={styles.emptyText}>{t('myRide.empty')}</Text>
             <PrimaryButton label={t('myRide.emptyAction')} onPress={() => onCreateRequest()} />
           </View>
-        ) : request.status === 'cancelled' ? (
+        ) : request.status === 'cancelled' || request.status === 'expired' ? (
           <View style={styles.emptyState}>
             <Card style={styles.cancelledCard} accessibilityLabel={t('myRide.title')}>
               <Text style={styles.flightNumber}>{request.flight_number}</Text>
-              <StatusPill status="Cancelled" label={t('myRide.statusCancelled')} />
+              {/* Expired reuses the neutral Cancelled pill style; only the label tells them apart. */}
+              <StatusPill
+                status="Cancelled"
+                label={t(request.status === 'expired' ? 'myRide.ride_expired_no_match' : 'myRide.statusCancelled')}
+              />
             </Card>
             <PrimaryButton label={t('myRide.emptyAction')} onPress={() => onCreateRequest()} />
           </View>

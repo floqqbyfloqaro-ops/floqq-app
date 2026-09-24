@@ -14,7 +14,13 @@ import Skeleton from '../components/Skeleton';
 import { fetchEstimatedLandingTime } from '../services/flightStatus';
 import { geocodeAddress } from '../services/geocoding';
 import { PlaceDetails } from '../services/placesAutocomplete';
-import { createPassengerRequest, fetchPassengerRequestById, updatePassengerRequest } from '../services/passengerRequests';
+import {
+  createPassengerRequest,
+  fetchPassengerRequestById,
+  isActiveRideExistsError,
+  isEmailNotVerifiedError,
+  updatePassengerRequest,
+} from '../services/passengerRequests';
 import { baseText, borders, colors, components, elevation, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
@@ -202,7 +208,17 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
 
       if (error) {
         console.warn('createPassengerRequest failed', error);
-        setErrorMessage(t('newRequest.submitError'));
+        // The one-active-ride insert trigger caught what the Home screen check missed (e.g. a
+        // ride created from another device in the meantime).
+        setErrorMessage(
+          t(
+            isActiveRideExistsError(error)
+              ? 'active_ride_exists'
+              : isEmailNotVerifiedError(error)
+                ? 'auth.emailNotVerifiedError'
+                : 'newRequest.submitError'
+          )
+        );
         return;
       }
     }

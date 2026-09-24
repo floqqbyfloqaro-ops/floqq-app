@@ -1,7 +1,8 @@
 import './src/i18n';
 
 import type { Session } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
+import * as Linking from 'expo-linking';
+import { useEffect, useRef, useState } from 'react';
 
 import AdminScreen from './src/screens/AdminScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
@@ -14,6 +15,7 @@ import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeSplashScreen from './src/screens/WelcomeSplashScreen';
 import { ADMIN_EMAIL } from './src/constants';
 import WebAppFrame from './src/components/WebAppFrame';
+import { parseEmailVerifiedLink } from './src/services/emailVerification';
 import { hasCompletedOnboarding, setOnboardingCompleted } from './src/services/onboarding';
 import { supabase } from './src/services/supabase';
 
@@ -39,6 +41,32 @@ function AppContent() {
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgotPassword'>('login');
   const [mainScreen, setMainScreen] = useState<'home' | 'newRequest' | 'myRide' | 'admin'>('home');
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+  const [showEmailVerified, setShowEmailVerified] = useState(false);
+
+  // "Open FLOQQ" on the email-verified page (docs/email-verified.html) opens
+  // floqq://email-verified#access_token=…&refresh_token=… - log the passenger straight in and
+  // confirm the verification on Home. Covers both a cold start and an already-running app.
+  const linkingUrl = Linking.useLinkingURL();
+  const handledLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!linkingUrl || handledLinkRef.current === linkingUrl) return;
+    handledLinkRef.current = linkingUrl;
+
+    const tokens = parseEmailVerifiedLink(linkingUrl);
+    if (!tokens) return;
+
+    supabase.auth
+      .setSession({ access_token: tokens.accessToken, refresh_token: tokens.refreshToken })
+      .then(({ error }) => {
+        if (error) {
+          // Tokens expired or already used - the email is still verified, they just log in normally.
+          console.warn('setSession (email verified link) failed', error);
+          return;
+        }
+        setMainScreen('home');
+        setShowEmailVerified(true);
+      });
+  }, [linkingUrl]);
 
   const openNewRequest = (requestId?: string) => {
     setEditingRequestId(requestId ?? null);
@@ -120,6 +148,8 @@ function AppContent() {
       onOpenMyRide={() => setMainScreen('myRide')}
       isAdmin={session.user?.email === ADMIN_EMAIL}
       onOpenAdmin={() => setMainScreen('admin')}
+      showEmailVerified={showEmailVerified}
+      onDismissEmailVerified={() => setShowEmailVerified(false)}
     />
   );
 }

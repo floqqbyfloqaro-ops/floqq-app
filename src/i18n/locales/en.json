@@ -12,7 +12,14 @@
     "subtitle": "Find a taxi to share at the airport.",
     "newRequestButton": "New ride request",
     "myRideButton": "My ride",
-    "adminButton": "Admin"
+    "adminButton": "Admin",
+    "activeRideView": "View my ride",
+    "activeRideCancelAndCreate": "Cancel it and create a new one",
+    "activeRideConfirmedLocked": "Your ride is in a confirmed group, so it can’t be cancelled from here.",
+    "activeRideCancelConfirm": "Your current ride will be cancelled before you create a new one.",
+    "activeRideCancelConfirmAction": "Yes, cancel it",
+    "activeRideKeep": "Keep my ride",
+    "activeRideCheckError": "We couldn’t check your current ride. Please try again."
   },
   "onboarding": {
     "title": "Welcome to FLOQQ",
@@ -43,7 +50,6 @@
     "signUpLink": "Sign up",
     "haveAccount": "Already have an account?",
     "loginLink": "Log in",
-    "confirmEmailMessage": "Check your inbox to confirm your email before logging in.",
     "logout": "Log Out",
     "forgotPasswordLink": "Forgot password?",
     "resetPasswordTitle": "Reset your password",
@@ -60,7 +66,17 @@
     "passwordTooShortError": "Password must be at least 6 characters.",
     "loginError": "We couldn't log you in. Check your email and password and try again.",
     "signUpError": "We couldn't create your account. Please try again.",
-    "resetLinkError": "We couldn't send the reset link. Check your email and try again."
+    "resetLinkError": "We couldn't send the reset link. Check your email and try again.",
+    "verifyEmailTitle": "Check your inbox",
+    "verifyEmailBody": "We sent a verification link to:",
+    "verifyEmailSpamHint": "Tap the link in the email to activate your account. Can’t find it? Check your spam folder.",
+    "verifyEmailResend": "Resend verification email",
+    "verifyEmailResendIn": "Resend in {{seconds}}s",
+    "verifyEmailResent": "A new verification email is on its way.",
+    "verifyEmailResendError": "We couldn’t resend the email. Please try again in a minute.",
+    "emailVerifiedTitle": "Email verified ✓",
+    "emailVerifiedBody": "Welcome to FLOQQ! Your account is ready to use.",
+    "emailNotVerifiedError": "Please verify your email before requesting a ride."
   },
   "edit_ride_title": "Edit ride",
   "save_changes": "Save changes",
@@ -145,6 +161,7 @@
     "destinationLabel": "Destination",
     "arrivalLabel": "Arrival",
     "statusCancelled": "Ride cancelled",
+    "ride_expired_no_match": "Expired - no match found",
     "statusPending": "Looking for a match…",
     "statusUnconfirmed": "Matched — waiting for the group to be confirmed.",
     "statusConfirmed": "Your group is confirmed!",
@@ -173,5 +190,6 @@
   "groupDetailsPlaceholder": {
     "title": "Group details",
     "body": "This screen is coming soon — your group is confirmed, and we'll show the full details here."
-  }
+  },
+  "active_ride_exists": "You already have an active ride. You can only have one ride at a time."
 }

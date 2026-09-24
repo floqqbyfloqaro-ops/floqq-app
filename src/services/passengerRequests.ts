@@ -43,7 +43,7 @@ export async function createPassengerRequest(input: PassengerRequestInput) {
 
 export type EditablePassengerRequest = {
   id: string;
-  status: 'pending' | 'matched' | 'cancelled';
+  status: 'pending' | 'matched' | 'cancelled' | 'expired';
   flight_number: string;
   arrival_at: string;
   destination_address: string;
@@ -132,7 +132,7 @@ export type ServiceFeeStatus = 'unpaid' | 'pending' | 'paid';
 export type MyPassengerRequest = {
   id: string;
   flight_number: string;
-  status: 'pending' | 'matched' | 'cancelled';
+  status: 'pending' | 'matched' | 'cancelled' | 'expired';
   group_id: string | null;
   service_fee_status: ServiceFeeStatus;
   destination_address: string;
@@ -140,7 +140,13 @@ export type MyPassengerRequest = {
   max_wait_minutes: number;
 };
 
-// The passenger's own most recent request, used by MyRideScreen to show group/payment status.
+const MY_REQUEST_COLUMNS =
+  'id, flight_number, status, group_id, service_fee_status, destination_address, arrival_at, max_wait_minutes';
+
+// The ride MyRideScreen shows: the passenger's active ride if they have one, otherwise their most
+// recent (cancelled/expired) one. Active first, not simply newest - otherwise a newer expired or
+// cancelled row hides a still-active ride and offers "Request a ride" for a passenger who can't
+// have a second one.
 export async function fetchMyLatestRequest() {
   const {
     data: { user },
@@ -150,25 +156,79 @@ export async function fetchMyLatestRequest() {
     return { data: null as MyPassengerRequest | null, error: new Error('You must be logged in.') };
   }
 
-  return supabase
-    .from('passenger_requests')
-    .select('id, flight_number, status, group_id, service_fee_status, destination_address, arrival_at, max_wait_minutes')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle<MyPassengerRequest>();
+  const { data: active, error: activeError } = await fetchMyActiveRequest();
+  if (activeError) {
+    return { data: null as MyPassengerRequest | null, error: activeError };
+  }
+
+  const query = supabase.from('passenger_requests').select(MY_REQUEST_COLUMNS).eq('user_id', user.id);
+
+  return active
+    ? query.eq('id', active.id).maybeSingle<MyPassengerRequest>()
+    : query.order('created_at', { ascending: false }).limit(1).maybeSingle<MyPassengerRequest>();
 }
 
-// Scoped by the "Users can cancel their own passenger requests" RLS policy, which only allows
-// this exact transition (auth.uid() = user_id and the new status is 'cancelled') - it can't be
-// used to edit any other field on the row.
-export function cancelPassengerRequest(requestId: string) {
-  return supabase.from('passenger_requests').update({ status: 'cancelled' }).eq('id', requestId);
+export type CancelPassengerRequestResult = {
+  error: Error | null;
+  // Set when the ride's group is already confirmed - the caller should not offer cancelling.
+  blockedReason?: 'group_confirmed';
+};
+
+// Routed through the cancel-passenger-request Edge Function rather than a plain client-side
+// UPDATE, for the same reason as updatePassengerRequest: a ride in an unconfirmed group has to be
+// detached and that group rebalanced (or dissolved) for whoever's left.
+export async function cancelPassengerRequest(requestId: string): Promise<CancelPassengerRequestResult> {
+  const { error } = await supabase.functions.invoke('cancel-passenger-request', { body: { requestId } });
+
+  if (!error) {
+    return { error: null };
+  }
+
+  const context = (error as { context?: Response }).context;
+  if (context) {
+    try {
+      const body = await context.json();
+      if (body?.error === 'group_confirmed') {
+        return { error, blockedReason: 'group_confirmed' };
+      }
+    } catch {
+      // Fall through to the generic error below.
+    }
+  }
+
+  return { error };
+}
+
+export type MyActiveRequest = {
+  id: string;
+  group_id: string | null;
+  group_status: 'unconfirmed' | 'confirmed' | 'dissolved' | null;
+};
+
+// The caller's one active ride, if any. "Active" is defined once in SQL (is_active_request) and
+// shared with the insert trigger that enforces one active ride per passenger.
+export function fetchMyActiveRequest() {
+  return supabase.rpc('get_my_active_request').maybeSingle<MyActiveRequest>();
+}
+
+function hasPostgresErrorText(error: unknown, text: string) {
+  const e = error as { message?: string; details?: string; hint?: string } | null;
+  return [e?.message, e?.details, e?.hint].some((value) => value?.includes(text));
+}
+
+// Postgres error raised by the enforce_one_active_request insert trigger.
+export function isActiveRideExistsError(error: unknown) {
+  return hasPostgresErrorText(error, 'active_ride_exists');
+}
+
+// Postgres error raised by the enforce_verified_email_for_request insert trigger.
+export function isEmailNotVerifiedError(error: unknown) {
+  return hasPostgresErrorText(error, 'email_not_verified');
 }
 
 export type MyTaxiGroup = {
   id: string;
-  status: 'unconfirmed' | 'confirmed';
+  status: 'unconfirmed' | 'confirmed' | 'dissolved';
 };
 
 export function fetchMyGroupStatus(groupId: string) {
