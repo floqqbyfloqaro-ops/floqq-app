@@ -114,6 +114,7 @@ export type TaxiGroupMember = {
   id: string;
   passenger_name: string | null;
   flight_number: string;
+  arrival_at: string;
   destination_address: string;
   bags_count: number;
   distance_km: number | null;
@@ -126,9 +127,22 @@ export function fetchGroupMembers(groupId: string) {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, passenger_name, flight_number, destination_address, bags_count, distance_km, extra_detour_minutes, waiting_minutes, individual_score'
+      'id, passenger_name, flight_number, arrival_at, destination_address, bags_count, distance_km, extra_detour_minutes, waiting_minutes, individual_score'
     )
     .eq('group_id', groupId);
+}
+
+export type GroupMemberArrival = { group_id: string; arrival_at: string };
+
+// The admin dashboard's Groups list shows each group's ride date/time (its earliest member's
+// arrival) next to when the group itself was created. Only meaningful for groups whose members
+// are still attached via group_id - a dissolved group's members have already been detached, so
+// this is only called for the Active tab's unconfirmed/confirmed groups.
+export function fetchGroupMemberArrivals(groupIds: string[]) {
+  if (groupIds.length === 0) {
+    return Promise.resolve({ data: [] as GroupMemberArrival[], error: null });
+  }
+  return supabase.from('passenger_requests').select('group_id, arrival_at').in('group_id', groupIds).returns<GroupMemberArrival[]>();
 }
 
 export function updatePassengerDistance(requestId: string, distanceKm: number) {

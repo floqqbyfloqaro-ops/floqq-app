@@ -94,3 +94,8 @@ export const SERVICE_FEE_EUR = 2.49;
 // admin can still reveal them with "Show all history"). Pilot default; revisit once there's real
 // History-tab volume to judge against.
 export const ADMIN_HISTORY_DEFAULT_WINDOW_DAYS = 7;
+
+// Every ride is at/around Barcelona-El Prat, so the admin dashboard always displays ride and
+// group dates in this zone, regardless of the admin's own device time zone. See
+// src/utils/formatDateTime.ts.
+export const BARCELONA_TIME_ZONE = 'Europe/Madrid';

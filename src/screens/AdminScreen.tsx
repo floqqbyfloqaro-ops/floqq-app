@@ -23,6 +23,7 @@ import StatusPill from '../components/StatusPill';
 import { ADMIN_EMAIL, ADMIN_HISTORY_DEFAULT_WINDOW_DAYS, MAX_PASSENGERS_PER_TAXI } from '../constants';
 import {
   createTaxiGroup,
+  fetchGroupMemberArrivals,
   fetchHistoryRequests,
   fetchPendingRequests,
   fetchTaxiGroups,
@@ -35,6 +36,7 @@ import {
 } from '../services/adminGrouping';
 import { computeGroupScore, MatchSuggestion, suggestTaxiGroups } from '../services/matchingEngine';
 import { baseText, colors, motion, overlays, spacing } from '../theme/colors';
+import { formatBarcelonaDateTime } from '../utils/formatDateTime';
 import GroupDetailScreen from './GroupDetailScreen';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -61,6 +63,9 @@ export default function AdminScreen({ session, onBack }: Props) {
   const [groups, setGroups] = useState<TaxiGroupSummary[]>([]);
   const [historyRequests, setHistoryRequests] = useState<HistoryPassengerRequest[]>([]);
   const [historyGroups, setHistoryGroups] = useState<TaxiGroupSummary[]>([]);
+  // groupId -> earliest member arrival_at, for the Active tab's "ride date" line. Dissolved
+  // groups have no attached members left, so this is only ever populated for active groups.
+  const [groupRideDates, setGroupRideDates] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -99,7 +104,24 @@ export default function AdminScreen({ session, onBack }: Props) {
       console.warn('fetchTaxiGroups failed', groupsResult.error);
       setErrorMessage(t('admin.loadError'));
     } else {
-      setGroups(groupsResult.data ?? []);
+      const activeGroups = groupsResult.data ?? [];
+      setGroups(activeGroups);
+
+      const { data: arrivals, error: arrivalsError } = await fetchGroupMemberArrivals(
+        activeGroups.map((g) => g.id)
+      );
+      if (arrivalsError) {
+        console.warn('fetchGroupMemberArrivals failed', arrivalsError);
+      } else {
+        const earliestByGroup: Record<string, string> = {};
+        for (const row of arrivals ?? []) {
+          const current = earliestByGroup[row.group_id];
+          if (!current || new Date(row.arrival_at).getTime() < new Date(current).getTime()) {
+            earliestByGroup[row.group_id] = row.arrival_at;
+          }
+        }
+        setGroupRideDates(earliestByGroup);
+      }
     }
 
     if (historyRequestsResult.error) {
@@ -369,10 +391,7 @@ export default function AdminScreen({ session, onBack }: Props) {
           requests.map((item) => {
             const isSelected = selectedIds.includes(item.id);
             const displayName = item.passenger_name?.trim() || item.flight_number;
-            const rowLabel = `${displayName}, ${item.flight_number}, ${new Date(item.arrival_at).toLocaleString([], {
-              dateStyle: 'short',
-              timeStyle: 'short',
-            })}, ${item.destination_address}, ${t('admin.bagsAndWait', {
+            const rowLabel = `${displayName}, ${item.flight_number}, ${formatBarcelonaDateTime(item.arrival_at)}, ${item.destination_address}, ${t('admin.bagsAndWait', {
               bags: item.bags_count,
               wait: item.max_wait_minutes,
             })}`;
@@ -396,8 +415,7 @@ export default function AdminScreen({ session, onBack }: Props) {
                   <View style={styles.rowText}>
                     <Text style={styles.rowTitle}>{displayName}</Text>
                     <Text style={styles.rowSubtitle}>
-                      {item.flight_number} ·{' '}
-                      {new Date(item.arrival_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                      {item.flight_number} · {formatBarcelonaDateTime(item.arrival_at)}
                     </Text>
                     <Text style={styles.rowSubtitle}>{item.destination_address}</Text>
                     <Text style={styles.rowMeta}>
@@ -433,19 +451,20 @@ export default function AdminScreen({ session, onBack }: Props) {
                   : group.status === 'dissolved'
                     ? t('groupDetail.statusDissolved')
                     : t('groupDetail.statusUnconfirmed');
+              const rideDate = groupRideDates[group.id];
+              const rideDateLabel = rideDate
+                ? t('admin.groupRideDateLabel', { date: formatBarcelonaDateTime(rideDate) })
+                : null;
+              const createdLabel = t('admin.groupCreatedLabel', { date: formatBarcelonaDateTime(group.created_at) });
               return (
                 <Card
                   key={group.id}
                   onPress={() => setOpenGroupId(group.id)}
                   style={styles.groupRow}
-                  accessibilityLabel={`${new Date(group.created_at).toLocaleString([], {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
-                  })}, ${fareLabel}, ${statusLabel}`}
+                  accessibilityLabel={`${rideDateLabel ? `${rideDateLabel}, ` : ''}${createdLabel}, ${fareLabel}, ${statusLabel}`}
                 >
-                  <Text style={styles.groupTitle}>
-                    {new Date(group.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                  </Text>
+                  {rideDateLabel ? <Text style={styles.groupTitle}>{rideDateLabel}</Text> : null}
+                  <Text style={rideDateLabel ? styles.groupSubtitle : styles.groupTitle}>{createdLabel}</Text>
                   <Text style={styles.groupSubtitle}>{fareLabel}</Text>
                   <StatusPill
                     status={group.status === 'confirmed' ? 'Group Confirmed' : group.status === 'dissolved' ? 'Cancelled' : 'Searching'}
@@ -488,8 +507,7 @@ export default function AdminScreen({ session, onBack }: Props) {
                       <View style={styles.rowText}>
                         <Text style={styles.rowTitle}>{displayName}</Text>
                         <Text style={styles.rowSubtitle}>
-                          {item.flight_number} ·{' '}
-                          {new Date(item.arrival_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                          {item.flight_number} · {formatBarcelonaDateTime(item.arrival_at)}
                         </Text>
                         <Text style={styles.rowSubtitle}>{item.destination_address}</Text>
                         <StatusPill status="Cancelled" label={statusLabel} />
@@ -513,19 +531,15 @@ export default function AdminScreen({ session, onBack }: Props) {
                       ? t('admin.groupFareSet', { amount: group.total_fare.toFixed(2) })
                       : t('admin.groupFareNotSet');
                   const statusLabel = t('groupDetail.statusDissolved');
+                  const createdLabel = t('admin.groupCreatedLabel', { date: formatBarcelonaDateTime(group.created_at) });
                   return (
                     <Card
                       key={group.id}
                       onPress={() => setOpenGroupId(group.id)}
                       style={styles.groupRow}
-                      accessibilityLabel={`${new Date(group.created_at).toLocaleString([], {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                      })}, ${fareLabel}, ${statusLabel}`}
+                      accessibilityLabel={`${createdLabel}, ${fareLabel}, ${statusLabel}`}
                     >
-                      <Text style={styles.groupTitle}>
-                        {new Date(group.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                      </Text>
+                      <Text style={styles.groupTitle}>{createdLabel}</Text>
                       <Text style={styles.groupSubtitle}>{fareLabel}</Text>
                       <StatusPill status="Cancelled" label={statusLabel} />
                     </Card>

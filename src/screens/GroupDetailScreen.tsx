@@ -27,6 +27,7 @@ import {
 } from '../services/adminGrouping';
 import { calculateFareSplit, FareSplitResult } from '../services/fareSplit';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
+import { formatBarcelonaDateTime } from '../utils/formatDateTime';
 
 type Props = {
   groupId: string;
@@ -392,6 +393,9 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 <Text style={styles.memberSubtitle}>
                   {member.flight_number} · {member.destination_address}
                 </Text>
+                <Text style={styles.memberRideDate}>
+                  {t('groupDetail.rideDateLabel', { date: formatBarcelonaDateTime(member.arrival_at) })}
+                </Text>
                 {member.extra_detour_minutes != null && member.waiting_minutes != null ? (
                   <Text style={styles.memberScoreNote}>
                     {t('groupDetail.detourAndWait', {
@@ -471,6 +475,9 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                       <Text style={styles.memberSubtitle}>
                         {candidate.flight_number} · {candidate.destination_address}
                       </Text>
+                      <Text style={styles.memberRideDate}>
+                        {t('groupDetail.rideDateLabel', { date: formatBarcelonaDateTime(candidate.arrival_at) })}
+                      </Text>
                     </Card>
                   ))
                 )
@@ -540,6 +547,11 @@ const styles = StyleSheet.create({
   memberSubtitle: {
     ...baseText.caption,
     marginBottom: spacing.x3,
+  },
+  memberRideDate: {
+    ...baseText.caption,
+    color: colors.info,
+    marginBottom: spacing.x2,
   },
   results: {
     marginTop: spacing.x6,
