@@ -20,11 +20,14 @@ import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
-import { ADMIN_EMAIL, MAX_PASSENGERS_PER_TAXI } from '../constants';
+import { ADMIN_EMAIL, ADMIN_HISTORY_DEFAULT_WINDOW_DAYS, MAX_PASSENGERS_PER_TAXI } from '../constants';
 import {
   createTaxiGroup,
+  fetchHistoryRequests,
   fetchPendingRequests,
   fetchTaxiGroups,
+  HISTORY_GROUP_STATUSES,
+  HistoryPassengerRequest,
   PendingPassengerRequest,
   TaxiGroupSummary,
   updateGroupTotalFare,
@@ -56,6 +59,8 @@ export default function AdminScreen({ session, onBack }: Props) {
 
   const [requests, setRequests] = useState<PendingPassengerRequest[]>([]);
   const [groups, setGroups] = useState<TaxiGroupSummary[]>([]);
+  const [historyRequests, setHistoryRequests] = useState<HistoryPassengerRequest[]>([]);
+  const [historyGroups, setHistoryGroups] = useState<TaxiGroupSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -65,11 +70,18 @@ export default function AdminScreen({ session, onBack }: Props) {
   const [suggestions, setSuggestions] = useState<MatchSuggestion[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [creatingSuggestionKey, setCreatingSuggestionKey] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const hasLoadedOnce = useRef(false);
 
   const loadData = useCallback(async () => {
     setIsLoading(!hasLoadedOnce.current);
-    const [pendingResult, groupsResult] = await Promise.all([fetchPendingRequests(), fetchTaxiGroups()]);
+    const [pendingResult, groupsResult, historyRequestsResult, historyGroupsResult] = await Promise.all([
+      fetchPendingRequests(),
+      fetchTaxiGroups(),
+      fetchHistoryRequests(),
+      fetchTaxiGroups(HISTORY_GROUP_STATUSES),
+    ]);
     hasLoadedOnce.current = true;
     setIsLoading(false);
     setIsRefreshing(false);
@@ -88,6 +100,20 @@ export default function AdminScreen({ session, onBack }: Props) {
       setErrorMessage(t('admin.loadError'));
     } else {
       setGroups(groupsResult.data ?? []);
+    }
+
+    if (historyRequestsResult.error) {
+      console.warn('fetchHistoryRequests failed', historyRequestsResult.error);
+      setErrorMessage(t('admin.historyLoadError'));
+    } else {
+      setHistoryRequests(historyRequestsResult.data ?? []);
+    }
+
+    if (historyGroupsResult.error) {
+      console.warn('fetchTaxiGroups (history) failed', historyGroupsResult.error);
+      setErrorMessage(t('admin.historyLoadError'));
+    } else {
+      setHistoryGroups(historyGroupsResult.data ?? []);
     }
   }, [t]);
 
@@ -216,6 +242,18 @@ export default function AdminScreen({ session, onBack }: Props) {
     setOpenGroupId(data.id);
   };
 
+  // Never deletes anything - just hides history older than the default window until the admin
+  // asks to see it all, so History doesn't grow unbounded either.
+  const historyCutoff = Date.now() - ADMIN_HISTORY_DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const visibleHistoryRequests = showAllHistory
+    ? historyRequests
+    : historyRequests.filter((r) => new Date(r.arrival_at).getTime() >= historyCutoff);
+  const visibleHistoryGroups = showAllHistory
+    ? historyGroups
+    : historyGroups.filter((g) => new Date(g.created_at).getTime() >= historyCutoff);
+  const hiddenHistoryCount =
+    historyRequests.length + historyGroups.length - visibleHistoryRequests.length - visibleHistoryGroups.length;
+
   return (
     <ScreenBackground
       source={require('../../assets/bg-airport-arrival.png')}
@@ -242,8 +280,29 @@ export default function AdminScreen({ session, onBack }: Props) {
           <Text style={styles.title}>{t('admin.title')}</Text>
         </View>
 
+        <View style={styles.tabRow} accessibilityRole="tablist">
+          <Pressable
+            onPress={() => setActiveTab('active')}
+            style={[styles.tab, activeTab === 'active' && styles.tabActive]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'active' }}
+          >
+            <Text style={[styles.tabText, activeTab === 'active' && styles.tabTextActive]}>{t('admin.tabActive')}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveTab('history')}
+            style={[styles.tab, activeTab === 'history' && styles.tabActive]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'history' }}
+          >
+            <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>{t('admin.tabHistory')}</Text>
+          </Pressable>
+        </View>
+
         {errorMessage ? <ErrorNotice message={errorMessage} onRetry={loadData} retryLabel={t('common.retry')} /> : null}
 
+        {activeTab === 'active' ? (
+          <>
         <View style={styles.suggestionsSection}>
           <PrimaryButton
             label={t('admin.suggestGroups')}
@@ -397,6 +456,103 @@ export default function AdminScreen({ session, onBack }: Props) {
             })
           )}
         </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.groupsSection}>
+              <Text style={styles.sectionTitle}>{t('admin.historyRequestsTitle')}</Text>
+              {isLoading ? (
+                <View accessible accessibilityLabel={t('admin.loading')}>
+                  {[0, 1].map((i) => (
+                    <Card key={i} style={styles.row}>
+                      <View style={styles.rowText}>
+                        <Skeleton width={100} height={18} style={styles.skeletonGap} />
+                        <Skeleton width={160} height={14} />
+                      </View>
+                    </Card>
+                  ))}
+                </View>
+              ) : visibleHistoryRequests.length === 0 ? (
+                <Text style={styles.emptyText}>{t('admin.historyEmpty')}</Text>
+              ) : (
+                visibleHistoryRequests.map((item) => {
+                  const displayName = item.passenger_name?.trim() || item.flight_number;
+                  const statusLabel =
+                    item.status === 'cancelled' ? t('admin.historyStatusCancelled') : t('admin.historyStatusExpired');
+                  return (
+                    <Card
+                      key={item.id}
+                      style={styles.row}
+                      accessibilityLabel={`${displayName}, ${item.flight_number}, ${statusLabel}`}
+                    >
+                      <View style={styles.rowText}>
+                        <Text style={styles.rowTitle}>{displayName}</Text>
+                        <Text style={styles.rowSubtitle}>
+                          {item.flight_number} ·{' '}
+                          {new Date(item.arrival_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                        </Text>
+                        <Text style={styles.rowSubtitle}>{item.destination_address}</Text>
+                        <StatusPill status="Cancelled" label={statusLabel} />
+                      </View>
+                    </Card>
+                  );
+                })
+              )}
+            </View>
+
+            <View style={styles.groupsSection}>
+              <Text style={styles.sectionTitle}>{t('admin.historyGroupsTitle')}</Text>
+              {historyGroups.length === 0 ? (
+                <Text style={styles.emptyText}>{t('admin.noGroups')}</Text>
+              ) : visibleHistoryGroups.length === 0 ? (
+                <Text style={styles.emptyText}>{t('admin.historyEmpty')}</Text>
+              ) : (
+                visibleHistoryGroups.map((group) => {
+                  const fareLabel =
+                    group.total_fare != null
+                      ? t('admin.groupFareSet', { amount: group.total_fare.toFixed(2) })
+                      : t('admin.groupFareNotSet');
+                  const statusLabel = t('groupDetail.statusDissolved');
+                  return (
+                    <Card
+                      key={group.id}
+                      onPress={() => setOpenGroupId(group.id)}
+                      style={styles.groupRow}
+                      accessibilityLabel={`${new Date(group.created_at).toLocaleString([], {
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      })}, ${fareLabel}, ${statusLabel}`}
+                    >
+                      <Text style={styles.groupTitle}>
+                        {new Date(group.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                      </Text>
+                      <Text style={styles.groupSubtitle}>{fareLabel}</Text>
+                      <StatusPill status="Cancelled" label={statusLabel} />
+                    </Card>
+                  );
+                })
+              )}
+            </View>
+
+            {hiddenHistoryCount > 0 || showAllHistory ? (
+              <View style={styles.historyToggle}>
+                <Text style={styles.emptyText}>
+                  {showAllHistory
+                    ? t('admin.showingAllHistory')
+                    : t('admin.historyHiddenNotice', { count: hiddenHistoryCount, days: ADMIN_HISTORY_DEFAULT_WINDOW_DAYS })}
+                </Text>
+                <SecondaryButton
+                  label={
+                    showAllHistory
+                      ? t('admin.showRecentHistory', { days: ADMIN_HISTORY_DEFAULT_WINDOW_DAYS })
+                      : t('admin.showAllHistory')
+                  }
+                  onPress={() => setShowAllHistory((prev) => !prev)}
+                />
+              </View>
+            ) : null}
+          </>
+        )}
       </ScrollView>
     </ScreenBackground>
   );
@@ -422,6 +578,34 @@ const styles = StyleSheet.create({
   },
   title: {
     ...baseText.h2,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    marginBottom: spacing.x4,
+    borderRadius: 10,
+    backgroundColor: overlays.overlayWhite08,
+    padding: spacing.x1,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: spacing.x2,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  tabActive: {
+    backgroundColor: colors.accentPrimaryStrong,
+  },
+  tabText: {
+    ...baseText.bodySmall,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  tabTextActive: {
+    color: colors.white,
+  },
+  historyToggle: {
+    alignItems: 'center',
+    marginTop: spacing.x4,
   },
   row: {
     marginBottom: spacing.x3,

@@ -130,7 +130,19 @@
     "noSuggestions": "No hay sugerencias de grupo por ahora.",
     "detourLabel": "+{{minutes}} min de desvío",
     "waitLabel": "{{minutes}} min de espera",
-    "estimatedFareLabel": "~{{amount}} €"
+    "estimatedFareLabel": "~{{amount}} €",
+    "tabActive": "Activos",
+    "tabHistory": "Historial",
+    "historyRequestsTitle": "Solicitudes",
+    "historyGroupsTitle": "Grupos",
+    "historyEmpty": "Todavía no hay nada aquí.",
+    "historyLoadError": "No pudimos cargar el historial.",
+    "historyStatusCancelled": "Cancelada",
+    "historyStatusExpired": "Expirada - sin coincidencia",
+    "historyHiddenNotice": "Mostrando los últimos {{days}} días · {{count}} elemento(s) anteriores ocultos.",
+    "showingAllHistory": "Mostrando todo el historial.",
+    "showAllHistory": "Mostrar todo el historial",
+    "showRecentHistory": "Mostrar últimos {{days}} días"
   },
   "groupDetail": {
     "title": "Reparto de la tarifa",

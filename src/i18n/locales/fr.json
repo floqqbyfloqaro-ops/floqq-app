@@ -134,7 +134,19 @@
     "noSuggestions": "Aucune suggestion de groupe pour le moment.",
     "detourLabel": "+{{minutes}} min de détour",
     "waitLabel": "{{minutes}} min d'attente",
-    "estimatedFareLabel": "~{{amount}} €"
+    "estimatedFareLabel": "~{{amount}} €",
+    "tabActive": "Actives",
+    "tabHistory": "Historique",
+    "historyRequestsTitle": "Demandes",
+    "historyGroupsTitle": "Groupes",
+    "historyEmpty": "Rien ici pour le moment.",
+    "historyLoadError": "Impossible de charger l'historique.",
+    "historyStatusCancelled": "Annulée",
+    "historyStatusExpired": "Expirée - aucune correspondance",
+    "historyHiddenNotice": "Affichage des {{days}} derniers jours · {{count}} élément(s) plus ancien(s) masqué(s).",
+    "showingAllHistory": "Affichage de tout l'historique.",
+    "showAllHistory": "Afficher tout l'historique",
+    "showRecentHistory": "Afficher les {{days}} derniers jours"
   },
   "groupDetail": {
     "title": "Répartition du tarif",

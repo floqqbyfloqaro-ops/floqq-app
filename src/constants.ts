@@ -88,3 +88,8 @@ export const DETOUR_LIMITS = {
 // separate from the taxi fare itself, which is still split via fareSplit.ts and settled directly
 // between passengers/driver - no automatic splitting of that fare is handled by this app yet.
 export const SERVICE_FEE_EUR = 2.49;
+
+// Admin dashboard History tab: rows older than this are hidden by default (never deleted - the
+// admin can still reveal them with "Show all history"). Pilot default; revisit once there's real
+// History-tab volume to judge against.
+export const ADMIN_HISTORY_DEFAULT_WINDOW_DAYS = 7;

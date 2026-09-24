@@ -12,6 +12,10 @@ export type PendingPassengerRequest = {
   destination_lng: number | null;
 };
 
+// The admin dashboard's "Active" list: only requests still being searched/matched. Grouped
+// ('matched') requests move out of this list into the groups section instead - see
+// fetchTaxiGroups. Terminal requests ('cancelled', 'expired') never appear here; they live in the
+// History tab via fetchHistoryRequests.
 export function fetchPendingRequests() {
   return supabase
     .from('passenger_requests')
@@ -20,6 +24,32 @@ export function fetchPendingRequests() {
     )
     .eq('status', 'pending')
     .order('arrival_at', { ascending: true });
+}
+
+export type PassengerRequestHistoryStatus = 'cancelled' | 'expired';
+
+export type HistoryPassengerRequest = {
+  id: string;
+  passenger_name: string | null;
+  flight_number: string;
+  arrival_at: string;
+  destination_address: string;
+  bags_count: number;
+  max_wait_minutes: number;
+  status: PassengerRequestHistoryStatus;
+};
+
+// The admin dashboard's "History" tab: requests that reached a terminal state. Never deletes the
+// underlying row (kept for pilot analytics) - this is a read-only filtered view.
+export function fetchHistoryRequests() {
+  return supabase
+    .from('passenger_requests')
+    .select(
+      'id, passenger_name, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, status'
+    )
+    .in('status', ['cancelled', 'expired'])
+    .order('arrival_at', { ascending: false })
+    .returns<HistoryPassengerRequest[]>();
 }
 
 export async function createTaxiGroup(requestIds: string[]) {
@@ -62,10 +92,17 @@ export type TaxiGroupSummary = {
   status: TaxiGroupStatus;
 };
 
-export function fetchTaxiGroups() {
+const ACTIVE_GROUP_STATUSES: TaxiGroupStatus[] = ['unconfirmed', 'confirmed'];
+export const HISTORY_GROUP_STATUSES: TaxiGroupStatus[] = ['dissolved'];
+
+// Defaults to the admin dashboard's "Active" list (unconfirmed/confirmed groups). Pass
+// HISTORY_GROUP_STATUSES for the History tab's dissolved groups - never both, so old groups
+// don't pile up forever in the Active view.
+export function fetchTaxiGroups(statuses: TaxiGroupStatus[] = ACTIVE_GROUP_STATUSES) {
   return supabase
     .from('taxi_groups')
     .select('id, created_at, total_fare, status')
+    .in('status', statuses)
     .order('created_at', { ascending: false });
 }
 

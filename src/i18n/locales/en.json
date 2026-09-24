@@ -134,7 +134,19 @@
     "noSuggestions": "No group suggestions right now.",
     "detourLabel": "+{{minutes}} min detour",
     "waitLabel": "{{minutes}} min wait",
-    "estimatedFareLabel": "~{{amount}} €"
+    "estimatedFareLabel": "~{{amount}} €",
+    "tabActive": "Active",
+    "tabHistory": "History",
+    "historyRequestsTitle": "Requests",
+    "historyGroupsTitle": "Groups",
+    "historyEmpty": "Nothing here yet.",
+    "historyLoadError": "We couldn't load history.",
+    "historyStatusCancelled": "Cancelled",
+    "historyStatusExpired": "Expired - no match found",
+    "historyHiddenNotice": "Showing the last {{days}} days · {{count}} older item(s) hidden.",
+    "showingAllHistory": "Showing all history.",
+    "showAllHistory": "Show all history",
+    "showRecentHistory": "Show last {{days}} days"
   },
   "groupDetail": {
     "title": "Group fare split",
