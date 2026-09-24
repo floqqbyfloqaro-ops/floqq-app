@@ -6,8 +6,11 @@
 // must never reach the client bundle - it lives only as this function's FLIGHTAWARE_API_KEY
 // secret. Deployed with the default JWT verification (any logged-in app user may call this);
 // unlike match-and-group, there's no cron path and no need for a service-role client here.
+//
+// expectedArrivalAt (the passenger's currently-selected arrival date) anchors which occurrence of
+// a reused flight number/ident gets picked - see _shared/flightLookup.ts.
 
-const AEROAPI_BASE_URL = 'https://aeroapi.flightaware.com/aeroapi';
+import { AEROAPI_BASE_URL, pickBestFlight } from '../_shared/flightLookup.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,18 +24,6 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-// A flight number/ident can match several scheduled occurrences (past and future); pick the
-// one whose scheduled departure is closest to now as the one the passenger actually means.
-function pickBestFlight(flights: unknown): any | null {
-  if (!Array.isArray(flights) || flights.length === 0) return null;
-  const now = Date.now();
-  return flights.reduce((best: any, flight: any) => {
-    const flightRef = flight.scheduled_out ? new Date(flight.scheduled_out).getTime() : Infinity;
-    const bestRef = best?.scheduled_out ? new Date(best.scheduled_out).getTime() : Infinity;
-    return Math.abs(flightRef - now) < Math.abs(bestRef - now) ? flight : best;
-  }, null);
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -44,9 +35,11 @@ Deno.serve(async (req) => {
   }
 
   let flightNumber = '';
+  let expectedArrivalAt: string | undefined;
   try {
     const body = await req.json();
     flightNumber = typeof body?.flightNumber === 'string' ? body.flightNumber.trim() : '';
+    expectedArrivalAt = typeof body?.expectedArrivalAt === 'string' ? body.expectedArrivalAt : undefined;
   } catch {
     return jsonResponse({ found: false, error: 'Invalid request body.' }, 400);
   }
@@ -54,6 +47,12 @@ Deno.serve(async (req) => {
   if (!flightNumber) {
     return jsonResponse({ found: false, error: 'flightNumber is required.' }, 400);
   }
+
+  // The passenger's currently-selected arrival date, so a reused flight number (e.g. a daily
+  // route) resolves to the occurrence they actually mean instead of whichever one is nearest to
+  // right now. Falls back to now only if the client didn't send a usable date.
+  const anchorDate = expectedArrivalAt ? new Date(expectedArrivalAt) : null;
+  const anchorMs = anchorDate && !Number.isNaN(anchorDate.getTime()) ? anchorDate.getTime() : Date.now();
 
   const response = await fetch(`${AEROAPI_BASE_URL}/flights/${encodeURIComponent(flightNumber)}`, {
     headers: { 'x-apikey': apiKey },
@@ -64,7 +63,7 @@ Deno.serve(async (req) => {
   }
 
   const data = await response.json();
-  const flight = pickBestFlight(data?.flights);
+  const flight = pickBestFlight(data?.flights, anchorMs);
 
   // Prefer the actual landing time if it already happened, otherwise the live estimate,
   // otherwise fall back to the schedule.

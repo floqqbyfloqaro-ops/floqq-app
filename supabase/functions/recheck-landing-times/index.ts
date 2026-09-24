@@ -11,11 +11,11 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { isAuthorized } from '../_shared/auth.ts';
 import { ADMIN_EMAIL } from '../_shared/constants.ts';
+import { AEROAPI_BASE_URL, pickBestFlight } from '../_shared/flightLookup.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { computeGroupScore, PendingPassengerRequest } from '../_shared/matchingEngine.ts';
 
 const LOCK_ID = 2;
-const AEROAPI_BASE_URL = 'https://aeroapi.flightaware.com/aeroapi';
 
 // Ignores sub-minute differences (formatting noise between polls) so a real schedule change
 // is what actually triggers a rescore.
@@ -23,26 +23,18 @@ const LANDING_TIME_CHANGE_THRESHOLD_SECONDS = 60;
 
 type GroupedRow = PendingPassengerRequest & { group_id: string };
 
-// Same selection rule as the flight-status function: a flight number can match several
-// scheduled occurrences, so pick the one whose scheduled departure is closest to now.
-function pickBestFlight(flights: unknown): any | null {
-  if (!Array.isArray(flights) || flights.length === 0) return null;
-  const now = Date.now();
-  return flights.reduce((best: any, flight: any) => {
-    const flightRef = flight.scheduled_out ? new Date(flight.scheduled_out).getTime() : Infinity;
-    const bestRef = best?.scheduled_out ? new Date(best.scheduled_out).getTime() : Infinity;
-    return Math.abs(flightRef - now) < Math.abs(bestRef - now) ? flight : best;
-  }, null);
-}
-
-async function fetchEstimatedLandingUtc(flightNumber: string, apiKey: string): Promise<string | null> {
+// anchorMs is the member's own current arrival_at, not "now" - a reused flight number/ident
+// (e.g. a daily route) would otherwise resolve to whichever occurrence is nearest to whenever
+// this job happens to run, which can silently overwrite arrival_at with the wrong day's landing
+// time. See _shared/flightLookup.ts.
+async function fetchEstimatedLandingUtc(flightNumber: string, anchorMs: number, apiKey: string): Promise<string | null> {
   const response = await fetch(`${AEROAPI_BASE_URL}/flights/${encodeURIComponent(flightNumber)}`, {
     headers: { 'x-apikey': apiKey },
   });
   if (!response.ok) return null;
 
   const data = await response.json();
-  const flight = pickBestFlight(data?.flights);
+  const flight = pickBestFlight(data?.flights, anchorMs);
   if (!flight) return null;
 
   return flight.actual_in ?? flight.estimated_in ?? flight.scheduled_in ?? null;
@@ -102,7 +94,7 @@ Deno.serve(async (req) => {
 
     for (const [groupId, members] of groups) {
       const estimates = await Promise.all(
-        members.map((m) => fetchEstimatedLandingUtc(m.flight_number, apiKey))
+        members.map((m) => fetchEstimatedLandingUtc(m.flight_number, new Date(m.arrival_at).getTime(), apiKey))
       );
 
       let changed = false;

@@ -7,12 +7,19 @@ import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
+import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
+import { MAX_PASSENGERS_PER_TAXI } from '../constants';
 import {
+  addGroupMember,
   confirmTaxiGroup,
+  dissolveGroup,
   fetchGroupById,
   fetchGroupMembers,
+  fetchPendingRequests,
+  PendingPassengerRequest,
+  removeGroupMember,
   TaxiGroupMember,
   TaxiGroupStatus,
   updateGroupTotalFare,
@@ -20,11 +27,29 @@ import {
 } from '../services/adminGrouping';
 import { calculateFareSplit, FareSplitResult } from '../services/fareSplit';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
+import { formatBarcelonaDateTime } from '../utils/formatDateTime';
 
 type Props = {
   groupId: string;
   onBack: () => void;
 };
+
+// Every correction (remove/add/dissolve) asks for confirmation inline rather than via
+// Alert.alert, which is a no-op for multi-button alerts on react-native-web (see HomeScreen's
+// ActiveRidePrompt for the same pattern). 'add' has an extra 'warning' step when the candidate
+// doesn't meet the compatibility rules - the admin has to see that and choose to force it.
+type PendingGroupAction =
+  | { type: 'remove'; member: TaxiGroupMember }
+  | { type: 'add'; candidate: PendingPassengerRequest; step: 'confirm' | 'warning' }
+  | { type: 'dissolve' };
+
+function memberDisplayName(member: TaxiGroupMember) {
+  return member.passenger_name?.trim() || member.flight_number;
+}
+
+function candidateDisplayName(candidate: PendingPassengerRequest) {
+  return candidate.passenger_name?.trim() || candidate.flight_number;
+}
 
 export default function GroupDetailScreen({ groupId, onBack }: Props) {
   const { t } = useTranslation();
@@ -40,6 +65,15 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   const [results, setResults] = useState<FareSplitResult[] | null>(null);
   const [groupStatus, setGroupStatus] = useState<TaxiGroupStatus>('unconfirmed');
   const [isConfirming, setIsConfirming] = useState(false);
+
+  const [isAddingOpen, setIsAddingOpen] = useState(false);
+  const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
+  const [candidates, setCandidates] = useState<PendingPassengerRequest[]>([]);
+  const [pendingAction, setPendingAction] = useState<PendingGroupAction | null>(null);
+  const [isActing, setIsActing] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const canCorrect = groupStatus === 'unconfirmed';
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -137,6 +171,133 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
     setGroupStatus('confirmed');
   };
 
+  const handleToggleAdding = async () => {
+    setActionError(null);
+    if (isAddingOpen) {
+      setIsAddingOpen(false);
+      return;
+    }
+
+    setIsAddingOpen(true);
+    setIsLoadingCandidates(true);
+    const { data, error } = await fetchPendingRequests();
+    setIsLoadingCandidates(false);
+
+    if (error) {
+      console.warn('fetchPendingRequests failed', error);
+      setActionError(t('groupDetail.addLoadError'));
+      return;
+    }
+    setCandidates(data ?? []);
+  };
+
+  const handleCancelAction = () => {
+    setPendingAction(null);
+    setActionError(null);
+  };
+
+  const handleRunAction = async () => {
+    if (!pendingAction) return;
+    setActionError(null);
+    setIsActing(true);
+
+    if (pendingAction.type === 'remove') {
+      const { error, blockedReason } = await removeGroupMember(groupId, pendingAction.member.id);
+      setIsActing(false);
+
+      if (blockedReason === 'group_confirmed') {
+        setGroupStatus('confirmed');
+        setPendingAction(null);
+        setActionError(t('groupDetail.lockedExplanation'));
+        return;
+      }
+      if (error) {
+        console.warn('removeGroupMember failed', error);
+        setActionError(t('groupDetail.removeError'));
+        return;
+      }
+      setPendingAction(null);
+      await loadData();
+      return;
+    }
+
+    if (pendingAction.type === 'dissolve') {
+      const { error, blockedReason } = await dissolveGroup(groupId);
+      setIsActing(false);
+
+      if (blockedReason === 'group_confirmed') {
+        setGroupStatus('confirmed');
+        setPendingAction(null);
+        setActionError(t('groupDetail.lockedExplanation'));
+        return;
+      }
+      if (error) {
+        console.warn('dissolveGroup failed', error);
+        setActionError(t('groupDetail.dissolveError'));
+        return;
+      }
+      onBack();
+      return;
+    }
+
+    // pendingAction.type === 'add'
+    const candidateId = pendingAction.candidate.id;
+    const result = await addGroupMember(groupId, candidateId, pendingAction.step === 'warning');
+    setIsActing(false);
+
+    if (result.warning) {
+      setPendingAction({ type: 'add', candidate: pendingAction.candidate, step: 'warning' });
+      return;
+    }
+    if (result.blockedReason === 'group_confirmed') {
+      setGroupStatus('confirmed');
+      setPendingAction(null);
+      setActionError(t('groupDetail.lockedExplanation'));
+      return;
+    }
+    if (result.blockedReason === 'group_full') {
+      setPendingAction(null);
+      setActionError(t('groupDetail.addFullError'));
+      return;
+    }
+    if (result.blockedReason === 'request_not_available' || result.blockedReason === 'stale') {
+      setPendingAction(null);
+      setCandidates((prev) => prev.filter((c) => c.id !== candidateId));
+      setActionError(t('groupDetail.addUnavailableError'));
+      return;
+    }
+    if (result.error) {
+      console.warn('addGroupMember failed', result.error);
+      setActionError(t('groupDetail.addError'));
+      return;
+    }
+
+    setPendingAction(null);
+    setIsAddingOpen(false);
+    setCandidates((prev) => prev.filter((c) => c.id !== candidateId));
+    await loadData();
+  };
+
+  const actionConfirmTitle = (() => {
+    if (!pendingAction) return '';
+    if (pendingAction.type === 'remove') {
+      return t('groupDetail.removeConfirmTitle', { name: memberDisplayName(pendingAction.member) });
+    }
+    if (pendingAction.type === 'dissolve') {
+      return t('groupDetail.dissolveConfirmTitle');
+    }
+    return pendingAction.step === 'warning'
+      ? t('groupDetail.addWarningTitle', { name: candidateDisplayName(pendingAction.candidate) })
+      : t('groupDetail.addConfirmTitle', { name: candidateDisplayName(pendingAction.candidate) });
+  })();
+
+  const actionConfirmButtonLabel = (() => {
+    if (!pendingAction) return '';
+    if (pendingAction.type === 'remove') return t('groupDetail.removeConfirmAction');
+    if (pendingAction.type === 'dissolve') return t('groupDetail.dissolveConfirmAction');
+    return pendingAction.step === 'warning' ? t('groupDetail.addForceAction') : t('groupDetail.addConfirmAction');
+  })();
+
   return (
     <ScreenBackground
       source={require('../../assets/bg-airport-arrival.png')}
@@ -194,6 +355,27 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
               </>
             ) : null}
 
+            {!canCorrect ? (
+              <Text style={styles.lockedNote}>
+                {groupStatus === 'confirmed' ? t('groupDetail.lockedExplanation') : t('groupDetail.dissolvedExplanation')}
+              </Text>
+            ) : null}
+
+            {pendingAction ? (
+              <Card style={styles.actionConfirmCard}>
+                <Text style={styles.actionConfirmText} accessibilityLiveRegion="polite">
+                  {actionConfirmTitle}
+                </Text>
+                {actionError ? <ErrorNotice message={actionError} /> : null}
+                <View style={styles.actionConfirmButtons}>
+                  <PrimaryButton label={actionConfirmButtonLabel} onPress={handleRunAction} loading={isActing} />
+                  <SecondaryButton label={t('groupDetail.cancelAction')} onPress={handleCancelAction} disabled={isActing} />
+                </View>
+              </Card>
+            ) : actionError ? (
+              <ErrorNotice message={actionError} />
+            ) : null}
+
             <Text style={styles.label}>{t('groupDetail.totalFareLabel')}</Text>
             <AuthTextInput
               variant="card"
@@ -207,9 +389,12 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
 
             {members.map((member) => (
               <Card key={member.id} style={styles.memberCard}>
-                <Text style={styles.memberTitle}>{member.passenger_name?.trim() || member.flight_number}</Text>
+                <Text style={styles.memberTitle}>{memberDisplayName(member)}</Text>
                 <Text style={styles.memberSubtitle}>
                   {member.flight_number} · {member.destination_address}
+                </Text>
+                <Text style={styles.memberRideDate}>
+                  {t('groupDetail.rideDateLabel', { date: formatBarcelonaDateTime(member.arrival_at) })}
                 </Text>
                 {member.extra_detour_minutes != null && member.waiting_minutes != null ? (
                   <Text style={styles.memberScoreNote}>
@@ -228,6 +413,11 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                   value={distanceInputs[member.id] ?? ''}
                   onChangeText={(text) => setDistanceInputs((prev) => ({ ...prev, [member.id]: text }))}
                   keyboardType="decimal-pad"
+                />
+                <SecondaryButton
+                  label={t('groupDetail.removeButton')}
+                  onPress={() => setPendingAction({ type: 'remove', member })}
+                  disabled={!canCorrect}
                 />
               </Card>
             ))}
@@ -256,6 +446,49 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 })}
               </View>
             ) : null}
+
+            <View style={styles.correctionsSection}>
+              <Text style={styles.sectionTitle}>{t('groupDetail.correctionsTitle')}</Text>
+
+              <SecondaryButton
+                label={t('groupDetail.addButton')}
+                onPress={handleToggleAdding}
+                disabled={!canCorrect || members.length >= MAX_PASSENGERS_PER_TAXI}
+              />
+              {canCorrect && members.length >= MAX_PASSENGERS_PER_TAXI ? (
+                <Text style={styles.correctionsNote}>{t('groupDetail.addFullError')}</Text>
+              ) : null}
+
+              {isAddingOpen ? (
+                isLoadingCandidates ? (
+                  <Text style={styles.correctionsNote}>{t('groupDetail.addLoading')}</Text>
+                ) : candidates.length === 0 ? (
+                  <Text style={styles.correctionsNote}>{t('groupDetail.addPickerEmpty')}</Text>
+                ) : (
+                  candidates.map((candidate) => (
+                    <Card
+                      key={candidate.id}
+                      onPress={() => setPendingAction({ type: 'add', candidate, step: 'confirm' })}
+                      style={styles.candidateRow}
+                    >
+                      <Text style={styles.memberTitle}>{candidateDisplayName(candidate)}</Text>
+                      <Text style={styles.memberSubtitle}>
+                        {candidate.flight_number} · {candidate.destination_address}
+                      </Text>
+                      <Text style={styles.memberRideDate}>
+                        {t('groupDetail.rideDateLabel', { date: formatBarcelonaDateTime(candidate.arrival_at) })}
+                      </Text>
+                    </Card>
+                  ))
+                )
+              ) : null}
+
+              <SecondaryButton
+                label={t('groupDetail.dissolveButton')}
+                onPress={() => setPendingAction({ type: 'dissolve' })}
+                disabled={!canCorrect}
+              />
+            </View>
           </>
         )}
       </ScrollView>
@@ -289,6 +522,11 @@ const styles = StyleSheet.create({
   statusRow: {
     marginBottom: spacing.x4,
   },
+  lockedNote: {
+    ...baseText.bodySmall,
+    color: colors.textSecondary,
+    marginBottom: spacing.x4,
+  },
   skeletonGap: {
     marginBottom: spacing.x4,
   },
@@ -299,6 +537,7 @@ const styles = StyleSheet.create({
   },
   memberCard: {
     marginBottom: spacing.x4,
+    gap: spacing.x2,
   },
   memberTitle: {
     ...baseText.body,
@@ -308,6 +547,11 @@ const styles = StyleSheet.create({
   memberSubtitle: {
     ...baseText.caption,
     marginBottom: spacing.x3,
+  },
+  memberRideDate: {
+    ...baseText.caption,
+    color: colors.info,
+    marginBottom: spacing.x2,
   },
   results: {
     marginTop: spacing.x6,
@@ -333,5 +577,30 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 16,
+  },
+  actionConfirmCard: {
+    marginBottom: spacing.x4,
+    gap: spacing.x2,
+  },
+  actionConfirmText: {
+    ...baseText.body,
+    marginBottom: spacing.x2,
+  },
+  actionConfirmButtons: {
+    gap: spacing.x2,
+  },
+  correctionsSection: {
+    marginTop: spacing.x6,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    paddingTop: spacing.x6,
+    gap: spacing.x3,
+  },
+  correctionsNote: {
+    ...baseText.bodySmall,
+    color: colors.textSecondary,
+  },
+  candidateRow: {
+    marginBottom: spacing.x2,
   },
 });

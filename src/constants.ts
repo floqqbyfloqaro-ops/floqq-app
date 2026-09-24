@@ -1,5 +1,6 @@
-// Caps how many passengers the admin can group into one taxi.
-export const MAX_PASSENGERS_PER_TAXI = 4;
+// Caps how many passengers the admin can group into one taxi. Pilot value dropped from 4 to 3
+// (2026-09-24) - kept in sync with supabase/functions/_shared/constants.ts.
+export const MAX_PASSENGERS_PER_TAXI = 3;
 
 // Caps total bags across a group so everything fits in one taxi's trunk.
 export const MAX_BAGS_PER_TAXI = 4;
@@ -88,3 +89,13 @@ export const DETOUR_LIMITS = {
 // separate from the taxi fare itself, which is still split via fareSplit.ts and settled directly
 // between passengers/driver - no automatic splitting of that fare is handled by this app yet.
 export const SERVICE_FEE_EUR = 2.49;
+
+// Admin dashboard History tab: rows older than this are hidden by default (never deleted - the
+// admin can still reveal them with "Show all history"). Pilot default; revisit once there's real
+// History-tab volume to judge against.
+export const ADMIN_HISTORY_DEFAULT_WINDOW_DAYS = 7;
+
+// Every ride is at/around Barcelona-El Prat, so the admin dashboard always displays ride and
+// group dates in this zone, regardless of the admin's own device time zone. See
+// src/utils/formatDateTime.ts.
+export const BARCELONA_TIME_ZONE = 'Europe/Madrid';
