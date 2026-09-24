@@ -142,3 +142,80 @@ export function updateGroupTotalFare(groupId: string, totalFare: number) {
 export function confirmTaxiGroup(groupId: string) {
   return supabase.from('taxi_groups').update({ status: 'confirmed' as TaxiGroupStatus }).eq('id', groupId);
 }
+
+export type GroupCorrectionBlockedReason = 'group_confirmed' | 'not_a_member' | 'not_found';
+
+export type GroupCorrectionResult = {
+  error: Error | null;
+  blockedReason?: GroupCorrectionBlockedReason;
+};
+
+async function blockedReasonFromError(error: unknown): Promise<string | undefined> {
+  const context = (error as { context?: Response }).context;
+  if (!context) return undefined;
+  try {
+    const body = await context.json();
+    return typeof body?.error === 'string' ? body.error : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// Removes one member from a group that isn't yet confirmed, resetting them to 'pending' and
+// rebalancing (or dissolving) the group for whoever's left - the admin-initiated counterpart to a
+// passenger editing themselves out (see passengerRequests.ts's updatePassengerRequest and
+// supabase/functions/admin-manage-group).
+export async function removeGroupMember(groupId: string, requestId: string): Promise<GroupCorrectionResult> {
+  const { error } = await supabase.functions.invoke('admin-manage-group', {
+    body: { action: 'remove', groupId, requestId },
+  });
+  if (!error) return { error: null };
+  return { error, blockedReason: (await blockedReasonFromError(error)) as GroupCorrectionBlockedReason | undefined };
+}
+
+// Dissolves a group that isn't yet confirmed: every member goes back to 'pending'.
+export async function dissolveGroup(groupId: string): Promise<GroupCorrectionResult> {
+  const { error } = await supabase.functions.invoke('admin-manage-group', {
+    body: { action: 'dissolve', groupId },
+  });
+  if (!error) return { error: null };
+  return { error, blockedReason: (await blockedReasonFromError(error)) as GroupCorrectionBlockedReason | undefined };
+}
+
+export type AddGroupMemberBlockedReason =
+  | GroupCorrectionBlockedReason
+  | 'group_full'
+  | 'request_not_available'
+  | 'missing_coordinates'
+  | 'route_computation_failed'
+  | 'stale';
+
+export type AddGroupMemberResult = {
+  error: Error | null;
+  blockedReason?: AddGroupMemberBlockedReason;
+  // Returned instead of an error when the passenger would break a compatibility rule (detour,
+  // wait, or luggage) - the admin can retry the same call with force: true to add them anyway.
+  warning?: { worstIndividualScore: number };
+  forced?: boolean;
+};
+
+// Adds a pending, ungrouped passenger to a group that isn't yet confirmed, respecting the max
+// group size and the same compatibility rules used to form groups in the first place. Pass
+// force: true to add the passenger despite a compatibility warning (the admin has already been
+// shown it and chosen to proceed).
+export async function addGroupMember(groupId: string, requestId: string, force = false): Promise<AddGroupMemberResult> {
+  const { data, error } = await supabase.functions.invoke('admin-manage-group', {
+    body: { action: 'add', groupId, requestId, force },
+  });
+
+  if (error) {
+    return { error, blockedReason: (await blockedReasonFromError(error)) as AddGroupMemberBlockedReason | undefined };
+  }
+
+  const result = data as { ok: boolean; warning?: boolean; worstIndividualScore?: number; forced?: boolean };
+  if (result?.warning) {
+    return { error: null, warning: { worstIndividualScore: result.worstIndividualScore ?? 0 } };
+  }
+
+  return { error: null, forced: result?.forced };
+}
