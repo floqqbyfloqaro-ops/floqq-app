@@ -116,7 +116,10 @@ Deno.serve(async (req) => {
       await Promise.all(
         updatedMembers.map((member, index) =>
           member.arrival_at !== members[index].arrival_at
-            ? adminClient.from('passenger_requests').update({ arrival_at: member.arrival_at }).eq('id', member.id)
+            ? adminClient
+                .from('passenger_requests')
+                .update({ arrival_at: member.arrival_at, arrival_time_source: 'flight' })
+                .eq('id', member.id)
             : Promise.resolve()
         )
       );

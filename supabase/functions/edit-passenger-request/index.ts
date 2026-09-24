@@ -32,6 +32,9 @@ type EditBody = {
   largeLuggageCount: number;
   handLuggageCount: number;
   maxWaitMinutes: number;
+  // Omitted when the passenger didn't touch the arrival time (it stayed pinned to the stored
+  // flight estimate), so the stored source is kept as-is.
+  arrivalTimeSource?: 'flight' | 'manual';
 };
 
 function jsonResponse(body: unknown, status: number) {
@@ -50,7 +53,8 @@ function isEditBody(value: unknown): value is EditBody {
     typeof b.destinationLng === 'number' &&
     typeof b.largeLuggageCount === 'number' &&
     typeof b.handLuggageCount === 'number' &&
-    typeof b.maxWaitMinutes === 'number'
+    typeof b.maxWaitMinutes === 'number' &&
+    (b.arrivalTimeSource === undefined || b.arrivalTimeSource === 'flight' || b.arrivalTimeSource === 'manual')
   );
 }
 
@@ -106,6 +110,19 @@ Deno.serve(async (req) => {
 
   if (result.blocked) {
     return jsonResponse({ error: 'group_confirmed' }, 409);
+  }
+
+  // Display-only metadata for the admin dashboard, so it's written separately rather than
+  // widening begin_passenger_request_edit's signature. The RPC above already authorized the
+  // caller against this row.
+  if (body.arrivalTimeSource) {
+    const { error: sourceError } = await adminClient
+      .from('passenger_requests')
+      .update({ arrival_time_source: body.arrivalTimeSource })
+      .eq('id', body.requestId);
+    if (sourceError) {
+      console.warn('arrival_time_source update failed', sourceError);
+    }
   }
 
   if (result.needs_recalc && result.group_id != null && result.group_version != null) {

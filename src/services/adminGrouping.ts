@@ -1,10 +1,13 @@
 import { supabase } from './supabase';
+import type { ArrivalTimeSource } from './passengerRequests';
 
 export type PendingPassengerRequest = {
   id: string;
   passenger_name: string | null;
   flight_number: string;
   arrival_at: string;
+  arrival_time_source: ArrivalTimeSource | null;
+  created_at: string;
   destination_address: string;
   bags_count: number;
   max_wait_minutes: number;
@@ -20,7 +23,7 @@ export function fetchPendingRequests() {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, passenger_name, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng'
+      'id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng'
     )
     .eq('status', 'pending')
     .order('arrival_at', { ascending: true });
@@ -33,6 +36,8 @@ export type HistoryPassengerRequest = {
   passenger_name: string | null;
   flight_number: string;
   arrival_at: string;
+  arrival_time_source: ArrivalTimeSource | null;
+  created_at: string;
   destination_address: string;
   bags_count: number;
   max_wait_minutes: number;
@@ -45,7 +50,7 @@ export function fetchHistoryRequests() {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, passenger_name, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, status'
+      'id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, max_wait_minutes, status'
     )
     .in('status', ['cancelled', 'expired'])
     .order('arrival_at', { ascending: false })
@@ -115,6 +120,8 @@ export type TaxiGroupMember = {
   passenger_name: string | null;
   flight_number: string;
   arrival_at: string;
+  arrival_time_source: ArrivalTimeSource | null;
+  created_at: string;
   destination_address: string;
   bags_count: number;
   distance_km: number | null;
@@ -127,7 +134,7 @@ export function fetchGroupMembers(groupId: string) {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, passenger_name, flight_number, arrival_at, destination_address, bags_count, distance_km, extra_detour_minutes, waiting_minutes, individual_score'
+      'id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, distance_km, extra_detour_minutes, waiting_minutes, individual_score'
     )
     .eq('group_id', groupId);
 }
