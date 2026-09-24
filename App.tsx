@@ -3,6 +3,7 @@ import './src/i18n';
 import type { Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import AdminScreen from './src/screens/AdminScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
@@ -22,8 +23,8 @@ import { supabase } from './src/services/supabase';
 // The splash screen was designed with no buttons, so it auto-advances instead of waiting for a
 // tap. This also doubles as the "loading" cover while the session/onboarding check resolves -
 // isReady and this minimum timer both have to clear before we move on, so a fast session check
-// doesn't make the splash flash by instantly.
-const MIN_SPLASH_MS = 1800;
+// doesn't make the splash flash by instantly - and a slow one keeps the splash up until it's done.
+const MIN_SPLASH_MS = 4000;
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
 function AppContent() {
   const [isReady, setIsReady] = useState(false);
   const [minSplashElapsed, setMinSplashElapsed] = useState(false);
+  const [isSplashGone, setIsSplashGone] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgotPassword'>('login');
@@ -92,64 +94,83 @@ function AppContent() {
     };
   }, []);
 
-  if (!isReady || !minSplashElapsed) {
-    return <WelcomeSplashScreen />;
-  }
+  const canShowApp = isReady && minSplashElapsed;
 
-  if (showOnboarding) {
-    return (
-      <OnboardingScreen
-        onComplete={async () => {
-          await setOnboardingCompleted();
-          setShowOnboarding(false);
-        }}
-      />
-    );
-  }
-
-  if (!session) {
-    if (authMode === 'forgotPassword') {
-      return <ForgotPasswordScreen onBackToLogin={() => setAuthMode('login')} />;
+  const renderScreen = () => {
+    if (showOnboarding) {
+      return (
+        <OnboardingScreen
+          onComplete={async () => {
+            await setOnboardingCompleted();
+            setShowOnboarding(false);
+          }}
+        />
+      );
     }
-    return authMode === 'login' ? (
-      <LoginScreen onSwitchToSignUp={() => setAuthMode('signup')} onForgotPassword={() => setAuthMode('forgotPassword')} />
-    ) : (
-      <SignUpScreen onSwitchToLogin={() => setAuthMode('login')} />
-    );
-  }
 
-  if (mainScreen === 'newRequest') {
+    if (!session) {
+      if (authMode === 'forgotPassword') {
+        return <ForgotPasswordScreen onBackToLogin={() => setAuthMode('login')} />;
+      }
+      return authMode === 'login' ? (
+        <LoginScreen onSwitchToSignUp={() => setAuthMode('signup')} onForgotPassword={() => setAuthMode('forgotPassword')} />
+      ) : (
+        <SignUpScreen onSwitchToLogin={() => setAuthMode('login')} />
+      );
+    }
+
+    if (mainScreen === 'newRequest') {
+      return (
+        <NewRequestScreen
+          requestId={editingRequestId ?? undefined}
+          onSubmitted={() => {
+            setEditingRequestId(null);
+            setMainScreen('home');
+          }}
+          onCancel={() => {
+            setEditingRequestId(null);
+            setMainScreen('home');
+          }}
+        />
+      );
+    }
+
+    if (mainScreen === 'myRide') {
+      return <MyRideScreen onBack={() => setMainScreen('home')} onCreateRequest={openNewRequest} />;
+    }
+
+    if (mainScreen === 'admin') {
+      return <AdminScreen session={session} onBack={() => setMainScreen('home')} />;
+    }
+
     return (
-      <NewRequestScreen
-        requestId={editingRequestId ?? undefined}
-        onSubmitted={() => {
-          setEditingRequestId(null);
-          setMainScreen('home');
-        }}
-        onCancel={() => {
-          setEditingRequestId(null);
-          setMainScreen('home');
-        }}
+      <HomeScreen
+        onCreateRequest={() => openNewRequest()}
+        onOpenMyRide={() => setMainScreen('myRide')}
+        isAdmin={session.user?.email === ADMIN_EMAIL}
+        onOpenAdmin={() => setMainScreen('admin')}
+        showEmailVerified={showEmailVerified}
+        onDismissEmailVerified={() => setShowEmailVerified(false)}
       />
     );
-  }
+  };
 
-  if (mainScreen === 'myRide') {
-    return <MyRideScreen onBack={() => setMainScreen('home')} onCreateRequest={openNewRequest} />;
-  }
-
-  if (mainScreen === 'admin') {
-    return <AdminScreen session={session} onBack={() => setMainScreen('home')} />;
-  }
-
+  // One tree for the whole lifetime so the splash is never remounted (no image flicker): it covers
+  // everything while loading, then stays on top of the first real screen while it fades out.
   return (
-    <HomeScreen
-      onCreateRequest={() => openNewRequest()}
-      onOpenMyRide={() => setMainScreen('myRide')}
-      isAdmin={session.user?.email === ADMIN_EMAIL}
-      onOpenAdmin={() => setMainScreen('admin')}
-      showEmailVerified={showEmailVerified}
-      onDismissEmailVerified={() => setShowEmailVerified(false)}
-    />
+    <View style={styles.root}>
+      {canShowApp ? renderScreen() : null}
+      {isSplashGone ? null : (
+        <View style={StyleSheet.absoluteFill} pointerEvents={canShowApp ? 'none' : 'auto'}>
+          <WelcomeSplashScreen fadeOut={canShowApp} onFadeOutComplete={() => setIsSplashGone(true)} />
+        </View>
+      )}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

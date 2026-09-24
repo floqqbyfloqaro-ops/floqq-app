@@ -3,11 +3,12 @@ import {
   CORRIDOR_METERS,
   GROUP_DEPARTURE_BUFFER_MINUTES,
   MAX_BAGS_PER_TAXI,
-  MAX_DETOUR_MINUTES,
+  DETOUR_LIMITS,
   MAX_PASSENGERS_PER_TAXI,
   SCORE_WEIGHTS,
 } from '../constants';
 import { PendingPassengerRequest } from './adminGrouping';
+import { exceedsDetourLimit } from './detourLimit';
 import { calculateBarcelonaTaxiFare, calculateFareSplit } from './fareSplit';
 import { computeRouteMatrix, LatLng, RouteMatrixCell } from './googleRoutes';
 import { supabase } from './supabase';
@@ -19,6 +20,8 @@ export type MatchMember = {
   passengerName: string | null;
   flightNumber: string;
   extraDetourMinutes: number;
+  // This passenger's solo airport -> destination time, the base for the percentage detour cap.
+  directMinutes: number | null;
   waitingMinutes: number;
   distanceKm: number;
   fareAmount: number;
@@ -185,6 +188,7 @@ export async function computeGroupScore(group: GeoRequest[]): Promise<MatchSugge
       passengerName: request.passenger_name,
       flightNumber: request.flight_number,
       extraDetourMinutes,
+      directMinutes: solo != null ? solo / 60 : null,
       waitingMinutes,
       distanceKm,
       fareAmount,
@@ -202,12 +206,12 @@ export async function computeGroupScore(group: GeoRequest[]): Promise<MatchSugge
 }
 
 // Used when forming brand-new candidate groups: computes the score, then rejects the group
-// outright if any single passenger's detour is too high - never just averaged away by the
-// rest of the group looking good.
+// outright if any single passenger's detour is over their own limit (detourLimit.ts) - never
+// just averaged away by the rest of the group looking good.
 async function scoreGroup(group: GeoRequest[]): Promise<MatchSuggestion | null> {
   const suggestion = await computeGroupScore(group);
   if (!suggestion) return null;
-  if (suggestion.members.some((m) => m.extraDetourMinutes > MAX_DETOUR_MINUTES)) return null;
+  if (suggestion.members.some((m) => exceedsDetourLimit(m, DETOUR_LIMITS))) return null;
   return suggestion;
 }
 

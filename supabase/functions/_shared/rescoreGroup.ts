@@ -5,7 +5,7 @@
 
 import type { createClient } from 'npm:@supabase/supabase-js@2';
 
-import { MAX_BAGS_PER_TAXI, MAX_DETOUR_MINUTES } from './constants.ts';
+import { DETOUR_LIMITS, MAX_BAGS_PER_TAXI } from './constants.ts';
 import { buildGroupTotalsPayload, buildMemberScoresPayload, isGroupStillValid } from './groupRebalance.ts';
 import { computeGroupScore, PendingPassengerRequest } from './matchingEngine.ts';
 
@@ -39,7 +39,7 @@ export async function rescoreGroup(adminClient: ReturnType<typeof createClient>,
       suggestion,
       group.map((r) => ({ id: r.id, bagsCount: r.bags_count, maxWaitMinutes: r.max_wait_minutes })),
       MAX_BAGS_PER_TAXI,
-      MAX_DETOUR_MINUTES
+      DETOUR_LIMITS
     );
 
     const { data: applyResult, error: applyError } = await adminClient.rpc('apply_group_rescore', {

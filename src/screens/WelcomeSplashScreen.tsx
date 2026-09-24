@@ -1,51 +1,97 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, Image, StyleSheet, Text, View } from 'react-native';
 
 import ScreenBackground from '../components/ScreenBackground';
-import { baseText, colors, overlays, spacing, typography } from '../theme/colors';
+import { baseText, colors, motion, overlays, spacing, typography } from '../theme/colors';
+import { easingExit } from '../utils/animation';
 
-export default function WelcomeSplashScreen() {
+type Props = {
+  // Flips to true once loading is done and the minimum display time has passed; App.tsx has
+  // already rendered the next screen underneath, so fading this out reveals it.
+  fadeOut?: boolean;
+  onFadeOutComplete?: () => void;
+};
+
+export default function WelcomeSplashScreen({ fadeOut, onFadeOutComplete }: Props) {
   const { t } = useTranslation();
+  const opacity = useRef(new Animated.Value(1)).current;
+  // Held in a ref so a parent re-render (new callback identity) mid-fade doesn't restart it.
+  const onFadeOutCompleteRef = useRef(onFadeOutComplete);
+  onFadeOutCompleteRef.current = onFadeOutComplete;
+
+  useEffect(() => {
+    if (!fadeOut) return;
+    let cancelled = false;
+
+    // "Reduce motion" on the device means no fade - just get out of the way.
+    AccessibilityInfo.isReduceMotionEnabled()
+      .catch(() => false)
+      .then((reduceMotion) => {
+        if (cancelled) return;
+        if (reduceMotion) {
+          onFadeOutCompleteRef.current?.();
+          return;
+        }
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: motion.durationSlow,
+          easing: easingExit,
+          useNativeDriver: true,
+        }).start(({ finished }) => {
+          if (finished) onFadeOutCompleteRef.current?.();
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fadeOut, opacity]);
 
   return (
-    <ScreenBackground
-      source={require('../../assets/bg-airport-arrival.png')}
-      naturalWidth={941}
-      naturalHeight={1672}
-      scrimColor={colors.transparent}
-    >
-      <View style={styles.outer}>
-        <View style={styles.centerWrapper}>
-          <LinearGradient
-            colors={['transparent', overlays.scrimHeavy, 'transparent']}
-            locations={[0, 0.5, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.content}>
-            <Image source={require('../../assets/icon-full.png')} style={styles.logo} resizeMode="contain" />
+    <Animated.View style={[styles.fill, { opacity }]}>
+      <ScreenBackground
+        source={require('../../assets/bg-airport-arrival.png')}
+        naturalWidth={941}
+        naturalHeight={1672}
+        scrimColor={colors.transparent}
+      >
+        <View style={styles.outer}>
+          <View style={styles.centerWrapper}>
+            <LinearGradient
+              colors={['transparent', overlays.scrimHeavy, 'transparent']}
+              locations={[0, 0.5, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.content}>
+              <Image source={require('../../assets/icon-full.png')} style={styles.logo} resizeMode="contain" />
 
-            <Text style={styles.wordmark}>FLOQQ</Text>
+              <Text style={styles.wordmark}>FLOQQ</Text>
 
-            <Text style={styles.tagline}>{t('splash.tagline')}</Text>
+              <Text style={styles.tagline}>{t('splash.tagline')}</Text>
 
-            <View style={styles.separatorRow}>
-              <View style={styles.separatorLine} />
-              <Text style={styles.separatorIcon} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                ✈️
-              </Text>
-              <View style={styles.separatorLine} />
+              <View style={styles.separatorRow}>
+                <View style={styles.separatorLine} />
+                <Text style={styles.separatorIcon} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                  ✈️
+                </Text>
+                <View style={styles.separatorLine} />
+              </View>
+
+              <Text style={styles.caption}>{t('splash.caption')}</Text>
             </View>
-
-            <Text style={styles.caption}>{t('splash.caption')}</Text>
           </View>
         </View>
-      </View>
-    </ScreenBackground>
+      </ScreenBackground>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
   outer: {
     flex: 1,
     alignItems: 'center',

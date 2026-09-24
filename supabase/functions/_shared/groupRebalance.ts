@@ -7,11 +7,15 @@
 // under Node - and this file is exercised by a plain Node unit test (see
 // groupRebalance.test.ts), not just the Deno Edge Function runtime. The types below are
 // structurally compatible with matchingEngine.ts's MatchSuggestion/MatchMember, so a real
-// MatchSuggestion can be passed in as-is.
+// MatchSuggestion can be passed in as-is. (detourLimit.ts is import-free too, so it's safe here.)
+
+import { exceedsDetourLimit } from './detourLimit.ts';
+import type { DetourLimits } from './detourLimit.ts';
 
 export type SuggestionMemberLike = {
   id: string;
   extraDetourMinutes: number;
+  directMinutes?: number | null;
   waitingMinutes: number;
   distanceKm: number;
   fareAmount: number;
@@ -39,7 +43,7 @@ export function isGroupStillValid(
   suggestion: SuggestionLike | null,
   members: RemainingMember[],
   maxBagsPerTaxi: number,
-  maxDetourMinutes: number
+  detourLimits: DetourLimits
 ): boolean {
   if (!suggestion) return false;
 
@@ -49,7 +53,7 @@ export function isGroupStillValid(
   const maxWaitById = new Map(members.map((m) => [m.id, m.maxWaitMinutes]));
 
   return suggestion.members.every((m) => {
-    if (m.extraDetourMinutes > maxDetourMinutes) return false;
+    if (exceedsDetourLimit(m, detourLimits)) return false;
     const ownMaxWait = maxWaitById.get(m.id);
     return ownMaxWait == null || m.waitingMinutes <= ownMaxWait;
   });

@@ -69,9 +69,20 @@ export const SCORE_WEIGHTS = {
   fareEuro: 2,
 };
 
-// A candidate group is discarded outright if any single passenger's extra detour exceeds this,
-// regardless of how good the group's average looks.
+// Per-passenger detour limit (see src/services/detourLimit.ts). A candidate group is discarded
+// outright if any single passenger's extra time exceeds the smaller of MAX_DETOUR_MINUTES and
+// MAX_DETOUR_PERCENT of their own direct trip - never averaged across the group. The floor keeps
+// short trips (e.g. ~15 min to Castelldefels) shareable. Pilot values, set loose on purpose
+// (2026-09-24); tighten once there are enough passengers to still form groups.
 export const MAX_DETOUR_MINUTES = 15;
+export const MAX_DETOUR_PERCENT = 50;
+export const MIN_ALLOWED_DETOUR_MINUTES = 5;
+
+export const DETOUR_LIMITS = {
+  maxMinutes: MAX_DETOUR_MINUTES,
+  maxPercent: MAX_DETOUR_PERCENT,
+  minAllowedMinutes: MIN_ALLOWED_DETOUR_MINUTES,
+} as const;
 
 // Fixed FLOQQ service fee charged per passenger once their taxi group is confirmed. This is
 // separate from the taxi fare itself, which is still split via fareSplit.ts and settled directly
