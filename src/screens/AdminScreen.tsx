@@ -16,6 +16,7 @@ import {
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
+import RideDateLine, { formatRideDateTime, rideDateAccessibilityText } from '../components/RideDateLine';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
@@ -36,7 +37,7 @@ import {
 } from '../services/adminGrouping';
 import { computeGroupScore, MatchSuggestion, suggestTaxiGroups } from '../services/matchingEngine';
 import { baseText, colors, motion, overlays, spacing } from '../theme/colors';
-import { formatBarcelonaDateTime } from '../utils/formatDateTime';
+import { addDaysToDayKey, barcelonaDayKey, formatBarcelonaDateTime, weekdayForDayKey } from '../utils/formatDateTime';
 import GroupDetailScreen from './GroupDetailScreen';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -55,8 +56,35 @@ type Props = {
   onBack: () => void;
 };
 
+type RideDateFilter = 'today' | 'tomorrow' | 'all';
+
+const RIDE_DATE_FILTERS: { value: RideDateFilter; labelKey: string }[] = [
+  { value: 'today', labelKey: 'admin.filterToday' },
+  { value: 'tomorrow', labelKey: 'admin.filterTomorrow' },
+  { value: 'all', labelKey: 'admin.filterAllUpcoming' },
+];
+
+type RideDaySection = { dayKey: string; requests: PendingPassengerRequest[] };
+
+// Soonest ride first, bucketed by the Barcelona calendar day of each ride so the admin can see at
+// a glance which passengers land on the same day and could share a taxi.
+function groupRequestsByRideDay(requests: PendingPassengerRequest[]): RideDaySection[] {
+  const sorted = [...requests].sort((a, b) => new Date(a.arrival_at).getTime() - new Date(b.arrival_at).getTime());
+  const sections: RideDaySection[] = [];
+  for (const request of sorted) {
+    const dayKey = barcelonaDayKey(request.arrival_at);
+    const last = sections[sections.length - 1];
+    if (last && last.dayKey === dayKey) {
+      last.requests.push(request);
+    } else {
+      sections.push({ dayKey, requests: [request] });
+    }
+  }
+  return sections;
+}
+
 export default function AdminScreen({ session, onBack }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isAdmin = session?.user?.email === ADMIN_EMAIL;
 
   const [requests, setRequests] = useState<PendingPassengerRequest[]>([]);
@@ -77,6 +105,7 @@ export default function AdminScreen({ session, onBack }: Props) {
   const [creatingSuggestionKey, setCreatingSuggestionKey] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [rideDateFilter, setRideDateFilter] = useState<RideDateFilter>('all');
   const hasLoadedOnce = useRef(false);
 
   const loadData = useCallback(async () => {
@@ -276,6 +305,22 @@ export default function AdminScreen({ session, onBack }: Props) {
   const hiddenHistoryCount =
     historyRequests.length + historyGroups.length - visibleHistoryRequests.length - visibleHistoryGroups.length;
 
+  const todayKey = barcelonaDayKey(new Date());
+  const tomorrowKey = addDaysToDayKey(todayKey, 1);
+  const filteredRequests =
+    rideDateFilter === 'all'
+      ? requests
+      : requests.filter((r) => barcelonaDayKey(r.arrival_at) === (rideDateFilter === 'today' ? todayKey : tomorrowKey));
+  const requestSections = groupRequestsByRideDay(filteredRequests);
+  const requestById = new Map(requests.map((r) => [r.id, r]));
+
+  const rideDayLabel = (dayKey: string) => {
+    if (dayKey === todayKey) return t('admin.dayToday');
+    if (dayKey === tomorrowKey) return t('admin.dayTomorrow');
+    const [year, month, day] = dayKey.split('-');
+    return t('admin.rideDay', { weekday: weekdayForDayKey(dayKey, i18n.language), date: `${day}/${month}/${year}` });
+  };
+
   return (
     <ScreenBackground
       source={require('../../assets/bg-airport-arrival.png')}
@@ -342,19 +387,30 @@ export default function AdminScreen({ session, onBack }: Props) {
                 const key = suggestion.requestIds.join(',');
                 return (
                   <Card key={key} style={styles.suggestionCard}>
-                    {suggestion.members.map((member) => (
-                      <View key={member.id} style={styles.suggestionMemberRow}>
-                        <Text style={styles.rowTitle}>{member.passengerName?.trim() || member.flightNumber}</Text>
-                        <Text style={styles.rowSubtitle}>{member.flightNumber}</Text>
-                        <Text style={styles.rowMeta}>
-                          {t('admin.detourLabel', { minutes: Math.round(member.extraDetourMinutes) })}
-                          {'  ·  '}
-                          {t('admin.waitLabel', { minutes: Math.round(member.waitingMinutes) })}
-                          {'  ·  '}
-                          {t('admin.estimatedFareLabel', { amount: member.fareAmount.toFixed(2) })}
-                        </Text>
-                      </View>
-                    ))}
+                    {suggestion.members.map((member) => {
+                      const request = requestById.get(member.id);
+                      return (
+                        <View key={member.id} style={styles.suggestionMemberRow}>
+                          <Text style={styles.rowTitle}>{member.passengerName?.trim() || member.flightNumber}</Text>
+                          {request ? (
+                            <RideDateLine
+                              arrivalAt={request.arrival_at}
+                              flightNumber={member.flightNumber}
+                              arrivalTimeSource={request.arrival_time_source}
+                            />
+                          ) : (
+                            <Text style={styles.rowSubtitle}>{member.flightNumber}</Text>
+                          )}
+                          <Text style={styles.rowMeta}>
+                            {t('admin.detourLabel', { minutes: Math.round(member.extraDetourMinutes) })}
+                            {'  ·  '}
+                            {t('admin.waitLabel', { minutes: Math.round(member.waitingMinutes) })}
+                            {'  ·  '}
+                            {t('admin.estimatedFareLabel', { amount: member.fareAmount.toFixed(2) })}
+                          </Text>
+                        </View>
+                      );
+                    })}
                     <PrimaryButton
                       label={t('admin.createGroup')}
                       onPress={() => handleCreateFromSuggestion(suggestion)}
@@ -388,44 +444,80 @@ export default function AdminScreen({ session, onBack }: Props) {
             <SecondaryButton label={t('admin.emptyAction')} onPress={handleRefresh} loading={isRefreshing} />
           </View>
         ) : (
-          requests.map((item) => {
-            const isSelected = selectedIds.includes(item.id);
-            const displayName = item.passenger_name?.trim() || item.flight_number;
-            const rowLabel = `${displayName}, ${item.flight_number}, ${formatBarcelonaDateTime(item.arrival_at)}, ${item.destination_address}, ${t('admin.bagsAndWait', {
-              bags: item.bags_count,
-              wait: item.max_wait_minutes,
-            })}`;
-            return (
-              <Card
-                key={item.id}
-                onPress={() => toggleSelect(item.id)}
-                style={styles.row}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: isSelected }}
-                accessibilityLabel={rowLabel}
-              >
-                <View style={styles.rowInner}>
-                  <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                    {isSelected ? (
-                      <Text style={styles.checkmark} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                        ✓
-                      </Text>
-                    ) : null}
-                  </View>
-                  <View style={styles.rowText}>
-                    <Text style={styles.rowTitle}>{displayName}</Text>
-                    <Text style={styles.rowSubtitle}>
-                      {item.flight_number} · {formatBarcelonaDateTime(item.arrival_at)}
-                    </Text>
-                    <Text style={styles.rowSubtitle}>{item.destination_address}</Text>
-                    <Text style={styles.rowMeta}>
-                      {t('admin.bagsAndWait', { bags: item.bags_count, wait: item.max_wait_minutes })}
-                    </Text>
-                  </View>
-                </View>
-              </Card>
-            );
-          })
+          <>
+            <View style={styles.tabRow} accessibilityRole="tablist" accessibilityLabel={t('admin.rideDateFilterLabel')}>
+              {RIDE_DATE_FILTERS.map((filter) => (
+                <Pressable
+                  key={filter.value}
+                  onPress={() => setRideDateFilter(filter.value)}
+                  style={[styles.tab, rideDateFilter === filter.value && styles.tabActive]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: rideDateFilter === filter.value }}
+                >
+                  <Text style={[styles.tabText, rideDateFilter === filter.value && styles.tabTextActive]}>
+                    {t(filter.labelKey)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {requestSections.length === 0 ? (
+              <Text style={styles.emptyText}>{t('admin.filterEmpty')}</Text>
+            ) : null}
+            {requestSections.map((section) => (
+              <View key={section.dayKey}>
+                <Text style={styles.dayHeader} accessibilityRole="header">
+                  {rideDayLabel(section.dayKey)}
+                </Text>
+                {section.requests.map((item) => {
+                  const isSelected = selectedIds.includes(item.id);
+                  const displayName = item.passenger_name?.trim() || item.flight_number;
+                  const rideDateText = rideDateAccessibilityText(t, i18n.language, {
+                    arrivalAt: item.arrival_at,
+                    flightNumber: item.flight_number,
+                    arrivalTimeSource: item.arrival_time_source,
+                    createdAt: item.created_at,
+                  });
+                  const rowLabel = `${displayName}, ${rideDateText}, ${item.destination_address}, ${t('admin.bagsAndWait', {
+                    bags: item.bags_count,
+                    wait: item.max_wait_minutes,
+                  })}`;
+                  return (
+                    <Card
+                      key={item.id}
+                      onPress={() => toggleSelect(item.id)}
+                      style={styles.row}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isSelected }}
+                      accessibilityLabel={rowLabel}
+                    >
+                      <View style={styles.rowInner}>
+                        <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                          {isSelected ? (
+                            <Text style={styles.checkmark} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                              ✓
+                            </Text>
+                          ) : null}
+                        </View>
+                        <View style={styles.rowText}>
+                          <RideDateLine
+                            arrivalAt={item.arrival_at}
+                            flightNumber={item.flight_number}
+                            arrivalTimeSource={item.arrival_time_source}
+                            createdAt={item.created_at}
+                          />
+                          <Text style={styles.rowTitle}>{displayName}</Text>
+                          <Text style={styles.rowSubtitle}>{item.destination_address}</Text>
+                          <Text style={styles.rowMeta}>
+                            {t('admin.bagsAndWait', { bags: item.bags_count, wait: item.max_wait_minutes })}
+                          </Text>
+                        </View>
+                      </View>
+                    </Card>
+                  );
+                })}
+              </View>
+            ))}
+          </>
         )}
 
         <View style={styles.footer}>
@@ -453,7 +545,7 @@ export default function AdminScreen({ session, onBack }: Props) {
                     : t('groupDetail.statusUnconfirmed');
               const rideDate = groupRideDates[group.id];
               const rideDateLabel = rideDate
-                ? t('admin.groupRideDateLabel', { date: formatBarcelonaDateTime(rideDate) })
+                ? t('admin.groupRideDateLabel', { date: formatRideDateTime(t, i18n.language, rideDate) })
                 : null;
               const createdLabel = t('admin.groupCreatedLabel', { date: formatBarcelonaDateTime(group.created_at) });
               return (
@@ -498,17 +590,26 @@ export default function AdminScreen({ session, onBack }: Props) {
                   const displayName = item.passenger_name?.trim() || item.flight_number;
                   const statusLabel =
                     item.status === 'cancelled' ? t('admin.historyStatusCancelled') : t('admin.historyStatusExpired');
+                  const rideDateText = rideDateAccessibilityText(t, i18n.language, {
+                    arrivalAt: item.arrival_at,
+                    flightNumber: item.flight_number,
+                    arrivalTimeSource: item.arrival_time_source,
+                    createdAt: item.created_at,
+                  });
                   return (
                     <Card
                       key={item.id}
                       style={styles.row}
-                      accessibilityLabel={`${displayName}, ${item.flight_number}, ${statusLabel}`}
+                      accessibilityLabel={`${displayName}, ${rideDateText}, ${statusLabel}`}
                     >
                       <View style={styles.rowText}>
+                        <RideDateLine
+                          arrivalAt={item.arrival_at}
+                          flightNumber={item.flight_number}
+                          arrivalTimeSource={item.arrival_time_source}
+                          createdAt={item.created_at}
+                        />
                         <Text style={styles.rowTitle}>{displayName}</Text>
-                        <Text style={styles.rowSubtitle}>
-                          {item.flight_number} · {formatBarcelonaDateTime(item.arrival_at)}
-                        </Text>
                         <Text style={styles.rowSubtitle}>{item.destination_address}</Text>
                         <StatusPill status="Cancelled" label={statusLabel} />
                       </View>
@@ -616,6 +717,12 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: colors.white,
+  },
+  dayHeader: {
+    ...baseText.label,
+    color: colors.textSecondary,
+    marginTop: spacing.x2,
+    marginBottom: spacing.x2,
   },
   historyToggle: {
     alignItems: 'center',

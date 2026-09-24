@@ -62,6 +62,10 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
   const [isLookingUpFlight, setIsLookingUpFlight] = useState(false);
   const [flightLookupNote, setFlightLookupNote] = useState<string | null>(null);
   const [hasFlightEstimate, setHasFlightEstimate] = useState(false);
+  // True only when this session's flight lookup filled the time in - unlike hasFlightEstimate,
+  // which is also true for an edit that loaded with the time pinned. Only feeds the admin-facing
+  // arrival_time_source; no visible effect here.
+  const [isArrivalFromLookup, setIsArrivalFromLookup] = useState(false);
 
   const loadExistingRequest = useCallback(async () => {
     if (!requestId) return;
@@ -123,6 +127,7 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
 
     if (!estimate) {
       setHasFlightEstimate(false);
+      setIsArrivalFromLookup(false);
       setFlightLookupNote(t('newRequest.flightLookupNotFound'));
       return;
     }
@@ -130,6 +135,7 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
     setArrivalDate(estimate.estimatedLandingAt);
     setArrivalTime(estimate.estimatedLandingAt);
     setHasFlightEstimate(true);
+    setIsArrivalFromLookup(true);
     setFlightLookupNote(
       t('newRequest.flightLookupFound', {
         time: estimate.estimatedLandingAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -187,6 +193,12 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
       largeLuggageCount,
       handLuggageCount,
       maxWaitMinutes: maxWait,
+      // Pinned-but-not-re-looked-up (edit mode) sends undefined so the stored source is kept.
+      arrivalTimeSource: isArrivalFromLookup
+        ? ('flight' as const)
+        : hasFlightEstimate
+          ? undefined
+          : ('manual' as const),
     };
 
     if (isEditMode && requestId) {
@@ -303,6 +315,7 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
           setFlightNumber(text);
           setFlightLookupNote(null);
           setHasFlightEstimate(false);
+          setIsArrivalFromLookup(false);
         }}
         onBlur={handleFlightNumberBlur}
         autoCapitalize="characters"

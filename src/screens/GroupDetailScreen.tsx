@@ -6,6 +6,7 @@ import AuthTextInput from '../components/AuthTextInput';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
+import RideDateLine, { rideDateAccessibilityText } from '../components/RideDateLine';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
@@ -27,7 +28,6 @@ import {
 } from '../services/adminGrouping';
 import { calculateFareSplit, FareSplitResult } from '../services/fareSplit';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
-import { formatBarcelonaDateTime } from '../utils/formatDateTime';
 
 type Props = {
   groupId: string;
@@ -52,7 +52,7 @@ function candidateDisplayName(candidate: PendingPassengerRequest) {
 }
 
 export default function GroupDetailScreen({ groupId, onBack }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [members, setMembers] = useState<TaxiGroupMember[]>([]);
   const [distanceInputs, setDistanceInputs] = useState<Record<string, string>>({});
@@ -389,13 +389,14 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
 
             {members.map((member) => (
               <Card key={member.id} style={styles.memberCard}>
+                <RideDateLine
+                  arrivalAt={member.arrival_at}
+                  flightNumber={member.flight_number}
+                  arrivalTimeSource={member.arrival_time_source}
+                  createdAt={member.created_at}
+                />
                 <Text style={styles.memberTitle}>{memberDisplayName(member)}</Text>
-                <Text style={styles.memberSubtitle}>
-                  {member.flight_number} · {member.destination_address}
-                </Text>
-                <Text style={styles.memberRideDate}>
-                  {t('groupDetail.rideDateLabel', { date: formatBarcelonaDateTime(member.arrival_at) })}
-                </Text>
+                <Text style={styles.memberSubtitle}>{member.destination_address}</Text>
                 {member.extra_detour_minutes != null && member.waiting_minutes != null ? (
                   <Text style={styles.memberScoreNote}>
                     {t('groupDetail.detourAndWait', {
@@ -470,14 +471,21 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                       key={candidate.id}
                       onPress={() => setPendingAction({ type: 'add', candidate, step: 'confirm' })}
                       style={styles.candidateRow}
+                      accessibilityLabel={`${candidateDisplayName(candidate)}, ${rideDateAccessibilityText(t, i18n.language, {
+                        arrivalAt: candidate.arrival_at,
+                        flightNumber: candidate.flight_number,
+                        arrivalTimeSource: candidate.arrival_time_source,
+                        createdAt: candidate.created_at,
+                      })}, ${candidate.destination_address}`}
                     >
+                      <RideDateLine
+                        arrivalAt={candidate.arrival_at}
+                        flightNumber={candidate.flight_number}
+                        arrivalTimeSource={candidate.arrival_time_source}
+                        createdAt={candidate.created_at}
+                      />
                       <Text style={styles.memberTitle}>{candidateDisplayName(candidate)}</Text>
-                      <Text style={styles.memberSubtitle}>
-                        {candidate.flight_number} · {candidate.destination_address}
-                      </Text>
-                      <Text style={styles.memberRideDate}>
-                        {t('groupDetail.rideDateLabel', { date: formatBarcelonaDateTime(candidate.arrival_at) })}
-                      </Text>
+                      <Text style={styles.memberSubtitle}>{candidate.destination_address}</Text>
                     </Card>
                   ))
                 )
@@ -547,11 +555,6 @@ const styles = StyleSheet.create({
   memberSubtitle: {
     ...baseText.caption,
     marginBottom: spacing.x3,
-  },
-  memberRideDate: {
-    ...baseText.caption,
-    color: colors.info,
-    marginBottom: spacing.x2,
   },
   results: {
     marginTop: spacing.x6,

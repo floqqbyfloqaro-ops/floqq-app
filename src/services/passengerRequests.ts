@@ -1,5 +1,8 @@
 import { supabase } from './supabase';
 
+// Where arrival_at came from - shown to the admin as a plane indicator (see RideDateLine).
+export type ArrivalTimeSource = 'flight' | 'manual';
+
 export type PassengerRequestInput = {
   flightNumber: string;
   arrivalAt: Date;
@@ -9,6 +12,8 @@ export type PassengerRequestInput = {
   largeLuggageCount: number;
   handLuggageCount: number;
   maxWaitMinutes: number;
+  // Undefined on an edit where the time stayed pinned to the stored value - keeps the stored source.
+  arrivalTimeSource?: ArrivalTimeSource;
 };
 
 export async function createPassengerRequest(input: PassengerRequestInput) {
@@ -30,6 +35,7 @@ export async function createPassengerRequest(input: PassengerRequestInput) {
     passenger_name: passengerName,
     flight_number: input.flightNumber,
     arrival_at: input.arrivalAt.toISOString(),
+    arrival_time_source: input.arrivalTimeSource ?? 'manual',
     destination_address: input.destinationAddress,
     destination_lat: input.destinationLat,
     destination_lng: input.destinationLng,
@@ -103,6 +109,7 @@ export async function updatePassengerRequest(
       largeLuggageCount: input.largeLuggageCount,
       handLuggageCount: input.handLuggageCount,
       maxWaitMinutes: input.maxWaitMinutes,
+      arrivalTimeSource: input.arrivalTimeSource,
     },
   });
 
