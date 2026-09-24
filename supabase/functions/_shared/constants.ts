@@ -42,6 +42,16 @@ export const SCORE_WEIGHTS = {
   fareEuro: 2,
 };
 
+// Per-passenger detour limit - see src/constants.ts for the full explanation and
+// _shared/detourLimit.ts for the rule itself.
 export const MAX_DETOUR_MINUTES = 15;
+export const MAX_DETOUR_PERCENT = 50;
+export const MIN_ALLOWED_DETOUR_MINUTES = 5;
+
+export const DETOUR_LIMITS = {
+  maxMinutes: MAX_DETOUR_MINUTES,
+  maxPercent: MAX_DETOUR_PERCENT,
+  minAllowedMinutes: MIN_ALLOWED_DETOUR_MINUTES,
+} as const;
 
 export const SERVICE_FEE_EUR = 2.49;

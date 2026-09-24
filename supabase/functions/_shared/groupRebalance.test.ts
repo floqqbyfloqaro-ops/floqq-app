@@ -9,7 +9,7 @@ import { buildGroupTotalsPayload, buildMemberScoresPayload, isGroupStillValid } 
 import type { SuggestionLike } from './groupRebalance.ts';
 
 const MAX_BAGS = 4;
-const MAX_DETOUR = 15;
+const DETOUR_LIMITS = { maxMinutes: 15, maxPercent: 50, minAllowedMinutes: 5 };
 
 function member(overrides: Partial<SuggestionLike['members'][number]> & { id: string }) {
   return {
@@ -34,7 +34,7 @@ test('valid group: within detour and each member within their own wait tolerance
     { id: 'b', bagsCount: 1, maxWaitMinutes: 10 },
   ];
 
-  assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, MAX_DETOUR), true);
+  assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), true);
 });
 
 test('invalid: a member now exceeds MAX_DETOUR_MINUTES', () => {
@@ -49,7 +49,22 @@ test('invalid: a member now exceeds MAX_DETOUR_MINUTES', () => {
     { id: 'b', bagsCount: 1, maxWaitMinutes: 10 },
   ];
 
-  assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, MAX_DETOUR), false);
+  assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
+});
+
+test('invalid: a member is within 15 min but over 50% of their own short direct trip', () => {
+  const suggestion: SuggestionLike = {
+    members: [member({ id: 'a', extraDetourMinutes: 9, directMinutes: 15 }), member({ id: 'b', directMinutes: 30 })],
+    worstIndividualScore: 9,
+    totalRouteDistanceKm: 12,
+    totalRouteDurationMinutes: 24,
+  };
+  const remaining = [
+    { id: 'a', bagsCount: 1, maxWaitMinutes: 10 },
+    { id: 'b', bagsCount: 1, maxWaitMinutes: 10 },
+  ];
+
+  assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
 });
 
 test('invalid: a member now waits longer than their own max_wait_minutes', () => {
@@ -64,7 +79,7 @@ test('invalid: a member now waits longer than their own max_wait_minutes', () =>
     { id: 'b', bagsCount: 1, maxWaitMinutes: 15 },
   ];
 
-  assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, MAX_DETOUR), false);
+  assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
 });
 
 test('invalid: combined luggage now exceeds taxi capacity', () => {
@@ -79,12 +94,12 @@ test('invalid: combined luggage now exceeds taxi capacity', () => {
     { id: 'b', bagsCount: 3, maxWaitMinutes: 15 },
   ];
 
-  assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, MAX_DETOUR), false);
+  assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
 });
 
 test('invalid: route recomputation failed (null suggestion)', () => {
   const remaining = [{ id: 'a', bagsCount: 1, maxWaitMinutes: 15 }];
-  assert.equal(isGroupStillValid(null, remaining, MAX_BAGS, MAX_DETOUR), false);
+  assert.equal(isGroupStillValid(null, remaining, MAX_BAGS, DETOUR_LIMITS), false);
 });
 
 test('buildMemberScoresPayload maps to the snake_case shape apply_group_rescore expects', () => {
