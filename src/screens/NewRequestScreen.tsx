@@ -118,7 +118,7 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
     setIsLookingUpFlight(true);
     setFlightLookupNote(null);
 
-    const estimate = await fetchEstimatedLandingTime(flightNumber);
+    const estimate = await fetchEstimatedLandingTime(flightNumber, arrivalDate);
     setIsLookingUpFlight(false);
 
     if (!estimate) {
