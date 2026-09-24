@@ -3,7 +3,8 @@
 
 export const ADMIN_EMAIL = 'floqqbyfloqaro@gmail.com';
 
-export const MAX_PASSENGERS_PER_TAXI = 4;
+// Kept in sync with src/constants.ts.
+export const MAX_PASSENGERS_PER_TAXI = 3;
 export const MAX_BAGS_PER_TAXI = 4;
 
 export const AIRPORT = {

@@ -1,5 +1,6 @@
-// Caps how many passengers the admin can group into one taxi.
-export const MAX_PASSENGERS_PER_TAXI = 4;
+// Caps how many passengers the admin can group into one taxi. Pilot value dropped from 4 to 3
+// (2026-09-24) - kept in sync with supabase/functions/_shared/constants.ts.
+export const MAX_PASSENGERS_PER_TAXI = 3;
 
 // Caps total bags across a group so everything fits in one taxi's trunk.
 export const MAX_BAGS_PER_TAXI = 4;
