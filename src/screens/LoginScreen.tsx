@@ -9,6 +9,8 @@ import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
+import VerifyEmailNotice from '../components/VerifyEmailNotice';
+import { isEmailNotConfirmedError } from '../services/emailVerification';
 import { supabase } from '../services/supabase';
 import { baseText, colors, overlays, spacing } from '../theme/colors';
 
@@ -24,12 +26,17 @@ export default function LoginScreen({ onSwitchToSignUp, onForgotPassword }: Prop
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
 
   const handleLogin = async () => {
     setErrorMessage(null);
     setIsSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setIsSubmitting(false);
+    if (isEmailNotConfirmedError(error)) {
+      setPendingVerificationEmail(email.trim());
+      return;
+    }
     if (error) {
       console.warn('signInWithPassword failed', error);
       setErrorMessage(t('auth.loginError'));
@@ -100,64 +107,73 @@ export default function LoginScreen({ onSwitchToSignUp, onForgotPassword }: Prop
           <Image source={require('../../assets/icon-full.png')} style={styles.logo} resizeMode="contain" />
           <Text style={styles.wordmark}>FLOQQ</Text>
 
-          <Text style={styles.title}>{t('auth.loginTitle')}</Text>
-          <Text style={styles.subtitle}>{t('auth.loginSubtitle')}</Text>
+          {pendingVerificationEmail ? (
+            <VerifyEmailNotice
+              email={pendingVerificationEmail}
+              onBackToLogin={() => setPendingVerificationEmail(null)}
+            />
+          ) : (
+            <>
+            <Text style={styles.title}>{t('auth.loginTitle')}</Text>
+            <Text style={styles.subtitle}>{t('auth.loginSubtitle')}</Text>
 
-          <AuthTextInput
-            variant="card"
-            leadingIcon="mail-outline"
-            placeholder={t('auth.emailPlaceholder')}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-          />
-          <AuthTextInput
-            variant="card"
-            leadingIcon="lock-closed-outline"
-            trailingIcon={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
-            onTrailingIconPress={() => setIsPasswordVisible((v) => !v)}
-            trailingIconLabel={isPasswordVisible ? t('auth.hidePassword') : t('auth.showPassword')}
-            placeholder={t('auth.passwordPlaceholder')}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!isPasswordVisible}
-          />
+            <AuthTextInput
+              variant="card"
+              leadingIcon="mail-outline"
+              placeholder={t('auth.emailPlaceholder')}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+            />
+            <AuthTextInput
+              variant="card"
+              leadingIcon="lock-closed-outline"
+              trailingIcon={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+              onTrailingIconPress={() => setIsPasswordVisible((v) => !v)}
+              trailingIconLabel={isPasswordVisible ? t('auth.hidePassword') : t('auth.showPassword')}
+              placeholder={t('auth.passwordPlaceholder')}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!isPasswordVisible}
+            />
 
-          {errorMessage ? <ErrorNotice message={errorMessage} onRetry={handleLogin} retryLabel={t('common.retry')} /> : null}
+            {errorMessage ? <ErrorNotice message={errorMessage} onRetry={handleLogin} retryLabel={t('common.retry')} /> : null}
 
-          <PrimaryButton label={t('auth.loginButton')} onPress={handleLogin} loading={isSubmitting} />
+            <PrimaryButton label={t('auth.loginButton')} onPress={handleLogin} loading={isSubmitting} />
 
-          <Pressable
-            onPress={onForgotPassword}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.forgotPasswordLink')}
-          >
-            <Text style={styles.forgotPasswordText}>{t('auth.forgotPasswordLink')}</Text>
-          </Pressable>
+            <Pressable
+              onPress={onForgotPassword}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.forgotPasswordLink')}
+            >
+              <Text style={styles.forgotPasswordText}>{t('auth.forgotPasswordLink')}</Text>
+            </Pressable>
 
-          <View style={styles.separatorRow}>
-            <View style={styles.separatorLine} />
-            <Text style={styles.separatorText}>{t('auth.orSeparator')}</Text>
-            <View style={styles.separatorLine} />
-          </View>
+            <View style={styles.separatorRow}>
+              <View style={styles.separatorLine} />
+              <Text style={styles.separatorText}>{t('auth.orSeparator')}</Text>
+              <View style={styles.separatorLine} />
+            </View>
 
-          <SecondaryButton icon="logo-apple" label={t('auth.continueWithApple')} onPress={handleAppleSignIn} />
-          <View style={styles.buttonGap} />
-          <SecondaryButton icon="logo-google" label={t('auth.continueWithGoogle')} onPress={handleGoogleSignIn} />
+            <SecondaryButton icon="logo-apple" label={t('auth.continueWithApple')} onPress={handleAppleSignIn} />
+            <View style={styles.buttonGap} />
+            <SecondaryButton icon="logo-google" label={t('auth.continueWithGoogle')} onPress={handleGoogleSignIn} />
 
-          <Pressable
-            onPress={onSwitchToSignUp}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel={`${t('auth.noAccount')} ${t('auth.signUpLink')}`}
-          >
-            <Text style={styles.switchText}>
-              {t('auth.noAccount')} <Text style={styles.switchLink}>{t('auth.signUpLink')}</Text>
-            </Text>
-          </Pressable>
+            <Pressable
+              onPress={onSwitchToSignUp}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('auth.noAccount')} ${t('auth.signUpLink')}`}
+            >
+              <Text style={styles.switchText}>
+                {t('auth.noAccount')} <Text style={styles.switchLink}>{t('auth.signUpLink')}</Text>
+              </Text>
+            </Pressable>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenBackground>

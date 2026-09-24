@@ -8,7 +8,14 @@
     "subtitle": "Encuentra un taxi para compartir en el aeropuerto.",
     "newRequestButton": "Nueva solicitud de trayecto",
     "myRideButton": "Mi trayecto",
-    "adminButton": "Administración"
+    "adminButton": "Administración",
+    "activeRideView": "Ver mi trayecto",
+    "activeRideCancelAndCreate": "Cancelarlo y crear uno nuevo",
+    "activeRideConfirmedLocked": "Tu trayecto está en un grupo confirmado, así que no se puede cancelar desde aquí.",
+    "activeRideCancelConfirm": "Tu trayecto actual se cancelará antes de crear uno nuevo.",
+    "activeRideCancelConfirmAction": "Sí, cancelarlo",
+    "activeRideKeep": "Mantener mi trayecto",
+    "activeRideCheckError": "No pudimos comprobar tu trayecto actual. Inténtalo de nuevo."
   },
   "onboarding": {
     "title": "Bienvenido a FLOQQ",
@@ -39,7 +46,6 @@
     "signUpLink": "Regístrate",
     "haveAccount": "¿Ya tienes una cuenta?",
     "loginLink": "Inicia sesión",
-    "confirmEmailMessage": "Revisa tu correo para confirmar tu cuenta antes de iniciar sesión.",
     "logout": "Cerrar sesión",
     "forgotPasswordLink": "¿Olvidaste tu contraseña?",
     "resetPasswordTitle": "Restablece tu contraseña",
@@ -56,7 +62,17 @@
     "passwordTooShortError": "La contraseña debe tener al menos 6 caracteres.",
     "loginError": "No pudimos iniciar tu sesión. Comprueba tu correo y contraseña e inténtalo de nuevo.",
     "signUpError": "No pudimos crear tu cuenta. Inténtalo de nuevo.",
-    "resetLinkError": "No pudimos enviar el enlace de restablecimiento. Comprueba tu correo e inténtalo de nuevo."
+    "resetLinkError": "No pudimos enviar el enlace de restablecimiento. Comprueba tu correo e inténtalo de nuevo.",
+    "verifyEmailTitle": "Revisa tu bandeja de entrada",
+    "verifyEmailBody": "Hemos enviado un enlace de verificación a:",
+    "verifyEmailSpamHint": "Pulsa el enlace del correo para activar tu cuenta. ¿No lo encuentras? Revisa la carpeta de spam.",
+    "verifyEmailResend": "Reenviar correo de verificación",
+    "verifyEmailResendIn": "Reenviar en {{seconds}} s",
+    "verifyEmailResent": "Te hemos enviado un nuevo correo de verificación.",
+    "verifyEmailResendError": "No pudimos reenviar el correo. Inténtalo de nuevo en un minuto.",
+    "emailVerifiedTitle": "Correo verificado ✓",
+    "emailVerifiedBody": "¡Bienvenido a FLOQQ! Tu cuenta ya está lista.",
+    "emailNotVerifiedError": "Verifica tu correo antes de solicitar un trayecto."
   },
   "edit_ride_title": "Editar trayecto",
   "save_changes": "Guardar cambios",
@@ -141,6 +157,7 @@
     "destinationLabel": "Destino",
     "arrivalLabel": "Llegada",
     "statusCancelled": "Trayecto cancelado",
+    "ride_expired_no_match": "Caducado - no se encontró ninguna coincidencia",
     "statusPending": "Buscando una coincidencia…",
     "statusUnconfirmed": "Emparejado — esperando a que se confirme el grupo.",
     "statusConfirmed": "¡Tu grupo está confirmado!",
@@ -169,5 +186,6 @@
   "groupDetailsPlaceholder": {
     "title": "Detalles del grupo",
     "body": "Esta pantalla llegará pronto — tu grupo está confirmado y aquí mostraremos todos los detalles."
-  }
+  },
+  "active_ride_exists": "Ya tienes un trayecto activo. Solo puedes tener un trayecto a la vez."
 }

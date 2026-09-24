@@ -1,10 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import Card from '../components/Card';
+import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
+import { cancelPassengerRequest, fetchMyActiveRequest, MyActiveRequest } from '../services/passengerRequests';
 import { supabase } from '../services/supabase';
 import { baseText, colors, overlays, spacing } from '../theme/colors';
 
@@ -13,10 +17,72 @@ type Props = {
   onOpenMyRide: () => void;
   isAdmin: boolean;
   onOpenAdmin: () => void;
+  // Set after the passenger arrives from the email-verified page's "Open FLOQQ" link.
+  showEmailVerified?: boolean;
+  onDismissEmailVerified?: () => void;
 };
 
-export default function HomeScreen({ onCreateRequest, onOpenMyRide, isAdmin, onOpenAdmin }: Props) {
+// A passenger can only have one active ride. Tapping "New ride request" while one exists shows
+// this inline panel instead of the form - inline rather than Alert.alert, because multi-button
+// alerts are a no-op on react-native-web.
+type ActiveRidePrompt = { request: MyActiveRequest; step: 'choose' | 'confirmCancel' };
+
+export default function HomeScreen({
+  onCreateRequest,
+  onOpenMyRide,
+  isAdmin,
+  onOpenAdmin,
+  showEmailVerified,
+  onDismissEmailVerified,
+}: Props) {
   const { t } = useTranslation();
+  const [isChecking, setIsChecking] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [prompt, setPrompt] = useState<ActiveRidePrompt | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleNewRequestPress = async () => {
+    setErrorMessage(null);
+    setIsChecking(true);
+    const { data, error } = await fetchMyActiveRequest();
+    setIsChecking(false);
+
+    if (error) {
+      console.warn('fetchMyActiveRequest failed', error);
+      setErrorMessage(t('home.activeRideCheckError'));
+      return;
+    }
+
+    if (data) {
+      setPrompt({ request: data, step: 'choose' });
+      return;
+    }
+
+    onCreateRequest();
+  };
+
+  const handleCancelAndCreate = async () => {
+    if (!prompt) return;
+    setErrorMessage(null);
+    setIsCancelling(true);
+    const { error, blockedReason } = await cancelPassengerRequest(prompt.request.id);
+    setIsCancelling(false);
+
+    if (blockedReason === 'group_confirmed') {
+      setPrompt({ request: { ...prompt.request, group_status: 'confirmed' }, step: 'choose' });
+      return;
+    }
+    if (error) {
+      console.warn('cancelPassengerRequest failed', error);
+      setErrorMessage(t('findingMatch.cancelError'));
+      return;
+    }
+
+    setPrompt(null);
+    onCreateRequest();
+  };
+
+  const isConfirmedGroup = prompt?.request.group_status === 'confirmed';
 
   return (
     <ScreenBackground
@@ -30,11 +96,73 @@ export default function HomeScreen({ onCreateRequest, onOpenMyRide, isAdmin, onO
         <Text style={styles.title}>{t('home.title')}</Text>
         <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
 
-        <View style={styles.actions}>
-          <PrimaryButton label={t('home.newRequestButton')} onPress={onCreateRequest} />
-          <SecondaryButton label={t('home.myRideButton')} onPress={onOpenMyRide} />
-          {isAdmin ? <SecondaryButton label={t('home.adminButton')} onPress={onOpenAdmin} /> : null}
-        </View>
+        {showEmailVerified ? (
+          <Card style={styles.verifiedCard} onPress={onDismissEmailVerified} accessibilityRole="button">
+            <Text style={styles.verifiedTitle} accessibilityLiveRegion="polite">
+              {t('auth.emailVerifiedTitle')}
+            </Text>
+            <Text style={styles.promptDetail}>{t('auth.emailVerifiedBody')}</Text>
+          </Card>
+        ) : null}
+
+        {errorMessage ? (
+          <View style={styles.errorWrap}>
+            <ErrorNotice message={errorMessage} />
+          </View>
+        ) : null}
+
+        {prompt ? (
+          <Card style={styles.promptCard}>
+            <Text style={styles.promptText} accessibilityLiveRegion="polite">
+              {t('active_ride_exists')}
+            </Text>
+            {isConfirmedGroup ? (
+              <Text style={styles.promptDetail}>{t('home.activeRideConfirmedLocked')}</Text>
+            ) : prompt.step === 'confirmCancel' ? (
+              <Text style={styles.promptDetail}>{t('home.activeRideCancelConfirm')}</Text>
+            ) : null}
+
+            <View style={styles.actions}>
+              {prompt.step === 'confirmCancel' && !isConfirmedGroup ? (
+                <>
+                  <PrimaryButton
+                    label={t('home.activeRideCancelConfirmAction')}
+                    onPress={handleCancelAndCreate}
+                    loading={isCancelling}
+                  />
+                  <SecondaryButton
+                    label={t('home.activeRideKeep')}
+                    onPress={() => setPrompt(null)}
+                    disabled={isCancelling}
+                  />
+                </>
+              ) : (
+                <>
+                  <PrimaryButton
+                    label={t('home.activeRideView')}
+                    onPress={() => {
+                      setPrompt(null);
+                      onOpenMyRide();
+                    }}
+                  />
+                  {isConfirmedGroup ? null : (
+                    <SecondaryButton
+                      label={t('home.activeRideCancelAndCreate')}
+                      onPress={() => setPrompt({ ...prompt, step: 'confirmCancel' })}
+                    />
+                  )}
+                  <SecondaryButton label={t('home.activeRideKeep')} onPress={() => setPrompt(null)} />
+                </>
+              )}
+            </View>
+          </Card>
+        ) : (
+          <View style={styles.actions}>
+            <PrimaryButton label={t('home.newRequestButton')} onPress={handleNewRequestPress} loading={isChecking} />
+            <SecondaryButton label={t('home.myRideButton')} onPress={onOpenMyRide} />
+            {isAdmin ? <SecondaryButton label={t('home.adminButton')} onPress={onOpenAdmin} /> : null}
+          </View>
+        )}
 
         <Pressable
           style={styles.logoutButton}
@@ -73,6 +201,32 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.x8,
     textAlign: 'center',
+  },
+  errorWrap: {
+    alignSelf: 'stretch',
+    marginBottom: spacing.x4,
+  },
+  verifiedCard: {
+    alignSelf: 'stretch',
+    marginBottom: spacing.x4,
+  },
+  verifiedTitle: {
+    ...baseText.body,
+    fontWeight: '700',
+    color: colors.success,
+    marginBottom: spacing.x1,
+  },
+  promptCard: {
+    alignSelf: 'stretch',
+  },
+  promptText: {
+    ...baseText.body,
+    marginBottom: spacing.x2,
+  },
+  promptDetail: {
+    ...baseText.bodySmall,
+    color: colors.textSecondary,
+    marginBottom: spacing.x4,
   },
   actions: {
     alignSelf: 'stretch',
