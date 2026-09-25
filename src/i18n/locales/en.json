@@ -19,7 +19,8 @@
     "activeRideCancelConfirm": "Your current ride will be cancelled before you create a new one.",
     "activeRideCancelConfirmAction": "Yes, cancel it",
     "activeRideKeep": "Keep my ride",
-    "activeRideCheckError": "We couldn’t check your current ride. Please try again."
+    "activeRideCheckError": "We couldn’t check your current ride. Please try again.",
+    "profileButton": "Profile"
   },
   "onboarding": {
     "title": "Welcome to FLOQQ",
@@ -239,5 +240,24 @@
     "title": "Group details",
     "body": "This screen is coming soon — your group is confirmed, and we'll show the full details here."
   },
-  "active_ride_exists": "You already have an active ride. You can only have one ride at a time."
+  "active_ride_exists": "You already have an active ride. You can only have one ride at a time.",
+  "profile": {
+    "title": "Profile",
+    "paymentMethodsTitle": "Payment methods",
+    "paymentMethodsIntro": "Save a payment method once. FLOQQ uses it to reserve and pay your share of shared taxi rides, so you never have to enter your card again.",
+    "noCard": "No payment method saved yet.",
+    "addCard": "Add payment method",
+    "replaceCard": "Replace card",
+    "cardLine": "{{brand}} •••• {{last4}}",
+    "cardExpiry": "Expires {{month}}/{{year}}",
+    "walletGooglePay": "Google Pay",
+    "walletApplePay": "Apple Pay",
+    "savingCard": "Saving your card…",
+    "cardSaved": "Your card is saved.",
+    "savingSlow": "Your card is still being confirmed. Pull down to refresh in a moment.",
+    "loadError": "We couldn’t load your payment method.",
+    "setupError": "We couldn’t save your card. Please try again.",
+    "webNotSupported": "Adding a payment method is only available in the FLOQQ mobile app.",
+    "merchantName": "FLOQQ"
+  }
 }

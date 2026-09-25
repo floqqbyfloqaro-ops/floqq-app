@@ -12,10 +12,12 @@ import LoginScreen from './src/screens/LoginScreen';
 import MyRideScreen from './src/screens/MyRideScreen';
 import NewRequestScreen from './src/screens/NewRequestScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeSplashScreen from './src/screens/WelcomeSplashScreen';
-import { ADMIN_EMAIL } from './src/constants';
+import { ADMIN_EMAIL, PAYMENTS_ENABLED } from './src/constants';
 import WebAppFrame from './src/components/WebAppFrame';
+import { handleStripeRedirect } from './src/services/cardSetup';
 import { parseEmailVerifiedLink } from './src/services/emailVerification';
 import { hasCompletedOnboarding, setOnboardingCompleted } from './src/services/onboarding';
 import { supabase } from './src/services/supabase';
@@ -41,7 +43,7 @@ function AppContent() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgotPassword'>('login');
-  const [mainScreen, setMainScreen] = useState<'home' | 'newRequest' | 'myRide' | 'admin'>('home');
+  const [mainScreen, setMainScreen] = useState<'home' | 'newRequest' | 'myRide' | 'admin' | 'profile'>('home');
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [showEmailVerified, setShowEmailVerified] = useState(false);
 
@@ -53,6 +55,12 @@ function AppContent() {
   useEffect(() => {
     if (!linkingUrl || handledLinkRef.current === linkingUrl) return;
     handledLinkRef.current = linkingUrl;
+
+    // Returning from a bank's 3D Secure page while saving a card - Stripe's link, not ours.
+    if (PAYMENTS_ENABLED && linkingUrl.includes('stripe-redirect')) {
+      handleStripeRedirect(linkingUrl);
+      return;
+    }
 
     const tokens = parseEmailVerifiedLink(linkingUrl);
     if (!tokens) return;
@@ -139,6 +147,10 @@ function AppContent() {
       return <MyRideScreen onBack={() => setMainScreen('home')} onCreateRequest={openNewRequest} />;
     }
 
+    if (mainScreen === 'profile') {
+      return <ProfileScreen onBack={() => setMainScreen('home')} />;
+    }
+
     if (mainScreen === 'admin') {
       return <AdminScreen session={session} onBack={() => setMainScreen('home')} />;
     }
@@ -149,6 +161,8 @@ function AppContent() {
         onOpenMyRide={() => setMainScreen('myRide')}
         isAdmin={session.user?.email === ADMIN_EMAIL}
         onOpenAdmin={() => setMainScreen('admin')}
+        showProfile={PAYMENTS_ENABLED}
+        onOpenProfile={() => setMainScreen('profile')}
         showEmailVerified={showEmailVerified}
         onDismissEmailVerified={() => setShowEmailVerified(false)}
       />

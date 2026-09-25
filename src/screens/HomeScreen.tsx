@@ -17,6 +17,9 @@ type Props = {
   onOpenMyRide: () => void;
   isAdmin: boolean;
   onOpenAdmin: () => void;
+  // Only shown with the payments prototype switched on (PAYMENTS_ENABLED).
+  showProfile: boolean;
+  onOpenProfile: () => void;
   // Set after the passenger arrives from the email-verified page's "Open FLOQQ" link.
   showEmailVerified?: boolean;
   onDismissEmailVerified?: () => void;
@@ -32,6 +35,8 @@ export default function HomeScreen({
   onOpenMyRide,
   isAdmin,
   onOpenAdmin,
+  showProfile,
+  onOpenProfile,
   showEmailVerified,
   onDismissEmailVerified,
 }: Props) {
@@ -160,6 +165,7 @@ export default function HomeScreen({
           <View style={styles.actions}>
             <PrimaryButton label={t('home.newRequestButton')} onPress={handleNewRequestPress} loading={isChecking} />
             <SecondaryButton label={t('home.myRideButton')} onPress={onOpenMyRide} />
+            {showProfile ? <SecondaryButton label={t('home.profileButton')} onPress={onOpenProfile} /> : null}
             {isAdmin ? <SecondaryButton label={t('home.adminButton')} onPress={onOpenAdmin} /> : null}
           </View>
         )}

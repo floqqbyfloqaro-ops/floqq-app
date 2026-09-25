@@ -15,7 +15,8 @@
     "activeRideCancelConfirm": "Tu trayecto actual se cancelará antes de crear uno nuevo.",
     "activeRideCancelConfirmAction": "Sí, cancelarlo",
     "activeRideKeep": "Mantener mi trayecto",
-    "activeRideCheckError": "No pudimos comprobar tu trayecto actual. Inténtalo de nuevo."
+    "activeRideCheckError": "No pudimos comprobar tu trayecto actual. Inténtalo de nuevo.",
+    "profileButton": "Perfil"
   },
   "onboarding": {
     "title": "Bienvenido a FLOQQ",
@@ -235,5 +236,24 @@
     "title": "Detalles del grupo",
     "body": "Esta pantalla llegará pronto — tu grupo está confirmado y aquí mostraremos todos los detalles."
   },
-  "active_ride_exists": "Ya tienes un trayecto activo. Solo puedes tener un trayecto a la vez."
+  "active_ride_exists": "Ya tienes un trayecto activo. Solo puedes tener un trayecto a la vez.",
+  "profile": {
+    "title": "Perfil",
+    "paymentMethodsTitle": "Métodos de pago",
+    "paymentMethodsIntro": "Guarda un método de pago una sola vez. FLOQQ lo usa para reservar y pagar tu parte de los taxis compartidos, así no tendrás que volver a introducir tu tarjeta.",
+    "noCard": "Todavía no has guardado ningún método de pago.",
+    "addCard": "Añadir método de pago",
+    "replaceCard": "Cambiar tarjeta",
+    "cardLine": "{{brand}} •••• {{last4}}",
+    "cardExpiry": "Caduca {{month}}/{{year}}",
+    "walletGooglePay": "Google Pay",
+    "walletApplePay": "Apple Pay",
+    "savingCard": "Guardando tu tarjeta…",
+    "cardSaved": "Tu tarjeta está guardada.",
+    "savingSlow": "Tu tarjeta aún se está confirmando. Desliza hacia abajo para actualizar en un momento.",
+    "loadError": "No hemos podido cargar tu método de pago.",
+    "setupError": "No hemos podido guardar tu tarjeta. Inténtalo de nuevo.",
+    "webNotSupported": "Solo puedes añadir un método de pago desde la app móvil de FLOQQ.",
+    "merchantName": "FLOQQ"
+  }
 }

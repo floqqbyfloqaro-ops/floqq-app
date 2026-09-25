@@ -99,3 +99,8 @@ export const ADMIN_HISTORY_DEFAULT_WINDOW_DAYS = 7;
 // group dates in this zone, regardless of the admin's own device time zone. See
 // src/utils/formatDateTime.ts.
 export const BARCELONA_TIME_ZONE = 'Europe/Madrid';
+
+// Stripe TEST-MODE payments prototype (card saving, holds, captures, payouts). Off unless
+// EXPO_PUBLIC_PAYMENTS_ENABLED=true in .env - with it off the app behaves exactly as before. The
+// server enforces its own PAYMENTS_ENABLED secret independently; this flag only hides the UI.
+export const PAYMENTS_ENABLED = process.env.EXPO_PUBLIC_PAYMENTS_ENABLED === 'true';
