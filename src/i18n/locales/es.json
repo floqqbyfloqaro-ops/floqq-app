@@ -199,7 +199,6 @@
     "dissolveConfirmAction": "Disolver",
     "dissolveError": "No pudimos disolver este grupo.",
     "payerLabel": "Paga el taxi · cobro: {{payout}}",
-    "payerOpen": "La persona que pagaba ha devuelto el pago - esperando a que alguien del grupo se encargue.",
     "payout": {
       "NOT_STARTED": "sin empezar",
       "PENDING": "en curso",
@@ -305,15 +304,7 @@
     "setUpButton": "Configurar cobro",
     "continueButton": "Continuar configuración",
     "checkAgainButton": "Comprobar de nuevo",
-    "declineButton": "No puedo pagar el taxi",
-    "declineConfirm": "¿Devolver el pago del taxi? Pediremos a los demás de tu grupo que se encarguen.",
-    "declineYes": "Sí, devolverlo",
-    "declineNo": "Mantenerlo",
-    "openTitle": "Nadie paga el taxi todavía",
-    "openExplainer": "La persona que iba a pagar el taxi no puede. ¿Puedes tú? Pagas el taxi y recibes automáticamente la parte de los demás.",
-    "volunteerButton": "Yo pago el taxi",
-    "roleTaken": "Otra persona acaba de encargarse. ¡Gracias de todos modos!",
-    "youDeclined": "Has devuelto el pago del taxi. Se lo hemos pedido a los demás de tu grupo.",
-    "someoneElsePays": "Otra persona de tu grupo paga el taxi. Después del viaje solo se cobra tu parte real en tu tarjeta."
+    "someoneElsePays": "Otra persona de tu grupo paga el taxi. Después del viaje solo se cobra tu parte real en tu tarjeta.",
+    "cantPay": "¿No puedes pagar el taxi? Solo puede hacerlo quien baja el último, así que la única opción es cancelar tu plaza abajo; entonces pagará quien baje el último."
   }
 }

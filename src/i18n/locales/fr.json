@@ -203,7 +203,6 @@
     "dissolveConfirmAction": "Dissoudre",
     "dissolveError": "Impossible de dissoudre ce groupe.",
     "payerLabel": "Paie le taxi · versement : {{payout}}",
-    "payerOpen": "La personne qui payait a rendu le paiement - en attente que quelqu’un du groupe s’en charge.",
     "payout": {
       "NOT_STARTED": "pas commencé",
       "PENDING": "en cours",
@@ -309,15 +308,7 @@
     "setUpButton": "Configurer le versement",
     "continueButton": "Continuer la configuration",
     "checkAgainButton": "Vérifier à nouveau",
-    "declineButton": "Je ne peux pas payer le taxi",
-    "declineConfirm": "Rendre le paiement du taxi ? Nous demanderons aux autres membres du groupe de s'en charger.",
-    "declineYes": "Oui, le rendre",
-    "declineNo": "Le garder",
-    "openTitle": "Personne ne paie encore le taxi",
-    "openExplainer": "La personne qui devait payer le taxi ne peut pas. Et vous ? Vous payez le taxi et récupérez automatiquement la part des autres.",
-    "volunteerButton": "Je paie le taxi",
-    "roleTaken": "Quelqu'un d'autre vient de s'en charger - merci quand même !",
-    "youDeclined": "Vous avez rendu le paiement du taxi. Nous avons demandé aux autres membres du groupe.",
-    "someoneElsePays": "Une autre personne de votre groupe paie le taxi. Après le trajet, seule votre part réelle est prélevée sur votre carte."
+    "someoneElsePays": "Une autre personne de votre groupe paie le taxi. Après le trajet, seule votre part réelle est prélevée sur votre carte.",
+    "cantPay": "Vous ne pouvez pas payer le taxi ? Seul le dernier passager le peut : la seule solution est d'annuler votre place ci-dessous - c'est alors le dernier à descendre qui paie."
   }
 }

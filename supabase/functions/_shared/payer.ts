@@ -24,7 +24,7 @@ export async function syncGroupPayer(adminClient: SupabaseClient, groupId: strin
       console.error('system_assign_group_payer failed', error);
       return;
     }
-    const result = data as { changed: boolean; opened?: boolean; user_id?: string };
+    const result = data as { changed: boolean; user_id?: string };
     if (result.changed && result.user_id) {
       await sendPush(adminClient, { userId: result.user_id, key: 'payerAssigned' });
       return;
@@ -38,10 +38,10 @@ export async function syncGroupPayer(adminClient: SupabaseClient, groupId: strin
 async function sendPayerReminderIfDue(adminClient: SupabaseClient, groupId: string, now: Date): Promise<void> {
   const { data: group } = await adminClient
     .from('taxi_groups')
-    .select('payer_user_id, payer_status, payer_assigned_at, payer_reminder_sent_at')
+    .select('payer_user_id, payer_assigned_at, payer_reminder_sent_at')
     .eq('id', groupId)
     .single();
-  if (!group || group.payer_status !== 'assigned' || !group.payer_user_id || group.payer_reminder_sent_at) return;
+  if (!group?.payer_user_id || group.payer_reminder_sent_at) return;
   if (group.payer_assigned_at && now.getTime() - new Date(group.payer_assigned_at).getTime() < PAYER_REMINDER_MIN_AFTER_ASSIGN_MINUTES * MINUTE_MS) {
     return;
   }

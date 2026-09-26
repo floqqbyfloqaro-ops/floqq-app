@@ -168,9 +168,3 @@ export async function startPayoutOnboarding(returnUrl: string) {
   if (error || !data?.url) return { url: null as string | null, error: error ?? new Error(data?.error ?? 'No link.') };
   return { url: data.url as string, error: null };
 }
-
-// 'decline': the payer hands the role back. 'volunteer': take a role that was handed back.
-export async function changePayerRole(action: 'decline' | 'volunteer', requestId: string) {
-  const { error } = await supabase.functions.invoke('payments-payer-role', { body: { action, requestId } });
-  return { error };
-}

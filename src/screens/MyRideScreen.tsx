@@ -204,7 +204,7 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
               <>
                 <StatusPill status="Group Confirmed" label={t('myRide.statusConfirmed')} />
                 <RideHoldCard requestId={request.id} groupId={group.id} onOpenProfile={onOpenProfile} />
-                <PayerCard requestId={request.id} group={group} onGroupChanged={loadData} />
+                <PayerCard requestId={request.id} group={group} />
               </>
             ) : request.service_fee_status === 'paid' ? (
               <StatusPill status="Group Confirmed" label={t('myRide.statusPaid')} />

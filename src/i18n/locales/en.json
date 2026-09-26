@@ -203,7 +203,6 @@
     "dissolveConfirmAction": "Dissolve",
     "dissolveError": "We couldn't dissolve this group.",
     "payerLabel": "Pays the taxi · payout: {{payout}}",
-    "payerOpen": "The payer handed the role back - waiting for someone in the group to take it over.",
     "payout": {
       "NOT_STARTED": "not started",
       "PENDING": "in progress",
@@ -309,15 +308,7 @@
     "setUpButton": "Set up payout",
     "continueButton": "Continue payout setup",
     "checkAgainButton": "Check again",
-    "declineButton": "I can't pay the taxi",
-    "declineConfirm": "Hand the taxi payment back? We'll ask the others in your group to take it over.",
-    "declineYes": "Yes, hand it back",
-    "declineNo": "Keep it",
-    "openTitle": "Nobody is paying the taxi yet",
-    "openExplainer": "The passenger who was going to pay the taxi can't. Can you? You pay the taxi and get the others' shares back automatically.",
-    "volunteerButton": "I'll pay the taxi",
-    "roleTaken": "Someone else just took it over - thanks anyway!",
-    "youDeclined": "You handed back the taxi payment. We've asked the others in your group.",
-    "someoneElsePays": "Another passenger in your group pays the taxi. After the ride only your real share is charged to your card."
+    "someoneElsePays": "Another passenger in your group pays the taxi. After the ride only your real share is charged to your card.",
+    "cantPay": "Can't pay the taxi? Only the last passenger can, so the only way out is to cancel your seat below - then whoever gets off last pays instead."
   }
 }

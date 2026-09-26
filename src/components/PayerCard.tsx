@@ -6,7 +6,6 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { MyTaxiGroup } from '../services/passengerRequests';
 import {
-  changePayerRole,
   fetchMyPayoutState,
   fetchMyRidePayment,
   formatCents,
@@ -22,26 +21,23 @@ import SecondaryButton from './SecondaryButton';
 type Props = {
   requestId: string;
   group: MyTaxiGroup;
-  // Reloads the group after the payer role changed hands.
-  onGroupChanged: () => void;
 };
 
 // Payments prototype, phase 4: the designated payer (the passenger who gets off last) pays the
 // taxi and gets the others' shares back through Stripe Connect. Shown on My ride under the seat
 // reservation. Payout setup isn't required before the ride - it can also be finished afterwards.
-export default function PayerCard({ requestId, group, onGroupChanged }: Props) {
+// The role can't be passed on (only the last passenger can pay the full fare): a payer who can't
+// pay cancels their seat, and whoever then gets off last becomes the payer.
+export default function PayerCard({ requestId, group }: Props) {
   const { t } = useTranslation();
 
   const [shareCents, setShareCents] = useState<number | null>(null);
   const [feeCents, setFeeCents] = useState<number | null>(null);
   const [payout, setPayout] = useState<PayoutState | null>(null);
   const [isActing, setIsActing] = useState(false);
-  const [confirmDecline, setConfirmDecline] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const isPayer = group.payer_status === 'assigned' && group.payer_request_id === requestId;
-  const roleIsOpen = group.payer_status === 'open';
-  const iDeclined = group.payer_declined_request_ids?.includes(requestId) ?? false;
+  const isPayer = group.payer_request_id === requestId;
 
   useEffect(() => {
     fetchMyRidePayment(requestId, group.id).then(({ data }) => {
@@ -91,20 +87,6 @@ export default function PayerCard({ requestId, group, onGroupChanged }: Props) {
     setIsActing(false);
   };
 
-  const handleRoleChange = async (action: 'decline' | 'volunteer') => {
-    setErrorMessage(null);
-    setIsActing(true);
-    const { error } = await changePayerRole(action, requestId);
-    setIsActing(false);
-    setConfirmDecline(false);
-    if (error) {
-      // Most likely someone else took the role first - the reload shows who.
-      console.warn('changePayerRole failed', error);
-      if (action === 'volunteer') setErrorMessage(t('payer.roleTaken'));
-    }
-    onGroupChanged();
-  };
-
   // "You'll pay about €38 for the taxi and get about €25 back automatically": the group's estimated
   // fare, minus this passenger's own estimated share.
   const preview =
@@ -115,21 +97,8 @@ export default function PayerCard({ requestId, group, onGroupChanged }: Props) {
         })
       : null;
 
-  if (!isPayer && !roleIsOpen) {
-    return group.payer_status === 'assigned' ? <Text style={styles.note}>{t('payer.someoneElsePays')}</Text> : null;
-  }
-
-  if (roleIsOpen) {
-    if (iDeclined) return <Text style={styles.note}>{t('payer.youDeclined')}</Text>;
-    return (
-      <View style={styles.section}>
-        <Text style={styles.title}>{t('payer.openTitle')}</Text>
-        <Text style={styles.note}>{t('payer.openExplainer')}</Text>
-        {preview ? <Text style={styles.preview}>{preview}</Text> : null}
-        {errorMessage ? <ErrorNotice message={errorMessage} /> : null}
-        <PrimaryButton label={t('payer.volunteerButton')} onPress={() => handleRoleChange('volunteer')} loading={isActing} />
-      </View>
-    );
+  if (!isPayer) {
+    return group.payer_request_id ? <Text style={styles.note}>{t('payer.someoneElsePays')}</Text> : null;
   }
 
   return (
@@ -168,15 +137,7 @@ export default function PayerCard({ requestId, group, onGroupChanged }: Props) {
 
       {errorMessage ? <ErrorNotice message={errorMessage} /> : null}
 
-      {confirmDecline ? (
-        <>
-          <Text style={styles.note}>{t('payer.declineConfirm')}</Text>
-          <SecondaryButton label={t('payer.declineYes')} onPress={() => handleRoleChange('decline')} loading={isActing} />
-          <SecondaryButton label={t('payer.declineNo')} onPress={() => setConfirmDecline(false)} />
-        </>
-      ) : (
-        <SecondaryButton label={t('payer.declineButton')} onPress={() => setConfirmDecline(true)} />
-      )}
+      <Text style={styles.hint}>{t('payer.cantPay')}</Text>
     </View>
   );
 }
@@ -199,6 +160,10 @@ const styles = StyleSheet.create({
     ...baseText.bodySmall,
     marginTop: spacing.x2,
     marginBottom: spacing.x3,
+  },
+  hint: {
+    ...baseText.caption,
+    marginTop: spacing.x2,
   },
   done: {
     ...baseText.bodySmall,

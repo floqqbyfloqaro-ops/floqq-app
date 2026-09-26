@@ -112,7 +112,7 @@ export function fetchTaxiGroups(statuses: TaxiGroupStatus[] = ACTIVE_GROUP_STATU
 }
 
 export function fetchGroupById(groupId: string) {
-  return supabase.from('taxi_groups').select('id, created_at, total_fare, status, payer_request_id, payer_user_id, payer_status')
+  return supabase.from('taxi_groups').select('id, created_at, total_fare, status, payer_request_id, payer_user_id')
     .eq('id', groupId)
     .single();
 }
