@@ -1,5 +1,6 @@
 // Payments prototype, phase 4: payout setup for the designated payer, through Stripe Connect
-// (Express account, "transfers" only - the lightest onboarding for an individual in Spain: name,
+// (Accounts v2, "recipient" only - it can receive transfers from FLOQQ and pay them out to the
+// payer's bank, nothing else - with the Express dashboard. For an individual in Spain: name,
 // date of birth, address, phone, nationality, IBAN, Stripe's terms, and an ID check only if Stripe
 // can't verify them otherwise). All of it is entered on Stripe's own pages - FLOQQ never sees it.
 //   { action: 'start', returnUrl }  -> creates the connected account on first use, then returns a
@@ -12,8 +13,8 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-import { savePayoutStatus } from '../_shared/payer.ts';
-import { createStripeClient, LiveKeyError, paymentsEnabled } from '../_shared/stripe.ts';
+import { retrievePayoutAccount, savePayoutStatus, stripeV2 } from '../_shared/payer.ts';
+import { LiveKeyError, paymentsEnabled } from '../_shared/stripe.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,8 +28,8 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-// Passengers are in Barcelona; the connected account's country.
-const PAYOUT_COUNTRY = 'ES';
+// Passengers are in Barcelona; the payout account's country (lowercase in the v2 API).
+const PAYOUT_COUNTRY = 'es';
 
 // Stripe only accepts https return links, so it returns to payments-payout-return, which sends the
 // browser on to the app link (floqq://..., or exp://... in Expo Go).
@@ -48,17 +49,6 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
     return jsonResponse({ error: 'Unauthorized' }, 401);
-  }
-
-  let stripe;
-  try {
-    stripe = createStripeClient();
-  } catch (err) {
-    if (err instanceof LiveKeyError) return jsonResponse({ error: err.message }, 500);
-    throw err;
-  }
-  if (!stripe) {
-    return jsonResponse({ error: 'Payments are not configured.' }, 500);
   }
 
   let action = '';
@@ -105,55 +95,65 @@ Deno.serve(async (req) => {
 
   let accountId = profile?.stripe_connect_account_id ?? null;
 
-  if (action === 'status') {
-    if (!accountId) return jsonResponse({ status: 'NOT_STARTED', detailsSubmitted: false });
-    const account = await stripe.accounts.retrieve(accountId);
-    return jsonResponse(await savePayoutStatus(adminClient, user.id, account));
-  }
-
-  if (!accountId) {
-    // Idempotency key per user: two simultaneous first taps get the same account back from Stripe.
-    const account = await stripe.accounts.create(
-      {
-        type: 'express',
-        country: PAYOUT_COUNTRY,
-        business_type: 'individual',
-        email: user.email,
-        capabilities: { transfers: { requested: true } },
-        // Filled in for the payer, so Stripe doesn't ask them for a website.
-        business_profile: {
-          url: 'https://floqq.app',
-          product_description: 'Reimbursement of shared taxi fares paid through FLOQQ',
-        },
-        metadata: { user_id: user.id },
-      },
-      { idempotencyKey: `floqq-connect-${user.id}` }
-    );
-    accountId = account.id;
-
-    const { error: upsertError } = await adminClient
-      .from('user_payment_profiles')
-      .upsert(
-        { user_id: user.id, stripe_connect_account_id: accountId, payout_onboarding_status: 'PENDING' },
-        { onConflict: 'user_id' }
-      );
-    if (upsertError) {
-      return jsonResponse({ error: upsertError.message }, 500);
+  try {
+    if (action === 'status') {
+      if (!accountId) return jsonResponse({ status: 'NOT_STARTED', detailsSubmitted: false });
+      return jsonResponse(await savePayoutStatus(adminClient, user.id, await retrievePayoutAccount(accountId)));
     }
+
+    if (!accountId) {
+      // Idempotency key per user: two simultaneous first taps get the same account back from Stripe.
+      // Express dashboard requires FLOQQ (the "application") to cover the account's Stripe fees and
+      // negative balances - for an account that only receives money there is nothing to lose.
+      const account = await stripeV2<{ id: string }>('POST', '/v2/core/accounts', {
+        body: {
+          contact_email: user.email,
+          display_name: user.email,
+          dashboard: 'express',
+          identity: { country: PAYOUT_COUNTRY, entity_type: 'individual' },
+          configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
+          defaults: { responsibilities: { fees_collector: 'application', losses_collector: 'application' } },
+          metadata: { user_id: user.id },
+        },
+        idempotencyKey: `floqq-connect-v2-${user.id}`,
+      });
+      accountId = account.id;
+
+      const { error: upsertError } = await adminClient
+        .from('user_payment_profiles')
+        .upsert(
+          { user_id: user.id, stripe_connect_account_id: accountId, payout_onboarding_status: 'PENDING' },
+          { onConflict: 'user_id' }
+        );
+      if (upsertError) {
+        return jsonResponse({ error: upsertError.message }, 500);
+      }
+    }
+
+    // Account links are single-use and expire after a few minutes, so a fresh one per tap (no
+    // idempotency key - replaying one would hand back an already-used link).
+    const back = (state: string) =>
+      `${supabaseUrl}/functions/v1/payments-payout-return?state=${state}&to=${encodeURIComponent(returnUrl)}`;
+    const link = await stripeV2<{ url: string }>('POST', '/v2/core/account_links', {
+      body: {
+        account: accountId,
+        use_case: {
+          type: 'account_onboarding',
+          account_onboarding: {
+            configurations: ['recipient'],
+            // Ask for everything Stripe will ever need now, so the payer isn't interrupted later.
+            collection_options: { fields: 'eventually_due' },
+            return_url: back('done'),
+            refresh_url: back('expired'),
+          },
+        },
+      },
+    });
+
+    return jsonResponse({ url: link.url });
+  } catch (err) {
+    if (err instanceof LiveKeyError) return jsonResponse({ error: err.message }, 500);
+    console.error('payout onboarding failed', err);
+    return jsonResponse({ error: 'stripe_error' }, 502);
   }
-
-  // Account links are single-use and expire after a few minutes, so a fresh one per tap (no
-  // idempotency key - replaying one would hand back an already-used link).
-  const back = (state: string) =>
-    `${supabaseUrl}/functions/v1/payments-payout-return?state=${state}&to=${encodeURIComponent(returnUrl)}`;
-  const link = await stripe.accountLinks.create({
-    account: accountId,
-    type: 'account_onboarding',
-    // Ask for everything Stripe will ever need now, so the payer isn't interrupted later.
-    collection_options: { fields: 'eventually_due' },
-    return_url: back('done'),
-    refresh_url: back('expired'),
-  });
-
-  return jsonResponse({ url: link.url });
 });
