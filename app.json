@@ -18,7 +18,11 @@
         "monochromeImage": "./assets/icon-mono.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.floqq.app"
+      "package": "com.floqq.app",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -39,7 +43,14 @@
           "merchantIdentifier": [],
           "enableGooglePay": true
         }
-      ]
-    ]
+      ],
+      "expo-notifications"
+    ],
+    "owner": "floqq",
+    "extra": {
+      "eas": {
+        "projectId": "a58a76e1-b378-4dc4-9644-502927fda7ac"
+      }
+    }
   }
 }

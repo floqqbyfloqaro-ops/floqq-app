@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
     if (pending.status === 'requires_action') {
       return jsonResponse({ status: 'HOLD_PENDING_AUTH', clientSecret: pending.client_secret, publishableKey });
     }
-    const status = await applyHoldState(adminClient, stripe, pending.id, 'stripe');
+    const { status } = await applyHoldState(adminClient, stripe, pending.id, 'stripe');
     if (status === 'HOLD_PLACED') return jsonResponse({ status });
   }
 
@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
     await cancelHold(stripe, previousIntentId).catch((err) => console.warn('cancel previous hold failed', err));
   }
 
-  const status = await applyHoldState(adminClient, stripe, intent.id, 'passenger');
+  const { status } = await applyHoldState(adminClient, stripe, intent.id, 'passenger');
 
   if (status === 'HOLD_PENDING_AUTH') {
     return jsonResponse({ status, clientSecret: intent.client_secret, publishableKey });

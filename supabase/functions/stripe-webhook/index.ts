@@ -14,6 +14,7 @@ import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 
 import { applyHoldState } from '../_shared/holds.ts';
+import { sendPush } from '../_shared/push.ts';
 import { createStripeClient, LiveKeyError } from '../_shared/stripe.ts';
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -156,7 +157,21 @@ Deno.serve(async (req) => {
     try {
       // Always re-reads the hold from Stripe, so duplicate or out-of-order events converge on the
       // same state. Service-fee Checkout PaymentIntents carry no ride_payment_id and are skipped.
-      await applyHoldState(adminClient, stripe, (event.data.object as Stripe.PaymentIntent).id, 'stripe');
+      const intentId = (event.data.object as Stripe.PaymentIntent).id;
+      const { status, changed } = await applyHoldState(adminClient, stripe, intentId, 'stripe');
+
+      // A hold that failed after the passenger left the app (e.g. abandoned bank verification):
+      // tell them, once - only the event that actually changed the status gets here.
+      if (changed && status === 'HOLD_FAILED') {
+        const { data: row } = await adminClient
+          .from('ride_payments')
+          .select('user_id, hold_deadline_at')
+          .eq('stripe_payment_intent_id', intentId)
+          .maybeSingle();
+        if (row?.user_id) {
+          await sendPush(adminClient, { userId: row.user_id, key: 'holdFailed', timeIso: row.hold_deadline_at });
+        }
+      }
     } catch (err) {
       console.error(`${event.type} ${event.id} failed`, err);
       return jsonResponse({ error: 'Could not record hold state.' }, 500);

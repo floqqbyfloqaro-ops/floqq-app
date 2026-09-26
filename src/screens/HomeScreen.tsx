@@ -10,7 +10,7 @@ import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import { SERVICE_FEE_EUR } from '../constants';
 import { cancelPassengerRequest, fetchMyActiveRequest, MyActiveRequest } from '../services/passengerRequests';
-import { supabase } from '../services/supabase';
+import { signOutAndUnregisterPush } from '../services/pushNotifications';
 import { baseText, colors, overlays, spacing } from '../theme/colors';
 
 type Props = {
@@ -173,7 +173,7 @@ export default function HomeScreen({
 
         <Pressable
           style={styles.logoutButton}
-          onPress={() => supabase.auth.signOut()}
+          onPress={() => signOutAndUnregisterPush()}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           accessibilityRole="button"
           accessibilityLabel={t('auth.logout')}

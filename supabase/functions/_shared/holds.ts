@@ -6,6 +6,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import type Stripe from 'npm:stripe@17';
 
+import { sendPush } from './push.ts';
 import { estimatedSharesCents, holdAmountCents, holdCovers, holdWindow, PLATFORM_FEE_CENTS, rideDepartureMs } from './holdMath.ts';
 
 export type RidePaymentRow = {
@@ -18,10 +19,11 @@ export type RidePaymentRow = {
   stripe_payment_intent_id: string | null;
   payment_status: string;
   hold_deadline_at: string | null;
+  ended_notified_at: string | null;
 };
 
 export const RIDE_PAYMENT_COLUMNS =
-  'id, request_id, group_id, user_id, estimated_share_cents, hold_amount_cents, stripe_payment_intent_id, payment_status, hold_deadline_at';
+  'id, request_id, group_id, user_id, estimated_share_cents, hold_amount_cents, stripe_payment_intent_id, payment_status, hold_deadline_at, ended_notified_at';
 
 // Statuses in which a Stripe hold may still be open and must be cancelled if it's no longer needed.
 const OPEN_HOLD_STATUSES = ['HOLD_PENDING_AUTH', 'HOLD_PLACED'];
@@ -35,6 +37,22 @@ export async function cancelHold(stripe: Stripe, paymentIntentId: string): Promi
     if (intent?.status === 'canceled') return;
     throw err;
   }
+}
+
+// Money has already moved (or failed to): the passenger is told about that separately.
+const FINAL_STATUSES = ['CAPTURED', 'CAPTURE_FAILED', 'REFUNDED'];
+
+type NotifiedColumn = 'hold_open_notified_at' | 'hold_reminder_sent_at' | 'ended_notified_at';
+
+// Claims a one-time notification for a row: true only for the single caller that set it.
+export async function markNotified(adminClient: SupabaseClient, rowId: string, column: NotifiedColumn): Promise<boolean> {
+  const { data } = await adminClient
+    .from('ride_payments')
+    .update({ [column]: new Date().toISOString() })
+    .eq('id', rowId)
+    .is(column, null)
+    .select('id');
+  return (data?.length ?? 0) > 0;
 }
 
 export type SyncResult = { groupId: string; outcome: string };
@@ -75,7 +93,9 @@ export async function syncGroupHolds(
   // Release holds of passengers who are no longer in this (still confirmed) group.
   for (const row of rows) {
     const stillMember = groupActive && row.request_id != null && memberIds.has(row.request_id);
-    if (!stillMember && OPEN_HOLD_STATUSES.includes(row.payment_status) && row.stripe_payment_intent_id) {
+    if (stillMember) continue;
+
+    if (OPEN_HOLD_STATUSES.includes(row.payment_status) && row.stripe_payment_intent_id) {
       await cancelHold(stripe, row.stripe_payment_intent_id);
       await adminClient
         .from('ride_payments')
@@ -87,6 +107,14 @@ export async function syncGroupHolds(
         })
         .eq('id', row.id)
         .eq('payment_status', row.payment_status);
+    }
+
+    // Tell passengers of a dissolved group, once. (A passenger removed after missing the deadline
+    // or who cancelled themselves is already marked - see removeMissedDeadlines/settleCancelledSeat.)
+    if (!groupActive && !row.ended_notified_at && row.user_id && !FINAL_STATUSES.includes(row.payment_status)) {
+      if (await markNotified(adminClient, row.id, 'ended_notified_at')) {
+        await sendPush(adminClient, { userId: row.user_id, key: 'groupDissolved' });
+      }
     }
   }
 
@@ -162,6 +190,9 @@ export async function syncGroupHolds(
           hold_window_opens_at: opensAt.toISOString(),
           hold_deadline_at: deadlineAt.toISOString(),
           failure_reason: 'share_increased',
+          // Send "reserve the new amount" (and its reminder) for the new window.
+          hold_open_notified_at: null,
+          hold_reminder_sent_at: null,
           last_status_actor: 'system',
         })
         .eq('id', row.id)
@@ -191,17 +222,17 @@ export async function applyHoldState(
   stripe: Stripe,
   paymentIntentId: string,
   actor: StatusActor
-): Promise<string | null> {
+): Promise<{ status: string | null; changed: boolean }> {
   const intent = await stripe.paymentIntents.retrieve(paymentIntentId, { expand: ['latest_charge'] });
   const ridePaymentId = intent.metadata?.ride_payment_id;
-  if (!ridePaymentId) return null; // Not a ride hold (e.g. the old service-fee Checkout).
+  if (!ridePaymentId) return { status: null, changed: false }; // Not a ride hold (e.g. the old service-fee Checkout).
 
   const { data: row } = await adminClient
     .from('ride_payments')
     .select('id, payment_status, stripe_payment_intent_id, hold_attempts')
     .eq('id', ridePaymentId)
     .single();
-  if (!row) return null;
+  if (!row) return { status: null, changed: false };
 
   // The row moved on to another attempt. If this orphan still holds money, release it - FLOQQ
   // never keeps a hold it doesn't track.
@@ -212,11 +243,13 @@ export async function applyHoldState(
     if (intent.status === 'requires_capture' || intent.status === 'requires_action') {
       await cancelHold(stripe, intent.id);
     }
-    return row.payment_status;
+    return { status: row.payment_status, changed: false };
   }
 
   const transition = TRANSITIONS[intent.status];
-  if (!transition || !transition.from.includes(row.payment_status)) return row.payment_status;
+  if (!transition || !transition.from.includes(row.payment_status)) {
+    return { status: row.payment_status, changed: false };
+  }
 
   const update: Record<string, unknown> = {
     payment_status: transition.to,
@@ -245,7 +278,8 @@ export async function applyHoldState(
     .eq('payment_status', row.payment_status)
     .select('payment_status');
 
-  return updated?.[0]?.payment_status ?? row.payment_status;
+  const changed = (updated?.length ?? 0) > 0 && transition.to !== row.payment_status;
+  return { status: updated?.[0]?.payment_status ?? row.payment_status, changed };
 }
 
 // A passenger cancelled their ride after the group was confirmed. With a placed hold, FLOQQ keeps
@@ -268,6 +302,9 @@ export async function settleCancelledSeat(
   if (!data) return 'no_payment';
   const row = data as RidePaymentRow & { platform_fee_cents: number };
   const now = new Date().toISOString();
+
+  // They cancelled themselves - no "group dissolved" push for this seat.
+  await markNotified(adminClient, row.id, 'ended_notified_at');
 
   if (row.payment_status === 'HOLD_PLACED' && row.stripe_payment_intent_id) {
     try {
@@ -322,4 +359,78 @@ export async function settleCancelledSeat(
     await adminClient.from('ride_payments').update({ failure_reason: 'cancelled_by_passenger' }).eq('id', row.id);
   }
   return 'nothing_to_charge';
+}
+
+// Sends the time-based hold notifications that are due: "reserve your seat" once the window is
+// open (or "reserve the new amount" after the share went up), and a reminder in the last
+// REMINDER_BEFORE_DEADLINE_MINUTES. Each goes out once per window (markNotified), and only to
+// passengers still in the confirmed group the row belongs to.
+const REMINDER_BEFORE_DEADLINE_MINUTES = 15;
+const MINUTE_MS = 60_000;
+
+type DueRow = {
+  id: string;
+  request_id: string | null;
+  group_id: string | null;
+  user_id: string | null;
+  hold_amount_cents: number;
+  failure_reason: string | null;
+  hold_window_opens_at: string | null;
+  hold_deadline_at: string | null;
+};
+
+const DUE_COLUMNS =
+  'id, request_id, group_id, user_id, hold_amount_cents, failure_reason, hold_window_opens_at, hold_deadline_at';
+
+async function isActiveMember(adminClient: SupabaseClient, row: DueRow): Promise<boolean> {
+  if (!row.request_id || !row.group_id) return false;
+  const { data: request } = await adminClient.from('passenger_requests').select('group_id').eq('id', row.request_id).single();
+  if (request?.group_id !== row.group_id) return false;
+  const { data: group } = await adminClient.from('taxi_groups').select('status').eq('id', row.group_id).single();
+  return group?.status === 'confirmed';
+}
+
+export async function sendDueHoldNotifications(adminClient: SupabaseClient, now = new Date(), groupId?: string) {
+  const nowIso = now.toISOString();
+
+  let openQuery = adminClient
+    .from('ride_payments')
+    .select(DUE_COLUMNS)
+    .in('payment_status', ['NOT_STARTED', 'HOLD_FAILED'])
+    .is('hold_open_notified_at', null)
+    .lte('hold_window_opens_at', nowIso)
+    .gt('hold_deadline_at', nowIso);
+  if (groupId) openQuery = openQuery.eq('group_id', groupId);
+  const { data: openRows } = await openQuery;
+
+  for (const row of (openRows ?? []) as DueRow[]) {
+    if (!row.user_id || !(await isActiveMember(adminClient, row))) continue;
+    if (!(await markNotified(adminClient, row.id, 'hold_open_notified_at'))) continue;
+    await sendPush(adminClient, {
+      userId: row.user_id,
+      key: row.failure_reason === 'share_increased' ? 'holdOpenShareIncreased' : 'holdOpen',
+      amountCents: row.hold_amount_cents,
+      timeIso: row.hold_deadline_at,
+    });
+  }
+
+  let reminderQuery = adminClient
+    .from('ride_payments')
+    .select(DUE_COLUMNS)
+    .in('payment_status', ['NOT_STARTED', 'HOLD_FAILED', 'HOLD_PENDING_AUTH'])
+    .is('hold_reminder_sent_at', null)
+    .not('hold_open_notified_at', 'is', null)
+    .gt('hold_deadline_at', nowIso)
+    .lte('hold_deadline_at', new Date(now.getTime() + REMINDER_BEFORE_DEADLINE_MINUTES * MINUTE_MS).toISOString());
+  if (groupId) reminderQuery = reminderQuery.eq('group_id', groupId);
+  const { data: reminderRows } = await reminderQuery;
+
+  for (const row of (reminderRows ?? []) as DueRow[]) {
+    // A window that only just opened (and was just announced) doesn't need a reminder on top.
+    const opensMs = row.hold_window_opens_at ? new Date(row.hold_window_opens_at).getTime() : 0;
+    if (now.getTime() - opensMs < 5 * MINUTE_MS) continue;
+    if (!row.user_id || !(await isActiveMember(adminClient, row))) continue;
+    if (!(await markNotified(adminClient, row.id, 'hold_reminder_sent_at'))) continue;
+    await sendPush(adminClient, { userId: row.user_id, key: 'holdReminder', timeIso: row.hold_deadline_at });
+  }
 }

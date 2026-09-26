@@ -19,6 +19,7 @@ import { ADMIN_EMAIL, PAYMENTS_ENABLED } from './src/constants';
 import WebAppFrame from './src/components/WebAppFrame';
 import { handleStripeRedirect } from './src/services/cardSetup';
 import { parseEmailVerifiedLink } from './src/services/emailVerification';
+import { registerPushToken, useTappedNotification } from './src/services/pushNotifications';
 import { hasCompletedOnboarding, setOnboardingCompleted } from './src/services/onboarding';
 import { supabase } from './src/services/supabase';
 
@@ -77,6 +78,24 @@ function AppContent() {
         setShowEmailVerified(true);
       });
   }, [linkingUrl]);
+
+  // Payments prototype: register this phone for push notifications once someone is logged in.
+  const userId = session?.user?.id;
+  useEffect(() => {
+    if (userId) registerPushToken();
+  }, [userId]);
+
+  // A tapped notification (also one that launched the app) opens the screen it points at.
+  const tappedNotification = useTappedNotification();
+  const handledNotificationRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!PAYMENTS_ENABLED || !userId || !tappedNotification) return;
+    if (handledNotificationRef.current === tappedNotification.id) return;
+    handledNotificationRef.current = tappedNotification.id;
+    if (tappedNotification.screen === 'myRide') {
+      setMainScreen('myRide');
+    }
+  }, [tappedNotification, userId]);
 
   const openNewRequest = (requestId?: string) => {
     setEditingRequestId(requestId ?? null);

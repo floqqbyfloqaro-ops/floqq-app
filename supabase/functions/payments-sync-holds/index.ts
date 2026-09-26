@@ -5,6 +5,8 @@
 //     without a placed hold (system_remove_unpaid_member + confirmed-group rescore), then re-syncs
 //     every recent confirmed group, which also creates any rows the admin call missed and releases
 //     holds of dissolved groups.
+//   Both also send the push notifications that are due (reserve your seat / reminder / removed /
+//   group dissolved - see _shared/holds.ts and _shared/push.ts).
 // Does nothing while PAYMENTS_ENABLED is off. Deployed with --no-verify-jwt: authenticates via
 // the cron secret header or the admin's JWT (see _shared/auth.ts), like match-and-group.
 
@@ -13,8 +15,16 @@ import type Stripe from 'npm:stripe@17';
 
 import { isAuthorized } from '../_shared/auth.ts';
 import { ADMIN_EMAIL } from '../_shared/constants.ts';
-import { cancelHold, RIDE_PAYMENT_COLUMNS, RidePaymentRow, syncGroupHolds } from '../_shared/holds.ts';
+import {
+  cancelHold,
+  markNotified,
+  RIDE_PAYMENT_COLUMNS,
+  RidePaymentRow,
+  sendDueHoldNotifications,
+  syncGroupHolds,
+} from '../_shared/holds.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
+import { sendPush } from '../_shared/push.ts';
 import { rescoreGroup } from '../_shared/rescoreGroup.ts';
 import { createStripeClient, LiveKeyError, paymentsEnabled } from '../_shared/stripe.ts';
 
@@ -70,6 +80,9 @@ async function removeMissedDeadlines(adminClient: SupabaseClient, stripe: Stripe
     }
 
     const result = removal as { blocked: boolean; needs_recalc?: boolean; group_version?: number };
+    if (!result.blocked && row.user_id && (await markNotified(adminClient, row.id, 'ended_notified_at'))) {
+      await sendPush(adminClient, { userId: row.user_id, key: 'removedDeadline' });
+    }
     if (!result.blocked && result.needs_recalc && result.group_version != null) {
       await rescoreGroup(adminClient, row.group_id, result.group_version, {
         rpc: 'system_apply_confirmed_group_rescore',
@@ -157,6 +170,7 @@ Deno.serve(async (req) => {
 
     if (groupId) {
       const result = await syncGroupHolds(adminClient, stripe, groupId, now);
+      await sendDueHoldNotifications(adminClient, now, groupId);
       return jsonResponse({ results: [result] });
     }
 
@@ -168,6 +182,7 @@ Deno.serve(async (req) => {
     for (const id of groupIds) {
       results.push(await syncGroupHolds(adminClient, stripe, id, now));
     }
+    await sendDueHoldNotifications(adminClient, now);
     return jsonResponse({ removedFrom: [...removedFrom], results });
   } finally {
     await releaseLock(adminClient, LOCK_ID);
