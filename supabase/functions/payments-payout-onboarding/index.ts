@@ -35,6 +35,14 @@ const PAYOUT_COUNTRY = 'es';
 // browser on to the app link (floqq://..., or exp://... in Expo Go).
 const APP_LINK_PATTERN = /^(floqq|exp|exps):\/\//;
 
+// Stripe asks every payout account for a website and what it's for. The payer is a private
+// person, not a business, so FLOQQ fills these in for them with its own site (Stripe allows the
+// platform's URL for users without a website) - otherwise onboarding asks the payer for them.
+const PAYOUT_PROFILE = {
+  business_url: 'https://floqq.app',
+  product_description: "Private person receiving the other passengers' shares of a shared taxi fare they paid, through FLOQQ.",
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -112,10 +120,13 @@ Deno.serve(async (req) => {
           dashboard: 'express',
           identity: { country: PAYOUT_COUNTRY, entity_type: 'individual' },
           configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
-          defaults: { responsibilities: { fees_collector: 'application', losses_collector: 'application' } },
+          defaults: {
+            responsibilities: { fees_collector: 'application', losses_collector: 'application' },
+            profile: PAYOUT_PROFILE,
+          },
           metadata: { user_id: user.id },
         },
-        idempotencyKey: `floqq-connect-v2-${user.id}`,
+        idempotencyKey: `floqq-connect-v2p-${user.id}`,
       });
       accountId = account.id;
 
@@ -128,6 +139,9 @@ Deno.serve(async (req) => {
       if (upsertError) {
         return jsonResponse({ error: upsertError.message }, 500);
       }
+    } else {
+      // Accounts created before FLOQQ filled these in. Safe to repeat.
+      await stripeV2('POST', `/v2/core/accounts/${accountId}`, { body: { defaults: { profile: PAYOUT_PROFILE } } });
     }
 
     // Account links are single-use and expire after a few minutes, so a fresh one per tap (no
