@@ -36,7 +36,7 @@ export async function presentCardSetupSheet(session: CardSetupSession, merchantD
     setupIntentClientSecret: session.setupIntentClientSecret,
     customerId: session.customerId,
     // Brings the passenger back into FLOQQ after a bank's 3D Secure page.
-    returnURL: Linking.createURL('stripe-redirect'),
+    returnURL: stripeReturnUrl(),
     googlePay: {
       merchantCountryCode: session.merchantCountryCode,
       currencyCode: 'EUR',
@@ -78,4 +78,29 @@ export async function presentCardSetupSheet(session: CardSetupSession, merchantD
 // Stripe's, so the caller can skip its own handling.
 export function handleStripeRedirect(url: string): Promise<boolean> {
   return loadStripe().handleURLCallback(url);
+}
+
+// URL the bank's 3D Secure page returns to (the FLOQQ app, or Expo Go while developing).
+export function stripeReturnUrl(): string {
+  return Linking.createURL('stripe-redirect');
+}
+
+export type HoldAuthResult = { status: 'done' } | { status: 'failed'; message: string };
+
+// Shows the bank's 3D Secure step for a ride hold that needs it. "done" only means the step
+// finished - whether the hold was placed is read back from the server (Stripe's webhook).
+export async function authenticateHold(clientSecret: string, publishableKey: string): Promise<HoldAuthResult> {
+  if (!publishableKey.startsWith('pk_test_')) {
+    console.error('Refusing a non-test Stripe publishable key. This prototype is test mode only.');
+    return { status: 'failed', message: 'Test mode only.' };
+  }
+
+  const { initStripe, handleNextAction } = loadStripe();
+  await initStripe({ publishableKey });
+
+  const { error } = await handleNextAction(clientSecret, stripeReturnUrl());
+  if (error) {
+    return { status: 'failed', message: error.localizedMessage ?? error.message };
+  }
+  return { status: 'done' };
 }

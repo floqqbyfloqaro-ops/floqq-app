@@ -11,7 +11,7 @@ import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
-import { MAX_PASSENGERS_PER_TAXI } from '../constants';
+import { MAX_PASSENGERS_PER_TAXI, PAYMENTS_ENABLED } from '../constants';
 import {
   addGroupMember,
   confirmTaxiGroup,
@@ -27,6 +27,7 @@ import {
   updatePassengerDistance,
 } from '../services/adminGrouping';
 import { calculateFareSplit, FareSplitResult } from '../services/fareSplit';
+import { syncGroupHolds } from '../services/payments';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
@@ -169,6 +170,13 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
     }
 
     setGroupStatus('confirmed');
+
+    // Payments prototype: create the passengers' seat reservations right away (the 5-minute
+    // payments-sync-holds job would otherwise pick the group up on its next run).
+    if (PAYMENTS_ENABLED) {
+      const { error: syncError } = await syncGroupHolds(groupId);
+      if (syncError) console.warn('syncGroupHolds failed', syncError);
+    }
   };
 
   const handleToggleAdding = async () => {

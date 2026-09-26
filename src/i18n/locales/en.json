@@ -20,7 +20,8 @@
     "activeRideCancelConfirmAction": "Yes, cancel it",
     "activeRideKeep": "Keep my ride",
     "activeRideCheckError": "We couldn’t check your current ride. Please try again.",
-    "profileButton": "Profile"
+    "profileButton": "Profile",
+    "activeRideCancelConfirmedWarning": "Your group is already confirmed. If your seat is reserved, the €{{fee}} FLOQQ fee is kept and the rest is released. Your current ride is cancelled before you create a new one."
   },
   "onboarding": {
     "title": "Welcome to FLOQQ",
@@ -219,7 +220,14 @@
     "payButton": "Pay service fee ({{amount}} €)",
     "pendingNote": "Payment in progress — this updates automatically once it's confirmed.",
     "checkoutError": "Couldn't start checkout. Please try again.",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "cancelRideButton": "Cancel ride",
+    "cancelConfirmTitle": "Cancel this ride?",
+    "cancelFeeKept": "Your seat is reserved, so the €{{fee}} FLOQQ fee is kept. The remaining €{{released}} is released from your card.",
+    "cancelNoCharge": "Nothing has been reserved on your card yet, so you won't be charged.",
+    "cancelLegacyFee": "The €{{fee}} service fee you paid isn't refunded.",
+    "cancelOthersNote": "The other passengers' ride will be recalculated without you.",
+    "cancelConfirmButton": "Yes, cancel my ride"
   },
   "findingMatch": {
     "title": "Finding your match...",
@@ -259,5 +267,25 @@
     "setupError": "We couldn’t save your card. Please try again.",
     "webNotSupported": "Adding a payment method is only available in the FLOQQ mobile app.",
     "merchantName": "FLOQQ"
-  }
+  },
+  "payments": {
+    "checking": "Checking your seat reservation…",
+    "preparing": "We're preparing your seat reservation. This takes a few minutes.",
+    "reserveTitle": "Reserve your seat",
+    "reserveExplainer": "We reserve €{{amount}} on your card: your estimated share (€{{share}}), the FLOQQ fee (€{{fee}}) and a buffer in case the meter runs higher. After the ride you only pay your real share - the rest is released.",
+    "reserveButton": "Reserve €{{amount}}",
+    "deadline": "Reserve before {{time}}, or your seat will be given up.",
+    "opensOn": "We'll ask you to reserve €{{amount}} from {{date}}.",
+    "noCard": "Add a payment method to reserve your seat.",
+    "addCardButton": "Add payment method",
+    "pendingAuth": "Waiting for your bank's confirmation…",
+    "continueAuth": "Continue verification",
+    "failed": "Your card couldn't be reserved. Try again, or replace your card in Profile.",
+    "shareIncreased": "The group changed, so your share went up. Please reserve the new amount.",
+    "deadlinePassed": "The time to reserve your seat has ended.",
+    "released": "Your reservation has been released.",
+    "webAuth": "Your bank needs to verify this reservation. Please finish it in the FLOQQ mobile app.",
+    "error": "Something went wrong. Please try again."
+  },
+  "hold_placed_message": "€{{amount}} reserved - you'll only pay your real share after the ride"
 }

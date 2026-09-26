@@ -2,6 +2,7 @@
 //   - Checkout events for the FLOQQ service fee (see create-service-fee-checkout) mark the
 //     corresponding passenger_requests row paid.
 //   - setup_intent.succeeded (see payments-setup-card) records the passenger's saved card.
+//   - payment_intent.* events for ride holds (see payments-place-hold) update ride_payments.
 // Stripe calls this directly with no Supabase session, so it must be deployed with
 // --no-verify-jwt and does its own auth via the Stripe signature instead (mirrors match-and-group,
 // which is unauthenticated-by-Supabase-JWT for the same reason: a cron job calls that one).
@@ -12,6 +13,7 @@
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 
+import { applyHoldState } from '../_shared/holds.ts';
 import { createStripeClient, LiveKeyError } from '../_shared/stripe.ts';
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -38,11 +40,28 @@ async function recordSavedCard(stripe: Stripe, adminClient: SupabaseClient, setu
 
   await stripe.customers.update(customerId, { invoice_settings: { default_payment_method: paymentMethodId } });
 
+  const { data: profile } = await adminClient
+    .from('user_payment_profiles')
+    .select('user_id, default_payment_method_id')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle();
+  if (!profile || profile.default_payment_method_id === paymentMethodId) return;
+
   const { error } = await adminClient
     .from('user_payment_profiles')
     .update({ has_default_payment_method: true, default_payment_method_id: paymentMethodId })
     .eq('stripe_customer_id', customerId);
   if (error) throw new Error(`Could not record saved card: ${error.message}`);
+
+  // Audit trail: card saves aren't tied to a ride payment.
+  await adminClient.from('payment_events').insert({
+    ride_payment_id: null,
+    user_id: profile.user_id,
+    from_status: profile.default_payment_method_id ? 'CARD_SAVED' : null,
+    to_status: profile.default_payment_method_id ? 'CARD_REPLACED' : 'CARD_SAVED',
+    actor_type: 'stripe',
+    details: { payment_method_id: paymentMethodId, previous_payment_method_id: profile.default_payment_method_id },
+  });
 }
 
 Deno.serve(async (req) => {
@@ -130,6 +149,17 @@ Deno.serve(async (req) => {
       // Not recorded as processed, so Stripe's automatic retry gets another go.
       console.error(`setup_intent.succeeded ${event.id} failed`, err);
       return jsonResponse({ error: 'Could not record saved card.' }, 500);
+    }
+  }
+
+  if (event.type.startsWith('payment_intent.')) {
+    try {
+      // Always re-reads the hold from Stripe, so duplicate or out-of-order events converge on the
+      // same state. Service-fee Checkout PaymentIntents carry no ride_payment_id and are skipped.
+      await applyHoldState(adminClient, stripe, (event.data.object as Stripe.PaymentIntent).id, 'stripe');
+    } catch (err) {
+      console.error(`${event.type} ${event.id} failed`, err);
+      return jsonResponse({ error: 'Could not record hold state.' }, 500);
     }
   }
 

@@ -11,10 +11,22 @@ import { computeGroupScore, PendingPassengerRequest } from './matchingEngine.ts'
 
 const MAX_RESCORE_ATTEMPTS = 3;
 
+// Which group status the rescore applies to. Passenger edits/cancels and admin corrections only
+// ever touch unconfirmed groups; the payments prototype also removes a passenger whose hold wasn't
+// placed from a confirmed group (payments-sync-holds), through its own service-role-only RPC.
+export type RescoreTarget = { rpc: string; groupStatus: 'unconfirmed' | 'confirmed' };
+
+const UNCONFIRMED_TARGET: RescoreTarget = { rpc: 'apply_group_rescore', groupStatus: 'unconfirmed' };
+
 // Recomputes the surviving group's score and either applies it or dissolves the group, retrying
 // against fresh membership if apply_group_rescore reports the version moved on (a concurrent
 // edit on the same group committed in between).
-export async function rescoreGroup(adminClient: ReturnType<typeof createClient>, groupId: string, expectedVersion: number) {
+export async function rescoreGroup(
+  adminClient: ReturnType<typeof createClient>,
+  groupId: string,
+  expectedVersion: number,
+  target: RescoreTarget = UNCONFIRMED_TARGET
+) {
   let version = expectedVersion;
 
   for (let attempt = 0; attempt < MAX_RESCORE_ATTEMPTS; attempt++) {
@@ -42,7 +54,7 @@ export async function rescoreGroup(adminClient: ReturnType<typeof createClient>,
       DETOUR_LIMITS
     );
 
-    const { data: applyResult, error: applyError } = await adminClient.rpc('apply_group_rescore', {
+    const { data: applyResult, error: applyError } = await adminClient.rpc(target.rpc, {
       p_group_id: groupId,
       p_expected_version: version,
       p_still_valid: stillValid,
@@ -54,7 +66,7 @@ export async function rescoreGroup(adminClient: ReturnType<typeof createClient>,
     if ((applyResult as { applied: boolean }).applied) return;
 
     const { data: freshGroup } = await adminClient.from('taxi_groups').select('version, status').eq('id', groupId).single();
-    if (!freshGroup || freshGroup.status !== 'unconfirmed') return;
+    if (!freshGroup || freshGroup.status !== target.groupStatus) return;
     version = freshGroup.version;
   }
 }

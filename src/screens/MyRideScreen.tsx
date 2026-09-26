@@ -2,13 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppState, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import CancelConfirmedRide from '../components/CancelConfirmedRide';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
+import RideHoldCard from '../components/RideHoldCard';
 import ScreenBackground from '../components/ScreenBackground';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
-import { SERVICE_FEE_EUR } from '../constants';
+import { PAYMENTS_ENABLED, SERVICE_FEE_EUR } from '../constants';
 import { createServiceFeeCheckout } from '../services/payments';
 import { fetchMyGroupStatus, fetchMyLatestRequest, MyPassengerRequest, MyTaxiGroup } from '../services/passengerRequests';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
@@ -18,11 +20,12 @@ import GroupDetailsScreen from './GroupDetailsScreen';
 type Props = {
   onBack: () => void;
   onCreateRequest: (requestId?: string) => void;
+  onOpenProfile: () => void;
 };
 
 type SubScreen = 'findingMatch' | 'groupDetails' | null;
 
-export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
+export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }: Props) {
   const { t } = useTranslation();
 
   const [request, setRequest] = useState<MyPassengerRequest | null>(null);
@@ -194,6 +197,13 @@ export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
               <StatusPill status="Searching" label={t('myRide.statusPending')} />
             ) : group.status === 'unconfirmed' ? (
               <StatusPill status="Searching" label={t('myRide.statusUnconfirmed')} />
+            ) : PAYMENTS_ENABLED ? (
+              // Payments prototype: the FLOQQ fee is part of the seat reservation (card hold), so the
+              // separate service-fee Checkout below is replaced while PAYMENTS_ENABLED is on.
+              <>
+                <StatusPill status="Group Confirmed" label={t('myRide.statusConfirmed')} />
+                <RideHoldCard requestId={request.id} groupId={group.id} onOpenProfile={onOpenProfile} />
+              </>
             ) : request.service_fee_status === 'paid' ? (
               <StatusPill status="Group Confirmed" label={t('myRide.statusPaid')} />
             ) : (
@@ -213,6 +223,14 @@ export default function MyRideScreen({ onBack, onCreateRequest }: Props) {
                 />
               </>
             )}
+            {group?.status === 'confirmed' ? (
+              <CancelConfirmedRide
+                requestId={request.id}
+                groupId={group.id}
+                serviceFeeStatus={request.service_fee_status}
+                onCancelled={loadData}
+              />
+            ) : null}
           </Card>
         )}
       </ScrollView>

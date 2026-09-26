@@ -144,7 +144,13 @@ function AppContent() {
     }
 
     if (mainScreen === 'myRide') {
-      return <MyRideScreen onBack={() => setMainScreen('home')} onCreateRequest={openNewRequest} />;
+      return (
+        <MyRideScreen
+          onBack={() => setMainScreen('home')}
+          onCreateRequest={openNewRequest}
+          onOpenProfile={() => setMainScreen('profile')}
+        />
+      );
     }
 
     if (mainScreen === 'profile') {

@@ -14,3 +14,13 @@ export async function presentCardSetupSheet(_session: CardSetupSession, _merchan
 export async function handleStripeRedirect(_url: string): Promise<boolean> {
   return false;
 }
+
+export function stripeReturnUrl(): string {
+  return '';
+}
+
+export type HoldAuthResult = { status: 'done' } | { status: 'failed'; message: string };
+
+export async function authenticateHold(_clientSecret: string, _publishableKey: string): Promise<HoldAuthResult> {
+  return { status: 'failed', message: 'Not supported on web.' };
+}

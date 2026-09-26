@@ -8,6 +8,7 @@ import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
+import { SERVICE_FEE_EUR } from '../constants';
 import { cancelPassengerRequest, fetchMyActiveRequest, MyActiveRequest } from '../services/passengerRequests';
 import { supabase } from '../services/supabase';
 import { baseText, colors, overlays, spacing } from '../theme/colors';
@@ -121,14 +122,16 @@ export default function HomeScreen({
             <Text style={styles.promptText} accessibilityLiveRegion="polite">
               {t('active_ride_exists')}
             </Text>
-            {isConfirmedGroup ? (
-              <Text style={styles.promptDetail}>{t('home.activeRideConfirmedLocked')}</Text>
-            ) : prompt.step === 'confirmCancel' ? (
-              <Text style={styles.promptDetail}>{t('home.activeRideCancelConfirm')}</Text>
+            {prompt.step === 'confirmCancel' ? (
+              <Text style={styles.promptDetail}>
+                {isConfirmedGroup
+                  ? t('home.activeRideCancelConfirmedWarning', { fee: SERVICE_FEE_EUR.toFixed(2) })
+                  : t('home.activeRideCancelConfirm')}
+              </Text>
             ) : null}
 
             <View style={styles.actions}>
-              {prompt.step === 'confirmCancel' && !isConfirmedGroup ? (
+              {prompt.step === 'confirmCancel' ? (
                 <>
                   <PrimaryButton
                     label={t('home.activeRideCancelConfirmAction')}
@@ -150,12 +153,10 @@ export default function HomeScreen({
                       onOpenMyRide();
                     }}
                   />
-                  {isConfirmedGroup ? null : (
-                    <SecondaryButton
-                      label={t('home.activeRideCancelAndCreate')}
-                      onPress={() => setPrompt({ ...prompt, step: 'confirmCancel' })}
-                    />
-                  )}
+                  <SecondaryButton
+                    label={t('home.activeRideCancelAndCreate')}
+                    onPress={() => setPrompt({ ...prompt, step: 'confirmCancel' })}
+                  />
                   <SecondaryButton label={t('home.activeRideKeep')} onPress={() => setPrompt(null)} />
                 </>
               )}
