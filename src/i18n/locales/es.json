@@ -197,7 +197,14 @@
     "dissolveButton": "Disolver grupo",
     "dissolveConfirmTitle": "¿Disolver este grupo? Todos los pasajeros volverán a la lista de pendientes.",
     "dissolveConfirmAction": "Disolver",
-    "dissolveError": "No pudimos disolver este grupo."
+    "dissolveError": "No pudimos disolver este grupo.",
+    "payerLabel": "Paga el taxi · cobro: {{payout}}",
+    "payout": {
+      "NOT_STARTED": "sin empezar",
+      "PENDING": "en curso",
+      "COMPLETE": "listo",
+      "RESTRICTED": "falta información"
+    }
   },
   "myRide": {
     "title": "Mi trayecto",
@@ -283,5 +290,21 @@
     "webAuth": "Tu banco necesita verificar esta reserva. Termínala en la app móvil de FLOQQ.",
     "error": "Algo ha fallado. Inténtalo de nuevo."
   },
-  "hold_placed_message": "{{amount}} € reservados: solo pagarás tu parte real después del viaje"
+  "hold_placed_message": "{{amount}} € reservados: solo pagarás tu parte real después del viaje",
+  "payer_preview": "Pagarás unos {{taxi}} € por el taxi y recibirás unos {{back}} € de vuelta automáticamente.",
+  "payer": {
+    "title": "Tú pagas el taxi",
+    "feeOnly": "Eres el último en bajar, así que pagas el taxi al final. Tu reserva funciona como la de los demás, pero después solo se cobra la tarifa FLOQQ de {{fee}} €; tu propia parte la pagas directamente al taxi.",
+    "checkingPayout": "Comprobando tu configuración de cobro…",
+    "payoutExplainer": "Para recibir la parte de los demás, configura tu cobro con Stripe, nuestro socio de pagos (unos 5 minutos: nombre, fecha de nacimiento, dirección, teléfono e IBAN). También puedes hacerlo después del viaje; guardaremos tu dinero hasta entonces.",
+    "payoutUnfinished": "Aún no has terminado de configurar tu cobro. Puedes continuar donde lo dejaste.",
+    "payoutNeedsMore": "Stripe necesita algo más de información antes de que podamos enviarte el dinero.",
+    "payoutChecking": "Stripe está comprobando tus datos. Suele tardar unos minutos.",
+    "payoutReady": "Cobro configurado ✓: la parte de los demás se enviará a tu banco después del viaje.",
+    "setUpButton": "Configurar cobro",
+    "continueButton": "Continuar configuración",
+    "checkAgainButton": "Comprobar de nuevo",
+    "someoneElsePays": "Otra persona de tu grupo paga el taxi. Después del viaje solo se cobra tu parte real en tu tarjeta.",
+    "cantPay": "¿No puedes pagar el taxi? Solo puede hacerlo quien baja el último, así que la única opción es cancelar tu plaza abajo; entonces pagará quien baje el último."
+  }
 }

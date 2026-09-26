@@ -201,7 +201,14 @@
     "dissolveButton": "Dissolve group",
     "dissolveConfirmTitle": "Dissolve this group? Every member goes back to the pending pool.",
     "dissolveConfirmAction": "Dissolve",
-    "dissolveError": "We couldn't dissolve this group."
+    "dissolveError": "We couldn't dissolve this group.",
+    "payerLabel": "Pays the taxi · payout: {{payout}}",
+    "payout": {
+      "NOT_STARTED": "not started",
+      "PENDING": "in progress",
+      "COMPLETE": "ready",
+      "RESTRICTED": "needs more info"
+    }
   },
   "myRide": {
     "title": "My ride",
@@ -287,5 +294,21 @@
     "webAuth": "Your bank needs to verify this reservation. Please finish it in the FLOQQ mobile app.",
     "error": "Something went wrong. Please try again."
   },
-  "hold_placed_message": "€{{amount}} reserved - you'll only pay your real share after the ride"
+  "hold_placed_message": "€{{amount}} reserved - you'll only pay your real share after the ride",
+  "payer_preview": "You'll pay about €{{taxi}} for the taxi and get about €{{back}} back automatically.",
+  "payer": {
+    "title": "You're paying the taxi",
+    "feeOnly": "You get off last, so you pay the taxi at the end. Your seat reservation works like everyone's, but afterwards only the €{{fee}} FLOQQ fee is charged - your own share you pay straight to the taxi.",
+    "checkingPayout": "Checking your payout setup…",
+    "payoutExplainer": "To get the others' shares back, set up your payout with Stripe, our payment partner (about 5 minutes: name, date of birth, address, phone and IBAN). You can also do it after the ride - we'll keep your money until then.",
+    "payoutUnfinished": "You haven't finished your payout setup yet. You can continue where you left off.",
+    "payoutNeedsMore": "Stripe needs a bit more information from you before we can send your money.",
+    "payoutChecking": "Stripe is checking your details. This usually takes a few minutes.",
+    "payoutReady": "Payout set up ✓ - the others' shares will be sent to your bank after the ride.",
+    "setUpButton": "Set up payout",
+    "continueButton": "Continue payout setup",
+    "checkAgainButton": "Check again",
+    "someoneElsePays": "Another passenger in your group pays the taxi. After the ride only your real share is charged to your card.",
+    "cantPay": "Can't pay the taxi? Only the last passenger can, so the only way out is to cancel your seat below - then whoever gets off last pays instead."
+  }
 }

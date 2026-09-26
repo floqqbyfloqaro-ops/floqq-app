@@ -10,7 +10,9 @@ export type PushMessageKey =
   | 'holdReminder'
   | 'holdFailed'
   | 'removedDeadline'
-  | 'groupDissolved';
+  | 'groupDissolved'
+  | 'payerAssigned'
+  | 'payerSetupReminder';
 
 export type PushParams = { amount?: string; time?: string };
 
@@ -42,6 +44,14 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Your group was dissolved',
       body: 'Any reservation on your card was released. We’re looking for a new match.',
     },
+    payerAssigned: {
+      title: 'You’re paying the taxi',
+      body: 'You get off last, so you pay the taxi and get the others’ shares back automatically. Set up your payout in FLOQQ.',
+    },
+    payerSetupReminder: {
+      title: 'Set up your payout',
+      body: 'Your ride is soon. Finish your payout setup in FLOQQ so we can send you the others’ shares.',
+    },
   },
   es: {
     holdOpen: {
@@ -68,6 +78,14 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Tu grupo se ha disuelto',
       body: 'Cualquier reserva en tu tarjeta se ha liberado. Estamos buscando un nuevo grupo para ti.',
     },
+    payerAssigned: {
+      title: 'Tú pagas el taxi',
+      body: 'Eres el último en bajar, así que pagas el taxi y recibes automáticamente la parte de los demás. Configura tu cobro en FLOQQ.',
+    },
+    payerSetupReminder: {
+      title: 'Configura tu cobro',
+      body: 'Tu viaje es pronto. Termina de configurar tu cobro en FLOQQ para que podamos enviarte la parte de los demás.',
+    },
   },
   fr: {
     holdOpen: {
@@ -93,6 +111,14 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
     groupDissolved: {
       title: 'Votre groupe a été dissous',
       body: 'Toute réservation sur votre carte a été libérée. Nous cherchons un nouveau groupe pour vous.',
+    },
+    payerAssigned: {
+      title: 'C’est vous qui payez le taxi',
+      body: 'Vous descendez en dernier : vous payez le taxi et récupérez automatiquement la part des autres. Configurez votre versement dans FLOQQ.',
+    },
+    payerSetupReminder: {
+      title: 'Configurez votre versement',
+      body: 'Votre trajet approche. Terminez la configuration de votre versement dans FLOQQ pour que nous puissions vous envoyer la part des autres.',
     },
   },
 };
