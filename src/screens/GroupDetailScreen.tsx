@@ -19,6 +19,7 @@ import {
   fetchGroupById,
   fetchGroupMembers,
   fetchPendingRequests,
+  fetchPayoutStatusForUser,
   PendingPassengerRequest,
   removeGroupMember,
   TaxiGroupMember,
@@ -66,6 +67,8 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   const [results, setResults] = useState<FareSplitResult[] | null>(null);
   const [groupStatus, setGroupStatus] = useState<TaxiGroupStatus>('unconfirmed');
   const [isConfirming, setIsConfirming] = useState(false);
+  // Payments prototype, phase 4: who pays the taxi, and whether their payout is set up.
+  const [payer, setPayer] = useState<{ requestId: string | null; status: string | null; payout: string } | null>(null);
 
   const [isAddingOpen, setIsAddingOpen] = useState(false);
   const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
@@ -95,6 +98,18 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
 
     if (groupResult.data) {
       setGroupStatus(groupResult.data.status);
+    }
+
+    if (PAYMENTS_ENABLED && groupResult.data?.payer_status) {
+      const payerUserId = groupResult.data.payer_user_id;
+      const payout = payerUserId ? (await fetchPayoutStatusForUser(payerUserId)).data?.payout_onboarding_status : null;
+      setPayer({
+        requestId: groupResult.data.payer_request_id,
+        status: groupResult.data.payer_status,
+        payout: payout ?? 'NOT_STARTED',
+      });
+    } else {
+      setPayer(null);
     }
 
     const list = membersResult.data ?? [];
@@ -383,6 +398,7 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
             ) : actionError ? (
               <ErrorNotice message={actionError} />
             ) : null}
+            {payer?.status === 'open' ? <Text style={styles.lockedNote}>{t('groupDetail.payerOpen')}</Text> : null}
 
             <Text style={styles.label}>{t('groupDetail.totalFareLabel')}</Text>
             <AuthTextInput
@@ -405,6 +421,11 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 />
                 <Text style={styles.memberTitle}>{memberDisplayName(member)}</Text>
                 <Text style={styles.memberSubtitle}>{member.destination_address}</Text>
+                {payer?.status === 'assigned' && payer.requestId === member.id ? (
+                  <Text style={styles.memberScoreNote}>
+                    {t('groupDetail.payerLabel', { payout: t(`groupDetail.payout.${payer.payout}`) })}
+                  </Text>
+                ) : null}
                 {member.extra_detour_minutes != null && member.waiting_minutes != null ? (
                   <Text style={styles.memberScoreNote}>
                     {t('groupDetail.detourAndWait', {

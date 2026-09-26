@@ -201,7 +201,15 @@
     "dissolveButton": "Dissoudre le groupe",
     "dissolveConfirmTitle": "Dissoudre ce groupe ? Tous les membres retourneront dans la liste des demandes en attente.",
     "dissolveConfirmAction": "Dissoudre",
-    "dissolveError": "Impossible de dissoudre ce groupe."
+    "dissolveError": "Impossible de dissoudre ce groupe.",
+    "payerLabel": "Paie le taxi · versement : {{payout}}",
+    "payerOpen": "La personne qui payait a rendu le paiement - en attente que quelqu’un du groupe s’en charge.",
+    "payout": {
+      "NOT_STARTED": "pas commencé",
+      "PENDING": "en cours",
+      "COMPLETE": "prêt",
+      "RESTRICTED": "infos manquantes"
+    }
   },
   "myRide": {
     "title": "Mon trajet",
@@ -287,5 +295,29 @@
     "webAuth": "Votre banque doit vérifier cette réservation. Terminez-la dans l'application mobile FLOQQ.",
     "error": "Une erreur est survenue. Veuillez réessayer."
   },
-  "hold_placed_message": "{{amount}} € réservés : vous ne paierez que votre part réelle après la course"
+  "hold_placed_message": "{{amount}} € réservés : vous ne paierez que votre part réelle après la course",
+  "payer_preview": "Vous paierez environ {{taxi}} € pour le taxi et récupérerez environ {{back}} € automatiquement.",
+  "payer": {
+    "title": "C'est vous qui payez le taxi",
+    "feeOnly": "Vous descendez en dernier : vous payez le taxi à la fin. Votre réservation fonctionne comme celle des autres, mais ensuite seuls les frais FLOQQ de {{fee}} € sont prélevés - votre propre part, vous la payez directement au taxi.",
+    "checkingPayout": "Vérification de votre versement…",
+    "payoutExplainer": "Pour récupérer la part des autres, configurez votre versement avec Stripe, notre partenaire de paiement (environ 5 minutes : nom, date de naissance, adresse, téléphone et IBAN). Vous pouvez aussi le faire après le trajet - nous gardons votre argent d'ici là.",
+    "payoutUnfinished": "Vous n'avez pas encore terminé la configuration de votre versement. Vous pouvez reprendre là où vous vous êtes arrêté.",
+    "payoutNeedsMore": "Stripe a besoin d'un peu plus d'informations avant que nous puissions vous envoyer votre argent.",
+    "payoutChecking": "Stripe vérifie vos informations. Cela prend généralement quelques minutes.",
+    "payoutReady": "Versement configuré ✓ - la part des autres sera envoyée sur votre compte après le trajet.",
+    "setUpButton": "Configurer le versement",
+    "continueButton": "Continuer la configuration",
+    "checkAgainButton": "Vérifier à nouveau",
+    "declineButton": "Je ne peux pas payer le taxi",
+    "declineConfirm": "Rendre le paiement du taxi ? Nous demanderons aux autres membres du groupe de s'en charger.",
+    "declineYes": "Oui, le rendre",
+    "declineNo": "Le garder",
+    "openTitle": "Personne ne paie encore le taxi",
+    "openExplainer": "La personne qui devait payer le taxi ne peut pas. Et vous ? Vous payez le taxi et récupérez automatiquement la part des autres.",
+    "volunteerButton": "Je paie le taxi",
+    "roleTaken": "Quelqu'un d'autre vient de s'en charger - merci quand même !",
+    "youDeclined": "Vous avez rendu le paiement du taxi. Nous avons demandé aux autres membres du groupe.",
+    "someoneElsePays": "Une autre personne de votre groupe paie le taxi. Après le trajet, seule votre part réelle est prélevée sur votre carte."
+  }
 }

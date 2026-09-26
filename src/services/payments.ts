@@ -124,3 +124,53 @@ export function syncGroupHolds(groupId: string) {
 export function formatCents(cents: number): string {
   return (cents / 100).toFixed(2);
 }
+
+// --- Phase 4: the designated payer and their payout setup (Stripe Connect) ---
+
+export type PayoutStatus = 'NOT_STARTED' | 'PENDING' | 'COMPLETE' | 'RESTRICTED';
+
+export type PayoutState = { status: PayoutStatus; detailsSubmitted: boolean };
+
+// The passenger's payout setup as last saved (RLS only returns their own profile).
+export async function fetchMyPayoutState() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { state: null as PayoutState | null, error: new Error('Not logged in.') };
+
+  const { data, error } = await supabase
+    .from('user_payment_profiles')
+    .select('payout_onboarding_status, payout_details_submitted')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error) return { state: null as PayoutState | null, error };
+  return {
+    state: {
+      status: (data?.payout_onboarding_status ?? 'NOT_STARTED') as PayoutStatus,
+      detailsSubmitted: data?.payout_details_submitted ?? false,
+    },
+    error: null,
+  };
+}
+
+// Asks Stripe (through payments-payout-onboarding) for the payout account's current state and saves it.
+export async function refreshPayoutState() {
+  const { data, error } = await supabase.functions.invoke('payments-payout-onboarding', { body: { action: 'status' } });
+  if (error || !data?.status) return { state: null as PayoutState | null, error: error ?? new Error('No status.') };
+  return { state: data as PayoutState, error: null };
+}
+
+// A one-time link to Stripe's payout setup pages. returnUrl is the app link to come back to.
+export async function startPayoutOnboarding(returnUrl: string) {
+  const { data, error } = await supabase.functions.invoke('payments-payout-onboarding', {
+    body: { action: 'start', returnUrl },
+  });
+  if (error || !data?.url) return { url: null as string | null, error: error ?? new Error(data?.error ?? 'No link.') };
+  return { url: data.url as string, error: null };
+}
+
+// 'decline': the payer hands the role back. 'volunteer': take a role that was handed back.
+export async function changePayerRole(action: 'decline' | 'volunteer', requestId: string) {
+  const { error } = await supabase.functions.invoke('payments-payer-role', { body: { action, requestId } });
+  return { error };
+}

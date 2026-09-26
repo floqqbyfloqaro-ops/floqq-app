@@ -236,8 +236,17 @@ export function isEmailNotVerifiedError(error: unknown) {
 export type MyTaxiGroup = {
   id: string;
   status: 'unconfirmed' | 'confirmed' | 'dissolved';
+  total_fare: number | null;
+  // Payments prototype, phase 4 - see 20260926030000_designated_payer.sql.
+  payer_request_id: string | null;
+  payer_status: 'assigned' | 'open' | null;
+  payer_declined_request_ids: string[];
 };
 
 export function fetchMyGroupStatus(groupId: string) {
-  return supabase.from('taxi_groups').select('id, status').eq('id', groupId).single<MyTaxiGroup>();
+  return supabase
+    .from('taxi_groups')
+    .select('id, status, total_fare, payer_request_id, payer_status, payer_declined_request_ids')
+    .eq('id', groupId)
+    .single<MyTaxiGroup>();
 }

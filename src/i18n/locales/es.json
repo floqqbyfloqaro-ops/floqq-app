@@ -197,7 +197,15 @@
     "dissolveButton": "Disolver grupo",
     "dissolveConfirmTitle": "¿Disolver este grupo? Todos los pasajeros volverán a la lista de pendientes.",
     "dissolveConfirmAction": "Disolver",
-    "dissolveError": "No pudimos disolver este grupo."
+    "dissolveError": "No pudimos disolver este grupo.",
+    "payerLabel": "Paga el taxi · cobro: {{payout}}",
+    "payerOpen": "La persona que pagaba ha devuelto el pago - esperando a que alguien del grupo se encargue.",
+    "payout": {
+      "NOT_STARTED": "sin empezar",
+      "PENDING": "en curso",
+      "COMPLETE": "listo",
+      "RESTRICTED": "falta información"
+    }
   },
   "myRide": {
     "title": "Mi trayecto",
@@ -283,5 +291,29 @@
     "webAuth": "Tu banco necesita verificar esta reserva. Termínala en la app móvil de FLOQQ.",
     "error": "Algo ha fallado. Inténtalo de nuevo."
   },
-  "hold_placed_message": "{{amount}} € reservados: solo pagarás tu parte real después del viaje"
+  "hold_placed_message": "{{amount}} € reservados: solo pagarás tu parte real después del viaje",
+  "payer_preview": "Pagarás unos {{taxi}} € por el taxi y recibirás unos {{back}} € de vuelta automáticamente.",
+  "payer": {
+    "title": "Tú pagas el taxi",
+    "feeOnly": "Eres el último en bajar, así que pagas el taxi al final. Tu reserva funciona como la de los demás, pero después solo se cobra la tarifa FLOQQ de {{fee}} €; tu propia parte la pagas directamente al taxi.",
+    "checkingPayout": "Comprobando tu configuración de cobro…",
+    "payoutExplainer": "Para recibir la parte de los demás, configura tu cobro con Stripe, nuestro socio de pagos (unos 5 minutos: nombre, fecha de nacimiento, dirección, teléfono e IBAN). También puedes hacerlo después del viaje; guardaremos tu dinero hasta entonces.",
+    "payoutUnfinished": "Aún no has terminado de configurar tu cobro. Puedes continuar donde lo dejaste.",
+    "payoutNeedsMore": "Stripe necesita algo más de información antes de que podamos enviarte el dinero.",
+    "payoutChecking": "Stripe está comprobando tus datos. Suele tardar unos minutos.",
+    "payoutReady": "Cobro configurado ✓: la parte de los demás se enviará a tu banco después del viaje.",
+    "setUpButton": "Configurar cobro",
+    "continueButton": "Continuar configuración",
+    "checkAgainButton": "Comprobar de nuevo",
+    "declineButton": "No puedo pagar el taxi",
+    "declineConfirm": "¿Devolver el pago del taxi? Pediremos a los demás de tu grupo que se encarguen.",
+    "declineYes": "Sí, devolverlo",
+    "declineNo": "Mantenerlo",
+    "openTitle": "Nadie paga el taxi todavía",
+    "openExplainer": "La persona que iba a pagar el taxi no puede. ¿Puedes tú? Pagas el taxi y recibes automáticamente la parte de los demás.",
+    "volunteerButton": "Yo pago el taxi",
+    "roleTaken": "Otra persona acaba de encargarse. ¡Gracias de todos modos!",
+    "youDeclined": "Has devuelto el pago del taxi. Se lo hemos pedido a los demás de tu grupo.",
+    "someoneElsePays": "Otra persona de tu grupo paga el taxi. Después del viaje solo se cobra tu parte real en tu tarjeta."
+  }
 }

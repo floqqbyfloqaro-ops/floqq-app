@@ -5,6 +5,7 @@ import { AppState, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import CancelConfirmedRide from '../components/CancelConfirmedRide';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
+import PayerCard from '../components/PayerCard';
 import PrimaryButton from '../components/PrimaryButton';
 import RideHoldCard from '../components/RideHoldCard';
 import ScreenBackground from '../components/ScreenBackground';
@@ -203,6 +204,7 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
               <>
                 <StatusPill status="Group Confirmed" label={t('myRide.statusConfirmed')} />
                 <RideHoldCard requestId={request.id} groupId={group.id} onOpenProfile={onOpenProfile} />
+                <PayerCard requestId={request.id} group={group} onGroupChanged={loadData} />
               </>
             ) : request.service_fee_status === 'paid' ? (
               <StatusPill status="Group Confirmed" label={t('myRide.statusPaid')} />
