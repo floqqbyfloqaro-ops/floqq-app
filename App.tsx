@@ -12,11 +12,14 @@ import LoginScreen from './src/screens/LoginScreen';
 import MyRideScreen from './src/screens/MyRideScreen';
 import NewRequestScreen from './src/screens/NewRequestScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeSplashScreen from './src/screens/WelcomeSplashScreen';
-import { ADMIN_EMAIL } from './src/constants';
+import { ADMIN_EMAIL, PAYMENTS_ENABLED } from './src/constants';
 import WebAppFrame from './src/components/WebAppFrame';
+import { handleStripeRedirect } from './src/services/cardSetup';
 import { parseEmailVerifiedLink } from './src/services/emailVerification';
+import { registerPushToken, useTappedNotification } from './src/services/pushNotifications';
 import { hasCompletedOnboarding, setOnboardingCompleted } from './src/services/onboarding';
 import { supabase } from './src/services/supabase';
 
@@ -41,7 +44,7 @@ function AppContent() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgotPassword'>('login');
-  const [mainScreen, setMainScreen] = useState<'home' | 'newRequest' | 'myRide' | 'admin'>('home');
+  const [mainScreen, setMainScreen] = useState<'home' | 'newRequest' | 'myRide' | 'admin' | 'profile'>('home');
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [showEmailVerified, setShowEmailVerified] = useState(false);
 
@@ -53,6 +56,12 @@ function AppContent() {
   useEffect(() => {
     if (!linkingUrl || handledLinkRef.current === linkingUrl) return;
     handledLinkRef.current = linkingUrl;
+
+    // Returning from a bank's 3D Secure page while saving a card - Stripe's link, not ours.
+    if (PAYMENTS_ENABLED && linkingUrl.includes('stripe-redirect')) {
+      handleStripeRedirect(linkingUrl);
+      return;
+    }
 
     const tokens = parseEmailVerifiedLink(linkingUrl);
     if (!tokens) return;
@@ -69,6 +78,24 @@ function AppContent() {
         setShowEmailVerified(true);
       });
   }, [linkingUrl]);
+
+  // Payments prototype: register this phone for push notifications once someone is logged in.
+  const userId = session?.user?.id;
+  useEffect(() => {
+    if (userId) registerPushToken();
+  }, [userId]);
+
+  // A tapped notification (also one that launched the app) opens the screen it points at.
+  const tappedNotification = useTappedNotification();
+  const handledNotificationRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!PAYMENTS_ENABLED || !userId || !tappedNotification) return;
+    if (handledNotificationRef.current === tappedNotification.id) return;
+    handledNotificationRef.current = tappedNotification.id;
+    if (tappedNotification.screen === 'myRide') {
+      setMainScreen('myRide');
+    }
+  }, [tappedNotification, userId]);
 
   const openNewRequest = (requestId?: string) => {
     setEditingRequestId(requestId ?? null);
@@ -136,7 +163,17 @@ function AppContent() {
     }
 
     if (mainScreen === 'myRide') {
-      return <MyRideScreen onBack={() => setMainScreen('home')} onCreateRequest={openNewRequest} />;
+      return (
+        <MyRideScreen
+          onBack={() => setMainScreen('home')}
+          onCreateRequest={openNewRequest}
+          onOpenProfile={() => setMainScreen('profile')}
+        />
+      );
+    }
+
+    if (mainScreen === 'profile') {
+      return <ProfileScreen onBack={() => setMainScreen('home')} />;
     }
 
     if (mainScreen === 'admin') {
@@ -149,6 +186,8 @@ function AppContent() {
         onOpenMyRide={() => setMainScreen('myRide')}
         isAdmin={session.user?.email === ADMIN_EMAIL}
         onOpenAdmin={() => setMainScreen('admin')}
+        showProfile={PAYMENTS_ENABLED}
+        onOpenProfile={() => setMainScreen('profile')}
         showEmailVerified={showEmailVerified}
         onDismissEmailVerified={() => setShowEmailVerified(false)}
       />

@@ -19,7 +19,9 @@
     "activeRideCancelConfirm": "Votre trajet actuel sera annulé avant d’en créer un nouveau.",
     "activeRideCancelConfirmAction": "Oui, l’annuler",
     "activeRideKeep": "Garder mon trajet",
-    "activeRideCheckError": "Impossible de vérifier votre trajet actuel. Veuillez réessayer."
+    "activeRideCheckError": "Impossible de vérifier votre trajet actuel. Veuillez réessayer.",
+    "profileButton": "Profil",
+    "activeRideCancelConfirmedWarning": "Votre groupe est déjà confirmé. Si votre place est réservée, les frais FLOQQ de {{fee}} € sont conservés et le reste est libéré. Votre course actuelle sera annulée avant d'en créer une nouvelle."
   },
   "onboarding": {
     "title": "Bienvenue sur FLOQQ",
@@ -218,7 +220,14 @@
     "payButton": "Payer les frais de service ({{amount}} €)",
     "pendingNote": "Paiement en cours — cette page se mettra à jour automatiquement une fois confirmé.",
     "checkoutError": "Impossible de démarrer le paiement. Veuillez réessayer.",
-    "refresh": "Actualiser"
+    "refresh": "Actualiser",
+    "cancelRideButton": "Annuler la course",
+    "cancelConfirmTitle": "Annuler cette course ?",
+    "cancelFeeKept": "Votre place est réservée : les frais FLOQQ de {{fee}} € sont conservés. Les {{released}} € restants sont libérés sur votre carte.",
+    "cancelNoCharge": "Rien n'a encore été réservé sur votre carte, vous ne serez donc pas débité.",
+    "cancelLegacyFee": "Les frais de service de {{fee}} € que vous avez payés ne sont pas remboursés.",
+    "cancelOthersNote": "La course des autres passagers sera recalculée sans vous.",
+    "cancelConfirmButton": "Oui, annuler ma course"
   },
   "findingMatch": {
     "title": "Recherche de votre correspondance...",
@@ -239,5 +248,44 @@
     "title": "Détails du groupe",
     "body": "Cet écran arrive bientôt — votre groupe est confirmé, nous afficherons ici tous les détails."
   },
-  "active_ride_exists": "Vous avez déjà un trajet actif. Vous ne pouvez avoir qu’un seul trajet à la fois."
+  "active_ride_exists": "Vous avez déjà un trajet actif. Vous ne pouvez avoir qu’un seul trajet à la fois.",
+  "profile": {
+    "title": "Profil",
+    "paymentMethodsTitle": "Moyens de paiement",
+    "paymentMethodsIntro": "Enregistrez un moyen de paiement une seule fois. FLOQQ l’utilise pour réserver et payer votre part des taxis partagés, vous n’aurez plus jamais à saisir votre carte.",
+    "noCard": "Aucun moyen de paiement enregistré pour le moment.",
+    "addCard": "Ajouter un moyen de paiement",
+    "replaceCard": "Remplacer la carte",
+    "cardLine": "{{brand}} •••• {{last4}}",
+    "cardExpiry": "Expire {{month}}/{{year}}",
+    "walletGooglePay": "Google Pay",
+    "walletApplePay": "Apple Pay",
+    "savingCard": "Enregistrement de votre carte…",
+    "cardSaved": "Votre carte est enregistrée.",
+    "savingSlow": "Votre carte est encore en cours de confirmation. Tirez vers le bas pour actualiser dans un instant.",
+    "loadError": "Impossible de charger votre moyen de paiement.",
+    "setupError": "Impossible d’enregistrer votre carte. Veuillez réessayer.",
+    "webNotSupported": "L’ajout d’un moyen de paiement n’est disponible que dans l’application mobile FLOQQ.",
+    "merchantName": "FLOQQ"
+  },
+  "payments": {
+    "checking": "Vérification de la réservation de votre place…",
+    "preparing": "Nous préparons la réservation de votre place. Cela prend quelques minutes.",
+    "reserveTitle": "Réservez votre place",
+    "reserveExplainer": "Nous réservons {{amount}} € sur votre carte : votre part estimée ({{share}} €), les frais FLOQQ ({{fee}} €) et une marge au cas où le compteur affiche plus. Après la course, vous ne payez que votre part réelle ; le reste est libéré.",
+    "reserveButton": "Réserver {{amount}} €",
+    "deadline": "Réservez avant {{time}}, sinon votre place sera libérée.",
+    "opensOn": "Nous vous demanderons de réserver {{amount}} € à partir du {{date}}.",
+    "noCard": "Ajoutez un moyen de paiement pour réserver votre place.",
+    "addCardButton": "Ajouter un moyen de paiement",
+    "pendingAuth": "En attente de la confirmation de votre banque…",
+    "continueAuth": "Continuer la vérification",
+    "failed": "Impossible de réserver le montant sur votre carte. Réessayez ou remplacez votre carte dans Profil.",
+    "shareIncreased": "Le groupe a changé et votre part a augmenté. Veuillez réserver le nouveau montant.",
+    "deadlinePassed": "Le délai pour réserver votre place est terminé.",
+    "released": "Votre réservation a été libérée.",
+    "webAuth": "Votre banque doit vérifier cette réservation. Terminez-la dans l'application mobile FLOQQ.",
+    "error": "Une erreur est survenue. Veuillez réessayer."
+  },
+  "hold_placed_message": "{{amount}} € réservés : vous ne paierez que votre part réelle après la course"
 }

@@ -8,8 +8,9 @@ import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
+import { SERVICE_FEE_EUR } from '../constants';
 import { cancelPassengerRequest, fetchMyActiveRequest, MyActiveRequest } from '../services/passengerRequests';
-import { supabase } from '../services/supabase';
+import { signOutAndUnregisterPush } from '../services/pushNotifications';
 import { baseText, colors, overlays, spacing } from '../theme/colors';
 
 type Props = {
@@ -17,6 +18,9 @@ type Props = {
   onOpenMyRide: () => void;
   isAdmin: boolean;
   onOpenAdmin: () => void;
+  // Only shown with the payments prototype switched on (PAYMENTS_ENABLED).
+  showProfile: boolean;
+  onOpenProfile: () => void;
   // Set after the passenger arrives from the email-verified page's "Open FLOQQ" link.
   showEmailVerified?: boolean;
   onDismissEmailVerified?: () => void;
@@ -32,6 +36,8 @@ export default function HomeScreen({
   onOpenMyRide,
   isAdmin,
   onOpenAdmin,
+  showProfile,
+  onOpenProfile,
   showEmailVerified,
   onDismissEmailVerified,
 }: Props) {
@@ -116,14 +122,16 @@ export default function HomeScreen({
             <Text style={styles.promptText} accessibilityLiveRegion="polite">
               {t('active_ride_exists')}
             </Text>
-            {isConfirmedGroup ? (
-              <Text style={styles.promptDetail}>{t('home.activeRideConfirmedLocked')}</Text>
-            ) : prompt.step === 'confirmCancel' ? (
-              <Text style={styles.promptDetail}>{t('home.activeRideCancelConfirm')}</Text>
+            {prompt.step === 'confirmCancel' ? (
+              <Text style={styles.promptDetail}>
+                {isConfirmedGroup
+                  ? t('home.activeRideCancelConfirmedWarning', { fee: SERVICE_FEE_EUR.toFixed(2) })
+                  : t('home.activeRideCancelConfirm')}
+              </Text>
             ) : null}
 
             <View style={styles.actions}>
-              {prompt.step === 'confirmCancel' && !isConfirmedGroup ? (
+              {prompt.step === 'confirmCancel' ? (
                 <>
                   <PrimaryButton
                     label={t('home.activeRideCancelConfirmAction')}
@@ -145,12 +153,10 @@ export default function HomeScreen({
                       onOpenMyRide();
                     }}
                   />
-                  {isConfirmedGroup ? null : (
-                    <SecondaryButton
-                      label={t('home.activeRideCancelAndCreate')}
-                      onPress={() => setPrompt({ ...prompt, step: 'confirmCancel' })}
-                    />
-                  )}
+                  <SecondaryButton
+                    label={t('home.activeRideCancelAndCreate')}
+                    onPress={() => setPrompt({ ...prompt, step: 'confirmCancel' })}
+                  />
                   <SecondaryButton label={t('home.activeRideKeep')} onPress={() => setPrompt(null)} />
                 </>
               )}
@@ -160,13 +166,14 @@ export default function HomeScreen({
           <View style={styles.actions}>
             <PrimaryButton label={t('home.newRequestButton')} onPress={handleNewRequestPress} loading={isChecking} />
             <SecondaryButton label={t('home.myRideButton')} onPress={onOpenMyRide} />
+            {showProfile ? <SecondaryButton label={t('home.profileButton')} onPress={onOpenProfile} /> : null}
             {isAdmin ? <SecondaryButton label={t('home.adminButton')} onPress={onOpenAdmin} /> : null}
           </View>
         )}
 
         <Pressable
           style={styles.logoutButton}
-          onPress={() => supabase.auth.signOut()}
+          onPress={() => signOutAndUnregisterPush()}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           accessibilityRole="button"
           accessibilityLabel={t('auth.logout')}

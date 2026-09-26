@@ -10,9 +10,8 @@
 // authorization check for us instead of us hand-rolling it.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import Stripe from 'npm:stripe@17';
-
 import { SERVICE_FEE_EUR } from '../_shared/constants.ts';
+import { createStripeClient, LiveKeyError } from '../_shared/stripe.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,8 +42,15 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
-  const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
-  if (!stripeSecretKey) {
+  // Refuses a live key outright - see _shared/stripe.ts.
+  let stripe;
+  try {
+    stripe = createStripeClient();
+  } catch (err) {
+    if (err instanceof LiveKeyError) return jsonResponse({ error: err.message }, 500);
+    throw err;
+  }
+  if (!stripe) {
     return jsonResponse({ error: 'Payments are not configured.' }, 500);
   }
 
@@ -104,8 +110,6 @@ Deno.serve(async (req) => {
   if (group.status !== 'confirmed') {
     return jsonResponse({ error: 'Your group is not confirmed yet.' }, 400);
   }
-
-  const stripe = new Stripe(stripeSecretKey, { apiVersion: '2025-08-27.basil' });
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',

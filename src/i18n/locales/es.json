@@ -15,7 +15,9 @@
     "activeRideCancelConfirm": "Tu trayecto actual se cancelará antes de crear uno nuevo.",
     "activeRideCancelConfirmAction": "Sí, cancelarlo",
     "activeRideKeep": "Mantener mi trayecto",
-    "activeRideCheckError": "No pudimos comprobar tu trayecto actual. Inténtalo de nuevo."
+    "activeRideCheckError": "No pudimos comprobar tu trayecto actual. Inténtalo de nuevo.",
+    "profileButton": "Perfil",
+    "activeRideCancelConfirmedWarning": "Tu grupo ya está confirmado. Si tu plaza está reservada, se cobra la tarifa de FLOQQ de {{fee}} € y se libera el resto. Tu viaje actual se cancelará antes de crear uno nuevo."
   },
   "onboarding": {
     "title": "Bienvenido a FLOQQ",
@@ -214,7 +216,14 @@
     "payButton": "Pagar tasa de servicio ({{amount}} €)",
     "pendingNote": "Pago en curso — esto se actualizará automáticamente en cuanto se confirme.",
     "checkoutError": "No se pudo iniciar el pago. Inténtalo de nuevo.",
-    "refresh": "Actualizar"
+    "refresh": "Actualizar",
+    "cancelRideButton": "Cancelar viaje",
+    "cancelConfirmTitle": "¿Cancelar este viaje?",
+    "cancelFeeKept": "Tu plaza está reservada, así que se cobra la tarifa de FLOQQ de {{fee}} €. Los {{released}} € restantes se liberan de tu tarjeta.",
+    "cancelNoCharge": "Todavía no se ha reservado nada en tu tarjeta, así que no se te cobrará nada.",
+    "cancelLegacyFee": "La tarifa de servicio de {{fee}} € que pagaste no se reembolsa.",
+    "cancelOthersNote": "El viaje de los demás pasajeros se recalculará sin ti.",
+    "cancelConfirmButton": "Sí, cancelar mi viaje"
   },
   "findingMatch": {
     "title": "Buscando tu coincidencia...",
@@ -235,5 +244,44 @@
     "title": "Detalles del grupo",
     "body": "Esta pantalla llegará pronto — tu grupo está confirmado y aquí mostraremos todos los detalles."
   },
-  "active_ride_exists": "Ya tienes un trayecto activo. Solo puedes tener un trayecto a la vez."
+  "active_ride_exists": "Ya tienes un trayecto activo. Solo puedes tener un trayecto a la vez.",
+  "profile": {
+    "title": "Perfil",
+    "paymentMethodsTitle": "Métodos de pago",
+    "paymentMethodsIntro": "Guarda un método de pago una sola vez. FLOQQ lo usa para reservar y pagar tu parte de los taxis compartidos, así no tendrás que volver a introducir tu tarjeta.",
+    "noCard": "Todavía no has guardado ningún método de pago.",
+    "addCard": "Añadir método de pago",
+    "replaceCard": "Cambiar tarjeta",
+    "cardLine": "{{brand}} •••• {{last4}}",
+    "cardExpiry": "Caduca {{month}}/{{year}}",
+    "walletGooglePay": "Google Pay",
+    "walletApplePay": "Apple Pay",
+    "savingCard": "Guardando tu tarjeta…",
+    "cardSaved": "Tu tarjeta está guardada.",
+    "savingSlow": "Tu tarjeta aún se está confirmando. Desliza hacia abajo para actualizar en un momento.",
+    "loadError": "No hemos podido cargar tu método de pago.",
+    "setupError": "No hemos podido guardar tu tarjeta. Inténtalo de nuevo.",
+    "webNotSupported": "Solo puedes añadir un método de pago desde la app móvil de FLOQQ.",
+    "merchantName": "FLOQQ"
+  },
+  "payments": {
+    "checking": "Comprobando la reserva de tu plaza…",
+    "preparing": "Estamos preparando la reserva de tu plaza. Tardará unos minutos.",
+    "reserveTitle": "Reserva tu plaza",
+    "reserveExplainer": "Reservamos {{amount}} € en tu tarjeta: tu parte estimada ({{share}} €), la tarifa de FLOQQ ({{fee}} €) y un margen por si el taxímetro marca más. Después del viaje solo pagas tu parte real; el resto se libera.",
+    "reserveButton": "Reservar {{amount}} €",
+    "deadline": "Reserva antes de {{time}} o perderás tu plaza.",
+    "opensOn": "Te pediremos que reserves {{amount}} € a partir del {{date}}.",
+    "noCard": "Añade un método de pago para reservar tu plaza.",
+    "addCardButton": "Añadir método de pago",
+    "pendingAuth": "Esperando la confirmación de tu banco…",
+    "continueAuth": "Continuar la verificación",
+    "failed": "No hemos podido reservar el importe en tu tarjeta. Inténtalo de nuevo o cambia tu tarjeta en Perfil.",
+    "shareIncreased": "El grupo ha cambiado y tu parte ha aumentado. Reserva el nuevo importe.",
+    "deadlinePassed": "Se ha acabado el tiempo para reservar tu plaza.",
+    "released": "Tu reserva se ha liberado.",
+    "webAuth": "Tu banco necesita verificar esta reserva. Termínala en la app móvil de FLOQQ.",
+    "error": "Algo ha fallado. Inténtalo de nuevo."
+  },
+  "hold_placed_message": "{{amount}} € reservados: solo pagarás tu parte real después del viaje"
 }
