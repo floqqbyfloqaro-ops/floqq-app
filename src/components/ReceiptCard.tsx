@@ -69,12 +69,17 @@ export default function ReceiptCard({ groupId, arrivalAt }: Props) {
       setErrorMessage(t('receipt.cameraDenied'));
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.5 });
+    // base64: the photo's bytes come with the result, so the upload doesn't have to read the file.
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.5, base64: true });
     const asset = result.canceled ? null : result.assets?.[0];
     if (!asset) return;
+    if (!asset.base64) {
+      setErrorMessage(t('receipt.photoFailed'));
+      return;
+    }
 
     setIsSubmitting(true);
-    const upload = await uploadReceiptPhoto(groupId, asset.uri, asset.mimeType ?? null);
+    const upload = await uploadReceiptPhoto(groupId, asset.base64, asset.mimeType ?? null);
     if (upload.error || !upload.path) {
       console.warn('uploadReceiptPhoto failed', upload.error);
       setErrorMessage(t('receipt.photoFailed'));

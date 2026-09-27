@@ -1,3 +1,4 @@
+import { base64ToArrayBuffer } from '../utils/base64';
 import { supabase } from './supabase';
 
 // Starts a Stripe Checkout session for the fixed FLOQQ service fee for one passenger request.
@@ -208,13 +209,15 @@ const PHOTO_EXTENSIONS: Record<string, string> = {
   'image/webp': 'webp',
 };
 
-// Uploads a receipt photo into the group's folder of the private bucket. Returns its path, which
-// goes to submitRideReceipt; the bucket only lets the group's payer upload there.
-export async function uploadReceiptPhoto(groupId: string, uri: string, mimeType: string | null) {
+// Uploads a receipt photo (base64, straight from the camera) into the group's folder of the
+// private bucket. Returns its path, which goes to submitRideReceipt; the bucket only lets the
+// group's payer upload there.
+export async function uploadReceiptPhoto(groupId: string, base64: string, mimeType: string | null) {
   const contentType = mimeType && PHOTO_EXTENSIONS[mimeType] ? mimeType : 'image/jpeg';
   const path = `${groupId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${PHOTO_EXTENSIONS[contentType]}`;
   try {
-    const body = await (await fetch(uri)).arrayBuffer();
+    const body = base64ToArrayBuffer(base64);
+    if (body.byteLength === 0) return { path: null as string | null, error: new Error('Empty photo.') };
     const { error } = await supabase.storage.from(RECEIPT_BUCKET).upload(path, body, { contentType });
     if (error) return { path: null as string | null, error };
   } catch (err) {
