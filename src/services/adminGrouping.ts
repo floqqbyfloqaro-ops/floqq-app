@@ -126,6 +126,35 @@ export function fetchPayoutStatusForUser(userId: string) {
     .maybeSingle<{ payout_onboarding_status: string }>();
 }
 
+// Payments prototype, phase 5: each member's part of the taxi receipt (admin can read every row).
+export type ReceiptShareRow = {
+  request_id: string;
+  receipt_share_cents: number | null;
+  final_share_cents: number | null;
+  guarantee_cents: number;
+};
+
+export function fetchReceiptShares(groupId: string) {
+  return supabase
+    .from('ride_payments')
+    .select('request_id, receipt_share_cents, final_share_cents, guarantee_cents')
+    .eq('group_id', groupId)
+    .returns<ReceiptShareRow[]>();
+}
+
+export type ReceiptFlagRow = { group_id: string; status: 'ACCEPTED' | 'NEEDS_REVIEW' | 'REJECTED'; guarantee_used: boolean };
+
+// These groups' receipts that need the admin: waiting for review, or paid partly by the Ride
+// Payment Guarantee - flagged on the dashboard.
+export function fetchReceiptFlags(groupIds: string[]) {
+  return supabase
+    .from('ride_receipts')
+    .select('group_id, status, guarantee_used')
+    .in('group_id', groupIds)
+    .or('status.eq.NEEDS_REVIEW,guarantee_used.eq.true')
+    .returns<ReceiptFlagRow[]>();
+}
+
 export type TaxiGroupMember = {
   id: string;
   passenger_name: string | null;

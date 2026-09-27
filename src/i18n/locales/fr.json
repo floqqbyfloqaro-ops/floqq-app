@@ -161,7 +161,9 @@
     "filterToday": "Aujourd'hui",
     "filterTomorrow": "Demain",
     "filterAllUpcoming": "Tous à venir",
-    "filterEmpty": "Aucune demande en attente pour ce jour."
+    "filterEmpty": "Aucune demande en attente pour ce jour.",
+    "guaranteeUsedFlag": "⚠ Garantie de paiement du trajet utilisée",
+    "receiptNeedsReviewFlag": "⚠ Reçu à vérifier"
   },
   "groupDetail": {
     "title": "Répartition du tarif",
@@ -208,7 +210,38 @@
       "PENDING": "en cours",
       "COMPLETE": "prêt",
       "RESTRICTED": "infos manquantes"
-    }
+    },
+    "receiptTitle": "Reçu du taxi",
+    "receiptTotals": "Total {{total}} € · réservations {{holds}} € · le payeur récupère {{back}} €",
+    "receiptGuaranteeUsed": "Garantie de paiement du trajet utilisée : FLOQQ couvre {{amount}} €",
+    "receiptCovered": "Les réservations couvrent toutes les parts : pas besoin de la garantie.",
+    "receiptViewPhoto": "Voir la photo du reçu",
+    "receiptNoPhoto": "Pas de photo du reçu.",
+    "receiptShare": "Part finale {{share}} €",
+    "receiptSharePayer": "Part finale {{share}} € (a payé le taxi directement)",
+    "receiptShareGuaranteed": "Part finale {{share}} € : {{capture}} € de la réservation + {{guarantee}} € par la garantie FLOQQ",
+    "receiptStatus": {
+      "ACCEPTED": "Accepté",
+      "NEEDS_REVIEW": "À vérifier",
+      "REJECTED": "Refusé - en attente d'une nouvelle photo"
+    },
+    "receiptReason": {
+      "no_date": "date illisible",
+      "date_outside_ride": "date/heure hors de la fenêtre du trajet",
+      "date_in_future": "daté dans le futur",
+      "duplicate_receipt": "reçu déjà utilisé pour un autre trajet",
+      "duplicate_photo": "photo déjà utilisée pour un autre trajet",
+      "amount_above_estimate": "montant bien supérieur à l'estimation"
+    },
+    "receiptRead": "Lu : {{date}} · licence {{licence}} · reçu nº {{number}}",
+    "receiptCorrected": "(corrigé par l'admin)",
+    "receiptNote": "Note : {{note}}",
+    "receiptCorrectPlaceholder": "Total corrigé € (facultatif)",
+    "receiptNotePlaceholder": "Note (montrée au payeur en cas de refus)",
+    "receiptApprove": "Approuver le reçu",
+    "receiptSaveCorrection": "Enregistrer la correction",
+    "receiptReject": "Refuser le reçu",
+    "receiptActionError": "Impossible de mettre à jour le reçu. Réessayez."
   },
   "myRide": {
     "title": "Mon trajet",
@@ -310,5 +343,36 @@
     "checkAgainButton": "Vérifier à nouveau",
     "someoneElsePays": "Une autre personne de votre groupe paie le taxi. Après le trajet, seule votre part réelle est prélevée sur votre carte.",
     "cantPay": "Vous ne pouvez pas payer le taxi ? Seul le dernier passager le peut : la seule solution est d'annuler votre place ci-dessous - c'est alors le dernier à descendre qui paie."
+  },
+  "receipt": {
+    "title": "Reçu du taxi",
+    "afterRide": "Après le trajet, photographiez ici le reçu du taxi pour que nous calculions la part finale de chacun.",
+    "explainer": "Prenez en photo le reçu que vous donne le chauffeur. Nous y lisons le total et la date, répartissons le tarif selon la distance comme l'estimation, et vous reversons les parts des autres.",
+    "photoTips": "Posez le reçu à plat, bien éclairé et entier sur la photo : le total, la date et l'heure doivent être lisibles.",
+    "takePhoto": "Photographier le reçu",
+    "retakeButton": "Photographier à nouveau le reçu",
+    "reading": "Lecture de votre reçu…",
+    "viewPhoto": "Voir la photo du reçu",
+    "readLine": "Lu sur votre reçu : {{total}} € le {{date}}",
+    "noDate": "date illisible",
+    "accepted": "Reçu vérifié ✓",
+    "summaryYourShare": "Votre part : {{share}} €",
+    "summaryBack": "Vous récupérez : {{back}} €",
+    "covered": "Les réservations des autres couvrent leurs parts : vous récupérez tout.",
+    "guaranteeUsed": "Le tarif est plus élevé que ce que couvrent les réservations des autres ({{holds}} € réservés au total). FLOQQ paie les {{amount}} € manquants grâce à la Garantie de paiement du trajet : vous récupérez tout quand même.",
+    "inReview": "FLOQQ vérifie ce reçu manuellement. Vous recevrez les parts des autres une fois approuvé, en général sous un jour.",
+    "wrongPhotoHint": "Mauvais reçu photographié, ou mal lu ? Reprenez en photo le reçu de ce trajet.",
+    "rejected": "Ce reçu n'a pas été accepté. Photographiez le reçu de ce trajet.",
+    "rejectedWithNote": "Ce reçu n'a pas été accepté : {{note}}. Photographiez le reçu de ce trajet.",
+    "unreadable": "Nous n'avons pas pu lire le reçu. Posez-le à plat, bien éclairé, et vérifiez qu'il est entier sur la photo.",
+    "notATaxiReceipt": "Cela ne ressemble pas à un reçu de taxi. Photographiez le reçu imprimé par le chauffeur pour ce trajet.",
+    "noTotal": "Nous n'avons pas pu lire le total. Reprenez la photo, de plus près et bien éclairée.",
+    "tooEarly": "Le trajet n'a pas encore commencé : vous pourrez photographier le reçu une fois parti.",
+    "locked": "Le reçu de ce trajet a déjà été accepté. Contactez FLOQQ en cas de problème.",
+    "tooManyAttempts": "Trop de photos pour ce trajet. FLOQQ vous contactera pour régler le reçu.",
+    "scanFailed": "Impossible de vérifier le reçu pour le moment. Réessayez dans une minute.",
+    "photoFailed": "La photo n'a pas pu être envoyée. Réessayez.",
+    "cameraDenied": "FLOQQ a besoin de l'appareil photo pour photographier le reçu. Autorisez-le dans les réglages du téléphone.",
+    "invalidTotal": "Saisissez le montant en euros, par ex. 38,50 (500 € maximum)."
   }
 }

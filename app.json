@@ -44,7 +44,15 @@
           "enableGooglePay": true
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": false,
+          "cameraPermission": "FLOQQ uses your camera so you can photograph the taxi receipt after your ride.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "owner": "floqq",
     "extra": {

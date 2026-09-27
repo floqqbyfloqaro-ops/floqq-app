@@ -1,3 +1,4 @@
+import { base64ToArrayBuffer } from '../utils/base64';
 import { supabase } from './supabase';
 
 // Starts a Stripe Checkout session for the fixed FLOQQ service fee for one passenger request.
@@ -167,4 +168,114 @@ export async function startPayoutOnboarding(returnUrl: string) {
   });
   if (error || !data?.url) return { url: null as string | null, error: error ?? new Error(data?.error ?? 'No link.') };
   return { url: data.url as string, error: null };
+}
+
+// --- Phase 5: the taxi receipt (prototype) ---
+
+export type ReceiptStatus = 'ACCEPTED' | 'NEEDS_REVIEW' | 'REJECTED';
+
+export type RideReceipt = {
+  status: ReceiptStatus;
+  review_reasons: string[];
+  review_note: string | null;
+  total_cents: number;
+  total_source: 'photo' | 'admin';
+  receipt_at: string | null;
+  taxi_licence: string | null;
+  receipt_number: string | null;
+  photo_path: string | null;
+  payer_share_cents: number;
+  reimbursement_cents: number;
+  holds_total_cents: number;
+  guarantee_cents: number;
+  guarantee_used: boolean;
+  submitted_at: string;
+};
+
+const RECEIPT_COLUMNS =
+  'status, review_reasons, review_note, total_cents, total_source, receipt_at, taxi_licence, receipt_number, photo_path, payer_share_cents, reimbursement_cents, holds_total_cents, guarantee_cents, guarantee_used, submitted_at';
+
+// The group's receipt, if the payer sent one (RLS: only the payer and the admin can read it).
+export function fetchRideReceipt(groupId: string) {
+  return supabase.from('ride_receipts').select(RECEIPT_COLUMNS).eq('group_id', groupId).maybeSingle<RideReceipt>();
+}
+
+const RECEIPT_BUCKET = 'ride-receipts';
+
+// Only types the receipt reader accepts; the camera gives JPEG.
+const PHOTO_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+// Uploads a receipt photo (base64, straight from the camera) into the group's folder of the
+// private bucket. Returns its path, which goes to submitRideReceipt; the bucket only lets the
+// group's payer upload there.
+export async function uploadReceiptPhoto(groupId: string, base64: string, mimeType: string | null) {
+  const contentType = mimeType && PHOTO_EXTENSIONS[mimeType] ? mimeType : 'image/jpeg';
+  const path = `${groupId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${PHOTO_EXTENSIONS[contentType]}`;
+  try {
+    const body = base64ToArrayBuffer(base64);
+    if (body.byteLength === 0) return { path: null as string | null, error: new Error('Empty photo.') };
+    const { error } = await supabase.storage.from(RECEIPT_BUCKET).upload(path, body, { contentType });
+    if (error) return { path: null as string | null, error };
+  } catch (err) {
+    return { path: null as string | null, error: err as Error };
+  }
+  return { path, error: null };
+}
+
+// A short-lived link to look at a receipt photo (payer or admin).
+export async function receiptPhotoUrl(photoPath: string) {
+  const { data } = await supabase.storage.from(RECEIPT_BUCKET).createSignedUrl(photoPath, 300);
+  return data?.signedUrl ?? null;
+}
+
+export type SubmitReceiptResponse = {
+  status?: 'ACCEPTED' | 'NEEDS_REVIEW';
+  reasons?: string[];
+  totalCents?: number;
+  receiptAt?: string | null;
+  error?: string;
+  reason?: string;
+};
+
+// Sends the uploaded photo to be read and checked. The amount always comes from the photo.
+export async function submitRideReceipt(groupId: string, photoPath: string) {
+  const { data, error } = await supabase.functions.invoke('payments-submit-receipt', {
+    body: { groupId, photoPath },
+  });
+
+  if (error) {
+    // Business refusals (unreadable, too early, ...) come back as non-2xx with a JSON body.
+    const context = (error as { context?: Response }).context;
+    const body = context ? await context.json().catch(() => null) : null;
+    return { result: (body ?? null) as SubmitReceiptResponse | null, error };
+  }
+  return { result: data as SubmitReceiptResponse, error: null };
+}
+
+// Admin: accept a receipt (optionally with a corrected total) or reject it.
+export async function reviewRideReceipt(
+  groupId: string,
+  action: 'approve' | 'reject',
+  options: { totalCents?: number; note?: string } = {}
+) {
+  const { data, error } = await supabase.functions.invoke('payments-review-receipt', {
+    body: { groupId, action, ...options },
+  });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    const body = context ? await context.json().catch(() => null) : null;
+    return { error: (body?.error as string | undefined) ?? 'review_failed' };
+  }
+  return { error: (data?.error as string | undefined) ?? null };
+}
+
+// "38,50" / "38.5" / "€ 38" -> cents, or null if it isn't a plain euro amount.
+export function parseEuroToCents(input: string): number | null {
+  const normalized = input.replace(/[€\s]/g, '').replace(',', '.');
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null;
+  return Math.round(Number(normalized) * 100);
 }

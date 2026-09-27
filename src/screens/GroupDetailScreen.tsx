@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import AdminReceiptReview from '../components/AdminReceiptReview';
 import AuthTextInput from '../components/AuthTextInput';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
@@ -20,7 +21,9 @@ import {
   fetchGroupMembers,
   fetchPendingRequests,
   fetchPayoutStatusForUser,
+  fetchReceiptShares,
   PendingPassengerRequest,
+  ReceiptShareRow,
   removeGroupMember,
   TaxiGroupMember,
   TaxiGroupStatus,
@@ -28,7 +31,7 @@ import {
   updatePassengerDistance,
 } from '../services/adminGrouping';
 import { calculateFareSplit, FareSplitResult } from '../services/fareSplit';
-import { syncGroupHolds } from '../services/payments';
+import { fetchRideReceipt, formatCents, RideReceipt, syncGroupHolds } from '../services/payments';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
@@ -69,6 +72,9 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   const [isConfirming, setIsConfirming] = useState(false);
   // Payments prototype, phase 4: who pays the taxi, and whether their payout is set up.
   const [payer, setPayer] = useState<{ requestId: string; payout: string } | null>(null);
+  // Phase 5: the payer's taxi receipt and each member's part of it.
+  const [receipt, setReceipt] = useState<RideReceipt | null>(null);
+  const [receiptShares, setReceiptShares] = useState<Record<string, ReceiptShareRow>>({});
 
   const [isAddingOpen, setIsAddingOpen] = useState(false);
   const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
@@ -109,6 +115,14 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
       });
     } else {
       setPayer(null);
+    }
+
+    if (PAYMENTS_ENABLED) {
+      const [receiptResult, sharesResult] = await Promise.all([fetchRideReceipt(groupId), fetchReceiptShares(groupId)]);
+      if (receiptResult.error) console.warn('fetchRideReceipt failed', receiptResult.error);
+      if (sharesResult.error) console.warn('fetchReceiptShares failed', sharesResult.error);
+      setReceipt(receiptResult.data ?? null);
+      setReceiptShares(Object.fromEntries((sharesResult.data ?? []).map((row) => [row.request_id, row])));
     }
 
     const list = membersResult.data ?? [];
@@ -383,6 +397,8 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
               </Text>
             ) : null}
 
+            {receipt ? <AdminReceiptReview groupId={groupId} receipt={receipt} onChanged={loadData} /> : null}
+
             {pendingAction ? (
               <Card style={styles.actionConfirmCard}>
                 <Text style={styles.actionConfirmText} accessibilityLiveRegion="polite">
@@ -422,6 +438,19 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 {payer?.requestId === member.id ? (
                   <Text style={styles.memberScoreNote}>
                     {t('groupDetail.payerLabel', { payout: t(`groupDetail.payout.${payer.payout}`) })}
+                  </Text>
+                ) : null}
+                {receipt && receiptShares[member.id]?.receipt_share_cents != null ? (
+                  <Text style={receiptShares[member.id].guarantee_cents > 0 ? styles.guaranteeNote : styles.memberScoreNote}>
+                    {payer?.requestId === member.id
+                      ? t('groupDetail.receiptSharePayer', { share: formatCents(receiptShares[member.id].receipt_share_cents!) })
+                      : receiptShares[member.id].guarantee_cents > 0
+                        ? t('groupDetail.receiptShareGuaranteed', {
+                            share: formatCents(receiptShares[member.id].receipt_share_cents!),
+                            capture: formatCents(receiptShares[member.id].final_share_cents ?? 0),
+                            guarantee: formatCents(receiptShares[member.id].guarantee_cents),
+                          })
+                        : t('groupDetail.receiptShare', { share: formatCents(receiptShares[member.id].receipt_share_cents!) })}
                   </Text>
                 ) : null}
                 {member.extra_detour_minutes != null && member.waiting_minutes != null ? (
@@ -573,6 +602,12 @@ const styles = StyleSheet.create({
   memberCard: {
     marginBottom: spacing.x4,
     gap: spacing.x2,
+  },
+  guaranteeNote: {
+    ...baseText.caption,
+    color: colors.warning,
+    fontWeight: '700',
+    marginBottom: spacing.x2,
   },
   memberTitle: {
     ...baseText.body,
