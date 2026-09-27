@@ -16,11 +16,14 @@ import {
 import { baseText, colors, spacing } from '../theme/colors';
 import ErrorNotice from './ErrorNotice';
 import PrimaryButton from './PrimaryButton';
+import ReceiptCard from './ReceiptCard';
 import SecondaryButton from './SecondaryButton';
 
 type Props = {
   requestId: string;
   group: MyTaxiGroup;
+  // The payer's own arrival - the receipt can be entered from then on.
+  arrivalAt: string;
 };
 
 // Payments prototype, phase 4: the designated payer (the passenger who gets off last) pays the
@@ -28,7 +31,7 @@ type Props = {
 // reservation. Payout setup isn't required before the ride - it can also be finished afterwards.
 // The role can't be passed on (only the last passenger can pay the full fare): a payer who can't
 // pay cancels their seat, and whoever then gets off last becomes the payer.
-export default function PayerCard({ requestId, group }: Props) {
+export default function PayerCard({ requestId, group, arrivalAt }: Props) {
   const { t } = useTranslation();
 
   const [shareCents, setShareCents] = useState<number | null>(null);
@@ -136,6 +139,8 @@ export default function PayerCard({ requestId, group }: Props) {
       )}
 
       {errorMessage ? <ErrorNotice message={errorMessage} /> : null}
+
+      <ReceiptCard groupId={group.id} arrivalAt={arrivalAt} />
 
       <Text style={styles.hint}>{t('payer.cantPay')}</Text>
     </View>

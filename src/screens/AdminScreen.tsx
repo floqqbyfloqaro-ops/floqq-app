@@ -21,10 +21,11 @@ import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
-import { ADMIN_EMAIL, ADMIN_HISTORY_DEFAULT_WINDOW_DAYS, MAX_PASSENGERS_PER_TAXI } from '../constants';
+import { ADMIN_EMAIL, ADMIN_HISTORY_DEFAULT_WINDOW_DAYS, MAX_PASSENGERS_PER_TAXI, PAYMENTS_ENABLED } from '../constants';
 import {
   createTaxiGroup,
   fetchGroupMemberArrivals,
+  fetchReceiptFlags,
   fetchHistoryRequests,
   fetchPendingRequests,
   fetchTaxiGroups,
@@ -94,6 +95,8 @@ export default function AdminScreen({ session, onBack }: Props) {
   // groupId -> earliest member arrival_at, for the Active tab's "ride date" line. Dissolved
   // groups have no attached members left, so this is only ever populated for active groups.
   const [groupRideDates, setGroupRideDates] = useState<Record<string, string>>({});
+  // Payments prototype, phase 5: groupId -> what the admin needs to know about its taxi receipt.
+  const [receiptFlags, setReceiptFlags] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -150,6 +153,27 @@ export default function AdminScreen({ session, onBack }: Props) {
           }
         }
         setGroupRideDates(earliestByGroup);
+      }
+
+      if (PAYMENTS_ENABLED && activeGroups.length > 0) {
+        const { data: flagged, error: flaggedError } = await fetchReceiptFlags(activeGroups.map((g) => g.id));
+        if (flaggedError) {
+          console.warn('fetchReceiptFlags failed', flaggedError);
+        } else {
+          setReceiptFlags(
+            Object.fromEntries(
+              (flagged ?? []).map((r) => [
+                r.group_id,
+                [
+                  r.status === 'NEEDS_REVIEW' ? t('admin.receiptNeedsReviewFlag') : null,
+                  r.guarantee_used ? t('admin.guaranteeUsedFlag') : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
+              ])
+            )
+          );
+        }
       }
     }
 
@@ -553,11 +577,14 @@ export default function AdminScreen({ session, onBack }: Props) {
                   key={group.id}
                   onPress={() => setOpenGroupId(group.id)}
                   style={styles.groupRow}
-                  accessibilityLabel={`${rideDateLabel ? `${rideDateLabel}, ` : ''}${createdLabel}, ${fareLabel}, ${statusLabel}`}
+                  accessibilityLabel={`${rideDateLabel ? `${rideDateLabel}, ` : ''}${createdLabel}, ${fareLabel}, ${
+                    receiptFlags[group.id] ? `${receiptFlags[group.id]}, ` : ''
+                  }${statusLabel}`}
                 >
                   {rideDateLabel ? <Text style={styles.groupTitle}>{rideDateLabel}</Text> : null}
                   <Text style={rideDateLabel ? styles.groupSubtitle : styles.groupTitle}>{createdLabel}</Text>
                   <Text style={styles.groupSubtitle}>{fareLabel}</Text>
+                  {receiptFlags[group.id] ? <Text style={styles.guaranteeFlag}>{receiptFlags[group.id]}</Text> : null}
                   <StatusPill
                     status={group.status === 'confirmed' ? 'Group Confirmed' : group.status === 'dissolved' ? 'Cancelled' : 'Searching'}
                     label={statusLabel}
@@ -823,6 +850,12 @@ const styles = StyleSheet.create({
   groupSubtitle: {
     ...baseText.caption,
     color: colors.info,
+    marginBottom: spacing.x2,
+  },
+  guaranteeFlag: {
+    ...baseText.caption,
+    color: colors.warning,
+    fontWeight: '700',
     marginBottom: spacing.x2,
   },
 });
