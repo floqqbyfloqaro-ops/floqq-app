@@ -15,7 +15,11 @@ export type PushRequest = {
   amountCents?: number;
   // Shown as a Barcelona-time clock time, e.g. the hold deadline.
   timeIso?: string | null;
+  // The settled ride's amounts ("Taxi €38.60 - your share €12.80 ...").
+  rideCents?: { total: number; share: number; fee: number; released: number };
 };
+
+const euros = (cents: number) => (cents / 100).toFixed(2);
 
 export async function sendPush(adminClient: SupabaseClient, request: PushRequest): Promise<void> {
   try {
@@ -28,8 +32,16 @@ export async function sendPush(adminClient: SupabaseClient, request: PushRequest
     const messages = tokens.map(({ token, locale }) => {
       const pushLocale = locale as PushLocale;
       const { title, body } = renderPushMessage(request.key, pushLocale, {
-        amount: request.amountCents != null ? (request.amountCents / 100).toFixed(2) : undefined,
+        amount: request.amountCents != null ? euros(request.amountCents) : undefined,
         time: request.timeIso ? formatPushTime(request.timeIso, pushLocale) : undefined,
+        ...(request.rideCents
+          ? {
+              total: euros(request.rideCents.total),
+              share: euros(request.rideCents.share),
+              fee: euros(request.rideCents.fee),
+              released: euros(request.rideCents.released),
+            }
+          : {}),
       });
       // Tapping any payments notification opens My ride.
       return { to: token, title, body, sound: 'default', data: { screen: 'myRide' } };

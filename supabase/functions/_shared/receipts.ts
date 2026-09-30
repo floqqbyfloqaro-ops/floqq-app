@@ -1,10 +1,58 @@
 // Splits a verified taxi total over a confirmed group and records it (receipt + every member's
 // share) through system_record_ride_receipt. Used by payments-submit-receipt (payer's photo) and
 // payments-review-receipt (admin approval). See 20260927010000_receipt_verification.sql.
+// An ACCEPTED receipt also starts the passengers' dispute window (phase 6,
+// 20260930000000_capture_and_reimburse.sql): scheduleSettlement sets when their cards are charged.
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import { ReceiptSettlement, settleReceipt } from './receiptMath.ts';
+import { DEFAULT_DISPUTE_WINDOW_HOURS, settleAfterMs } from './settlementMath.ts';
+
+// The DISPUTE_WINDOW_HOURS secret (e.g. 0.05 = 3 minutes, for testing), or the default.
+export function disputeWindowHours(): number {
+  const raw = Deno.env.get('DISPUTE_WINDOW_HOURS');
+  const hours = raw ? Number(raw) : NaN;
+  return Number.isFinite(hours) && hours >= 0 ? hours : DEFAULT_DISPUTE_WINDOW_HOURS;
+}
+
+// Sets (ACCEPTED) or clears (anything else) when the group's cards are charged, on the receipt and
+// on every passenger's payment, together with the taxi total they see. Leaves a receipt that is
+// already being settled alone. Returns the new time, if any.
+export async function scheduleSettlement(
+  adminClient: SupabaseClient,
+  groupId: string,
+  receipt: { status: string; totalCents: number | null },
+  now = new Date()
+): Promise<string | null> {
+  let settleAfter: string | null = null;
+  if (receipt.status === 'ACCEPTED') {
+    const { data: holds } = await adminClient
+      .from('ride_payments')
+      .select('hold_expires_at')
+      .eq('group_id', groupId)
+      .eq('payment_status', 'HOLD_PLACED')
+      .not('hold_expires_at', 'is', null);
+    const expiries = (holds ?? []).map((h) => new Date(h.hold_expires_at).getTime());
+    const earliestExpiryMs = expiries.length ? Math.min(...expiries) : null;
+    settleAfter = new Date(settleAfterMs(now.getTime(), disputeWindowHours(), earliestExpiryMs)).toISOString();
+  }
+
+  const { data: updated } = await adminClient
+    .from('ride_receipts')
+    .update({ settle_after: settleAfter })
+    .eq('group_id', groupId)
+    .is('settlement_started_at', null)
+    .select('id');
+  if (!updated?.length) return null;
+
+  await adminClient
+    .from('ride_payments')
+    .update({ charge_at: settleAfter, taxi_total_cents: settleAfter ? receipt.totalCents : null })
+    .eq('group_id', groupId)
+    .neq('payment_status', 'CAPTURED');
+  return settleAfter;
+}
 
 export type ReceiptStatus = 'ACCEPTED' | 'NEEDS_REVIEW';
 
@@ -85,5 +133,10 @@ export async function recordReceipt(
   }
   const result = data as { recorded: boolean; reason?: string };
   if (!result.recorded) return { recorded: false, reason: result.reason ?? 'record_failed' };
+
+  // If this fails, payments-settle-rides schedules an ACCEPTED receipt on its next run.
+  await scheduleSettlement(adminClient, args.groupId, { status: args.status, totalCents: args.totalCents }).catch((err) =>
+    console.error('scheduleSettlement failed', err)
+  );
   return { recorded: true, settlement };
 }

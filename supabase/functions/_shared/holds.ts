@@ -42,7 +42,7 @@ export async function cancelHold(stripe: Stripe, paymentIntentId: string): Promi
 // Money has already moved (or failed to): the passenger is told about that separately.
 const FINAL_STATUSES = ['CAPTURED', 'CAPTURE_FAILED', 'REFUNDED'];
 
-type NotifiedColumn = 'hold_open_notified_at' | 'hold_reminder_sent_at' | 'ended_notified_at';
+type NotifiedColumn = 'hold_open_notified_at' | 'hold_reminder_sent_at' | 'ended_notified_at' | 'settled_notified_at';
 
 // Claims a one-time notification for a row: true only for the single caller that set it.
 export async function markNotified(adminClient: SupabaseClient, rowId: string, column: NotifiedColumn): Promise<boolean> {

@@ -11,7 +11,8 @@
 //
 // A ride can be cancelled at any time, also once its group is confirmed. With the payments
 // prototype on, the passenger's hold then pays only the EUR 2.49 platform fee (the rest is
-// released) and the remaining passengers' holds are adjusted (_shared/holds.ts).
+// released) and the remaining passengers' holds are adjusted (_shared/holds.ts). Not while the
+// ride is being settled (phase 6, 409 ride_settling); after that, cancelling just closes the ride.
 //
 // Called with the passenger's own JWT, like edit-passenger-request.
 
@@ -55,6 +56,27 @@ Deno.serve(async (req) => {
   const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+  // Once the taxi receipt is in, the ride is over: its shares are fixed by that receipt. While it
+  // is still being settled nobody can leave; afterwards leaving only closes the ride, with no
+  // money or group changes.
+  let rideSettled = false;
+  const { data: request } = await adminClient
+    .from('passenger_requests')
+    .select('group_id')
+    .eq('id', body.requestId)
+    .maybeSingle();
+  if (request?.group_id) {
+    const { data: receipt } = await adminClient
+      .from('ride_receipts')
+      .select('settled_at')
+      .eq('group_id', request.group_id)
+      .maybeSingle();
+    if (receipt && !receipt.settled_at) {
+      return jsonResponse({ error: 'ride_settling' }, 409);
+    }
+    rideSettled = receipt?.settled_at != null;
+  }
+
   const { data, error } = await userClient.rpc('begin_passenger_request_cancel', {
     p_request_id: body.requestId,
   });
@@ -75,6 +97,10 @@ Deno.serve(async (req) => {
 
   if (result.blocked) {
     return jsonResponse({ error: result.reason }, 409);
+  }
+
+  if (rideSettled) {
+    return jsonResponse({ ok: true }, 200);
   }
 
   // Payments first: the cancelling passenger's fee is settled from their own hold before the

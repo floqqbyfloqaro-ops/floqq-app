@@ -57,12 +57,12 @@ export default function CancelConfirmedRide({ requestId, groupId, serviceFeeStat
   const handleConfirm = async () => {
     setErrorMessage(null);
     setIsCancelling(true);
-    const { error } = await cancelPassengerRequest(requestId);
+    const { error, blockedReason } = await cancelPassengerRequest(requestId);
     setIsCancelling(false);
 
     if (error) {
       console.warn('cancelPassengerRequest failed', error);
-      setErrorMessage(t('findingMatch.cancelError'));
+      setErrorMessage(t(blockedReason === 'ride_settling' ? 'settlement.cancelWhileSettling' : 'findingMatch.cancelError'));
       return;
     }
     setWarning(null);

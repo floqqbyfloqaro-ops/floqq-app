@@ -177,8 +177,9 @@ export async function fetchMyLatestRequest() {
 
 export type CancelPassengerRequestResult = {
   error: Error | null;
-  // Set when the ride's group is already confirmed - the caller should not offer cancelling.
-  blockedReason?: 'group_confirmed';
+  // Set when the ride's group is already confirmed - the caller should not offer cancelling - or
+  // when the finished ride is being paid (payments phase 6) - cancelling works again afterwards.
+  blockedReason?: 'group_confirmed' | 'ride_settling';
 };
 
 // Routed through the cancel-passenger-request Edge Function rather than a plain client-side
@@ -195,8 +196,8 @@ export async function cancelPassengerRequest(requestId: string): Promise<CancelP
   if (context) {
     try {
       const body = await context.json();
-      if (body?.error === 'group_confirmed') {
-        return { error, blockedReason: 'group_confirmed' };
+      if (body?.error === 'group_confirmed' || body?.error === 'ride_settling') {
+        return { error, blockedReason: body.error };
       }
     } catch {
       // Fall through to the generic error below.

@@ -20,9 +20,13 @@ const MINUTE_MS = 60_000;
 export type PayoutStatus = 'NOT_STARTED' | 'PENDING' | 'COMPLETE' | 'RESTRICTED';
 
 // Keeps the group's payer valid (picks one right after confirmation, or a new one if the payer
-// left the group) and sends the notifications that go with it. Never throws.
+// left the group) and sends the notifications that go with it. Never throws. Once the payer has
+// sent a receipt they keep the role for good - the ride is over and is settled with them.
 export async function syncGroupPayer(adminClient: SupabaseClient, groupId: string, now = new Date()): Promise<void> {
   try {
+    const { data: receipt } = await adminClient.from('ride_receipts').select('id').eq('group_id', groupId).maybeSingle();
+    if (receipt) return;
+
     const { data, error } = await adminClient.rpc('system_assign_group_payer', { p_group_id: groupId });
     if (error) {
       console.error('system_assign_group_payer failed', error);

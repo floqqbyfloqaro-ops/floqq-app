@@ -79,6 +79,14 @@ export type RidePayment = {
   failure_reason: string | null;
   hold_window_opens_at: string | null;
   hold_deadline_at: string | null;
+  // Phase 6 - set once the taxi receipt is accepted, see 20260930000000_capture_and_reimburse.sql.
+  // The share charged on top of the fee (0 for the payer).
+  final_share_cents: number | null;
+  taxi_total_cents: number | null;
+  // When the card is charged (end of the dispute window).
+  charge_at: string | null;
+  captured_cents: number | null;
+  released_cents: number | null;
 };
 
 // The passenger's own ride payment for their current group (RLS only returns their own rows).
@@ -86,7 +94,7 @@ export function fetchMyRidePayment(requestId: string, groupId: string) {
   return supabase
     .from('ride_payments')
     .select(
-      'id, estimated_share_cents, hold_amount_cents, platform_fee_cents, payment_status, failure_reason, hold_window_opens_at, hold_deadline_at'
+      'id, estimated_share_cents, hold_amount_cents, platform_fee_cents, payment_status, failure_reason, hold_window_opens_at, hold_deadline_at, final_share_cents, taxi_total_cents, charge_at, captured_cents, released_cents'
     )
     .eq('request_id', requestId)
     .eq('group_id', groupId)
@@ -190,10 +198,13 @@ export type RideReceipt = {
   guarantee_cents: number;
   guarantee_used: boolean;
   submitted_at: string;
+  // Phase 6: when the others' cards are charged, and when that was done.
+  settle_after: string | null;
+  settled_at: string | null;
 };
 
 const RECEIPT_COLUMNS =
-  'status, review_reasons, review_note, total_cents, total_source, receipt_at, taxi_licence, receipt_number, photo_path, payer_share_cents, reimbursement_cents, holds_total_cents, guarantee_cents, guarantee_used, submitted_at';
+  'status, review_reasons, review_note, total_cents, total_source, receipt_at, taxi_licence, receipt_number, photo_path, payer_share_cents, reimbursement_cents, holds_total_cents, guarantee_cents, guarantee_used, submitted_at, settle_after, settled_at';
 
 // The group's receipt, if the payer sent one (RLS: only the payer and the admin can read it).
 export function fetchRideReceipt(groupId: string) {
@@ -278,4 +289,19 @@ export function parseEuroToCents(input: string): number | null {
   const normalized = input.replace(/[€\s]/g, '').replace(',', '.');
   if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null;
   return Math.round(Number(normalized) * 100);
+}
+
+// --- Phase 6: the payer's reimbursement ---
+
+export type PayoutProgress = 'WAITING_FOR_PAYOUT_SETUP' | 'PENDING' | 'SENT';
+
+export type RidePayout = {
+  amount_cents: number;
+  status: PayoutProgress;
+  sent_at: string | null;
+};
+
+// The payer's reimbursement for a group, once the others have been charged (RLS: payer + admin).
+export function fetchRidePayout(groupId: string) {
+  return supabase.from('ride_payouts').select('amount_cents, status, sent_at').eq('group_id', groupId).maybeSingle<RidePayout>();
 }

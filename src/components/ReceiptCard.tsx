@@ -5,9 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
+  fetchRidePayout,
   fetchRideReceipt,
   formatCents,
   receiptPhotoUrl,
+  RidePayout,
   RideReceipt,
   submitRideReceipt,
   uploadReceiptPhoto,
@@ -44,6 +46,7 @@ export default function ReceiptCard({ groupId, arrivalAt }: Props) {
   const { t } = useTranslation();
 
   const [receipt, setReceipt] = useState<RideReceipt | null>(null);
+  const [payout, setPayout] = useState<RidePayout | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -56,6 +59,10 @@ export default function ReceiptCard({ groupId, arrivalAt }: Props) {
       return;
     }
     setReceipt(data);
+    if (data?.settled_at) {
+      const { data: payoutData } = await fetchRidePayout(groupId);
+      setPayout(payoutData);
+    }
   }, [groupId]);
 
   useEffect(() => {
@@ -117,6 +124,21 @@ export default function ReceiptCard({ groupId, arrivalAt }: Props) {
       })
     : null;
 
+  // Phase 6: when the others are charged, then where the payer's money is.
+  const back = receipt ? formatCents(payout?.amount_cents ?? receipt.reimbursement_cents) : '';
+  const payoutLine =
+    receipt?.status !== 'ACCEPTED'
+      ? null
+      : payout?.status === 'SENT'
+        ? t('settlement.payoutSent', { amount: back })
+        : payout?.status === 'WAITING_FOR_PAYOUT_SETUP'
+          ? t('settlement.payoutWaiting', { amount: back })
+          : payout || receipt.settled_at
+            ? t('settlement.payoutSending', { amount: back })
+            : receipt.settle_after
+              ? t('settlement.payoutAt', { amount: back, time: formatBarcelonaDateTime(receipt.settle_after) })
+              : null;
+
   const takePhotoButton = (
     <PrimaryButton
       label={isSubmitting ? t('receipt.reading') : receipt ? t('receipt.retakeButton') : t('receipt.takePhoto')}
@@ -151,6 +173,9 @@ export default function ReceiptCard({ groupId, arrivalAt }: Props) {
           ) : (
             <Text style={styles.note}>{t('receipt.covered')}</Text>
           )}
+          {payoutLine ? (
+            <Text style={payout?.status === 'WAITING_FOR_PAYOUT_SETUP' ? styles.warning : styles.done}>{payoutLine}</Text>
+          ) : null}
         </>
       ) : receipt.status === 'NEEDS_REVIEW' ? (
         <>
