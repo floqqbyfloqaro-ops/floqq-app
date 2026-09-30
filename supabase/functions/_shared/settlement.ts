@@ -19,7 +19,7 @@ import type Stripe from 'npm:stripe@17';
 import { markNotified } from './holds.ts';
 import { retrievePayoutAccount, savePayoutStatus } from './payer.ts';
 import { sendPush } from './push.ts';
-import { capturePlan, payoutPlan } from './settlementMath.ts';
+import { capturePlan, outstandingCents, payoutPlan } from './settlementMath.ts';
 
 type SettlementRow = {
   id: string;
@@ -33,13 +33,17 @@ type SettlementRow = {
   captured_cents: number | null;
   stripe_charge_id: string | null;
   payer_transfer_id: string | null;
+  failure_reason: string | null;
+  outstanding_cents: number | null;
 };
 
 const SETTLEMENT_COLUMNS =
-  'id, request_id, user_id, payment_status, stripe_payment_intent_id, hold_amount_cents, platform_fee_cents, final_share_cents, captured_cents, stripe_charge_id, payer_transfer_id';
+  'id, request_id, user_id, payment_status, stripe_payment_intent_id, hold_amount_cents, platform_fee_cents, final_share_cents, captured_cents, stripe_charge_id, payer_transfer_id, failure_reason, outstanding_cents';
 
 type Receipt = {
   group_id: string;
+  // ACCEPTED, or ESTIMATED when the payer never sent one (phase 7 fallback).
+  status: string;
   payer_request_id: string | null;
   payer_user_id: string | null;
   total_cents: number;
@@ -99,20 +103,22 @@ async function captureRow(
     if (existing?.status === 'succeeded') {
       intent = existing;
     } else {
+      // The payer is still paid in full (the guarantee covers this share); what this passenger
+      // didn't pay is recorded as outstanding for the admin.
       console.error(`capture of ride payment ${row.id} failed`, err);
+      const expired = existing?.status === 'canceled' && existing.cancellation_reason === 'automatic';
+      const reason = expired ? 'hold_expired' : (err as { code?: string }).code ?? existing?.status ?? 'capture_error';
       const { data: failed } = await adminClient
         .from('ride_payments')
         .update({
           payment_status: 'CAPTURE_FAILED',
-          failure_reason: `settlement: ${(err as { code?: string }).code ?? existing?.status ?? 'capture_error'}`,
+          failure_reason: `settlement: ${reason}`,
           last_status_actor: 'system',
         })
         .eq('id', row.id)
         .eq('payment_status', 'HOLD_PLACED')
         .select('id');
-      if (failed?.length && row.user_id && (await markNotified(adminClient, row.id, 'settled_notified_at'))) {
-        await sendPush(adminClient, { userId: row.user_id, key: 'captureFailed' });
-      }
+      if (failed?.length) await recordOutstanding(adminClient, { ...row, payment_status: 'CAPTURE_FAILED' }, isPayer, reason);
       return;
     }
   }
@@ -130,17 +136,19 @@ async function captureRow(
       released_cents: releasedCents,
       stripe_charge_id: chargeId,
       taxi_total_cents: receipt.total_cents,
+      taxi_total_is_estimate: receipt.status === 'ESTIMATED',
       failure_reason: null,
       last_status_actor: 'system',
     })
     .eq('id', row.id)
-    .eq('payment_status', 'HOLD_PLACED');
+    // The webhook may have recorded the capture first (holdTransition 'succeeded').
+    .in('payment_status', ['HOLD_PLACED', 'CAPTURED']);
 
   // The payer hears about their reimbursement instead.
   if (!isPayer && row.user_id && (await markNotified(adminClient, row.id, 'settled_notified_at'))) {
     await sendPush(adminClient, {
       userId: row.user_id,
-      key: 'ridePaid',
+      key: receipt.status === 'ESTIMATED' ? 'ridePaidEstimate' : 'ridePaid',
       rideCents: {
         total: receipt.total_cents,
         share: capturedCents - row.platform_fee_cents,
@@ -148,6 +156,28 @@ async function captureRow(
         released: releasedCents,
       },
     });
+  }
+}
+
+// Records what a passenger didn't pay because their hold couldn't be captured (failed capture, or
+// the hold expired or was released before the capture), once, and tells them.
+async function recordOutstanding(adminClient: SupabaseClient, row: SettlementRow, isPayer: boolean, reason: string) {
+  const { data: recorded } = await adminClient
+    .from('ride_payments')
+    .update({
+      outstanding_cents: outstandingCents({
+        isPayer,
+        finalShareCents: row.final_share_cents,
+        platformFeeCents: row.platform_fee_cents,
+      }),
+      outstanding_reason: reason,
+      outstanding_since: new Date().toISOString(),
+    })
+    .eq('id', row.id)
+    .is('outstanding_cents', null)
+    .select('id');
+  if (recorded?.length && row.user_id && (await markNotified(adminClient, row.id, 'settled_notified_at'))) {
+    await sendPush(adminClient, { userId: row.user_id, key: 'captureFailed' });
   }
 }
 
@@ -163,7 +193,7 @@ export async function settleGroup(adminClient: SupabaseClient, stripe: Stripe, g
 
   const { data: receiptData } = await adminClient
     .from('ride_receipts')
-    .select('group_id, payer_request_id, payer_user_id, total_cents, reimbursement_cents, settled_at')
+    .select('group_id, status, payer_request_id, payer_user_id, total_cents, reimbursement_cents, settled_at')
     .eq('group_id', groupId)
     .single();
   const receipt = receiptData as Receipt | null;
@@ -175,8 +205,19 @@ export async function settleGroup(adminClient: SupabaseClient, stripe: Stripe, g
       await captureRow(adminClient, stripe, row, receipt, row.request_id === receipt.payer_request_id);
     }
 
-    const stillHeld = (await memberRows(adminClient, groupId)).some((r) => r.payment_status === 'HOLD_PLACED');
-    if (stillHeld) return { groupId, outcome: 'captures_pending' };
+    const rows = await memberRows(adminClient, groupId);
+    if (rows.some((r) => r.payment_status === 'HOLD_PLACED')) return { groupId, outcome: 'captures_pending' };
+
+    // A member whose hold was gone before the capture - it expired, or was released - owes it too.
+    for (const row of rows) {
+      if (row.payment_status === 'CAPTURED' || row.outstanding_cents != null) continue;
+      await recordOutstanding(
+        adminClient,
+        row,
+        row.request_id === receipt.payer_request_id,
+        row.failure_reason ?? row.payment_status.toLowerCase()
+      );
+    }
 
     await adminClient
       .from('ride_receipts')
@@ -195,6 +236,7 @@ type Payout = {
   status: string;
   guarantee_transfer_id: string | null;
   transfer_attempts: number;
+  approved_at: string | null;
 };
 
 // Is the payer's payout account able to receive money? Asks Stripe when the saved state isn't
@@ -250,12 +292,18 @@ async function payPayer(adminClient: SupabaseClient, stripe: Stripe, receipt: Re
 
   const { data: payoutData } = await adminClient
     .from('ride_payouts')
-    .select('id, amount_cents, guarantee_cents, status, guarantee_transfer_id, transfer_attempts')
+    .select('id, amount_cents, guarantee_cents, status, guarantee_transfer_id, transfer_attempts, approved_at')
     .eq('group_id', groupId)
     .single();
   const payout = payoutData as Payout | null;
   if (!payout) return 'payout_row_failed';
   if (payout.status === 'SENT') return 'sent';
+
+  // Nobody checked a receipt: the admin approves this payout first (payments-admin-actions).
+  if (receipt.status === 'ESTIMATED' && !payout.approved_at) {
+    await adminClient.from('ride_payouts').update({ status: 'HELD_FOR_REVIEW' }).eq('id', payout.id).neq('status', 'SENT');
+    return 'held_for_review';
+  }
 
   const accountId = await payoutAccountReady(adminClient, receipt.payer_user_id);
   if (!accountId) {

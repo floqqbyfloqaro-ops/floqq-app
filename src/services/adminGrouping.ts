@@ -142,16 +142,20 @@ export function fetchReceiptShares(groupId: string) {
     .returns<ReceiptShareRow[]>();
 }
 
-export type ReceiptFlagRow = { group_id: string; status: 'ACCEPTED' | 'NEEDS_REVIEW' | 'REJECTED'; guarantee_used: boolean };
+export type ReceiptFlagRow = {
+  group_id: string;
+  status: 'ACCEPTED' | 'NEEDS_REVIEW' | 'REJECTED' | 'ESTIMATED';
+  guarantee_used: boolean;
+};
 
-// These groups' receipts that need the admin: waiting for review, or paid partly by the Ride
-// Payment Guarantee - flagged on the dashboard.
+// These groups' receipts that need the admin: waiting for review, estimated because the payer never
+// sent one (phase 7), or paid partly by the Ride Payment Guarantee - flagged on the dashboard.
 export function fetchReceiptFlags(groupIds: string[]) {
   return supabase
     .from('ride_receipts')
     .select('group_id, status, guarantee_used')
     .in('group_id', groupIds)
-    .or('status.eq.NEEDS_REVIEW,guarantee_used.eq.true')
+    .or('status.eq.NEEDS_REVIEW,status.eq.ESTIMATED,guarantee_used.eq.true')
     .returns<ReceiptFlagRow[]>();
 }
 

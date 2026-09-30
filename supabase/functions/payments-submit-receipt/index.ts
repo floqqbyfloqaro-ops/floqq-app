@@ -114,7 +114,16 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'ride_not_started', rideAt: new Date(departureMs).toISOString() }, 409);
   }
 
-  const { data: existing } = await adminClient.from('ride_receipts').select('status').eq('group_id', groupId).maybeSingle();
+  // An ESTIMATED receipt (the payer missed the deadline, phase 7) can still be replaced by the real
+  // one - until the passengers are being charged.
+  const { data: existing } = await adminClient
+    .from('ride_receipts')
+    .select('status, settlement_started_at')
+    .eq('group_id', groupId)
+    .maybeSingle();
+  if (existing?.settlement_started_at) {
+    return jsonResponse({ error: 'already_captured' }, 409);
+  }
   if (existing?.status === 'ACCEPTED') {
     return jsonResponse({ error: 'already_accepted' }, 409);
   }

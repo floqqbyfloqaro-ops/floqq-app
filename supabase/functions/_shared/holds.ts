@@ -7,7 +7,16 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import type Stripe from 'npm:stripe@17';
 
 import { sendPush } from './push.ts';
-import { estimatedSharesCents, holdAmountCents, holdCovers, holdWindow, PLATFORM_FEE_CENTS, rideDepartureMs } from './holdMath.ts';
+import {
+  estimatedSharesCents,
+  holdAmountCents,
+  holdCovers,
+  holdTransition,
+  holdWindow,
+  PLATFORM_FEE_CENTS,
+  rideDepartureMs,
+} from './holdMath.ts';
+import { freeCancelUntilMs } from './settlementMath.ts';
 
 export type RidePaymentRow = {
   id: string;
@@ -20,10 +29,11 @@ export type RidePaymentRow = {
   payment_status: string;
   hold_deadline_at: string | null;
   ended_notified_at: string | null;
+  free_cancel_until: string | null;
 };
 
 export const RIDE_PAYMENT_COLUMNS =
-  'id, request_id, group_id, user_id, estimated_share_cents, hold_amount_cents, stripe_payment_intent_id, payment_status, hold_deadline_at, ended_notified_at';
+  'id, request_id, group_id, user_id, estimated_share_cents, hold_amount_cents, stripe_payment_intent_id, payment_status, hold_deadline_at, ended_notified_at, free_cancel_until';
 
 // Statuses in which a Stripe hold may still be open and must be cancelled if it's no longer needed.
 const OPEN_HOLD_STATUSES = ['HOLD_PENDING_AUTH', 'HOLD_PLACED'];
@@ -130,6 +140,7 @@ export async function syncGroupHolds(
   );
   const rideMs = rideDepartureMs(members.map((m) => m.arrival_at));
   const rowByRequest = new Map(rows.filter((r) => r.request_id).map((r) => [r.request_id!, r]));
+  const freeCancelUntil = new Date(freeCancelUntilMs(rideMs)).toISOString();
 
   for (const member of members) {
     const shareCents = shares.get(member.id)!;
@@ -148,11 +159,17 @@ export async function syncGroupHolds(
           hold_amount_cents: holdCents,
           hold_window_opens_at: opensAt.toISOString(),
           hold_deadline_at: deadlineAt.toISOString(),
+          free_cancel_until: freeCancelUntil,
           last_status_actor: 'system',
         },
         { onConflict: 'request_id,group_id', ignoreDuplicates: true }
       );
       continue;
+    }
+
+    // The ride time moves when the group changes, and with it the free-cancellation cutoff.
+    if (row.free_cancel_until == null || new Date(row.free_cancel_until).getTime() !== new Date(freeCancelUntil).getTime()) {
+      await adminClient.from('ride_payments').update({ free_cancel_until: freeCancelUntil }).eq('id', row.id);
     }
 
     if (row.estimated_share_cents === shareCents) continue;
@@ -205,18 +222,10 @@ export async function syncGroupHolds(
 
 type StatusActor = 'passenger' | 'system' | 'stripe';
 
-// From which statuses each Stripe PaymentIntent state may move a row. Anything else is a stale or
-// out-of-order update and is ignored, so e.g. a late "failed" can never undo a placed hold.
-const TRANSITIONS: Record<string, { to: string; from: string[] }> = {
-  requires_capture: { to: 'HOLD_PLACED', from: ['NOT_STARTED', 'HOLD_PENDING_AUTH', 'HOLD_FAILED'] },
-  requires_action: { to: 'HOLD_PENDING_AUTH', from: ['NOT_STARTED', 'HOLD_FAILED'] },
-  requires_payment_method: { to: 'HOLD_FAILED', from: ['NOT_STARTED', 'HOLD_PENDING_AUTH', 'HOLD_FAILED'] },
-  canceled: { to: 'RELEASED', from: ['HOLD_PLACED', 'HOLD_PENDING_AUTH'] },
-};
-
 // Reads the hold's current state straight from Stripe and applies it to its ride_payments row.
 // Both payments-place-hold (right after creating the hold) and stripe-webhook call this, always
-// with a freshly retrieved PaymentIntent - never with a client's word for it.
+// with a freshly retrieved PaymentIntent - never with a client's word for it - so a repeated or
+// out-of-order event just re-applies the current state (see holdTransition in holdMath.ts).
 export async function applyHoldState(
   adminClient: SupabaseClient,
   stripe: Stripe,
@@ -229,7 +238,7 @@ export async function applyHoldState(
 
   const { data: row } = await adminClient
     .from('ride_payments')
-    .select('id, payment_status, stripe_payment_intent_id, hold_attempts')
+    .select('id, payment_status, stripe_payment_intent_id, hold_attempts, hold_amount_cents')
     .eq('id', ridePaymentId)
     .single();
   if (!row) return { status: null, changed: false };
@@ -246,27 +255,34 @@ export async function applyHoldState(
     return { status: row.payment_status, changed: false };
   }
 
-  const transition = TRANSITIONS[intent.status];
-  if (!transition || !transition.from.includes(row.payment_status)) {
+  const to = holdTransition(intent.status, row.payment_status);
+  if (!to) {
     return { status: row.payment_status, changed: false };
   }
 
   const update: Record<string, unknown> = {
-    payment_status: transition.to,
+    payment_status: to,
     stripe_payment_intent_id: intent.id,
     last_status_actor: actor,
   };
 
-  if (transition.to === 'HOLD_PLACED') {
+  if (to === 'CAPTURED') {
+    // Same bookkeeping as the settlement's own capture (settlement.ts), which finishes the rest.
+    const charge = intent.latest_charge as Stripe.Charge | null;
+    update.captured_at = new Date().toISOString();
+    update.captured_cents = intent.amount_received;
+    update.released_cents = row.hold_amount_cents - intent.amount_received;
+    update.stripe_charge_id = charge?.id ?? null;
+  } else if (to === 'HOLD_PLACED') {
     const charge = intent.latest_charge as Stripe.Charge | null;
     const captureBefore = charge?.payment_method_details?.card?.capture_before;
     update.hold_placed_at = new Date().toISOString();
     update.hold_expires_at = captureBefore ? new Date(captureBefore * 1000).toISOString() : null;
     update.failure_reason = null;
-  } else if (transition.to === 'HOLD_FAILED') {
+  } else if (to === 'HOLD_FAILED') {
     const lastError = intent.last_payment_error;
     update.failure_reason = lastError?.decline_code ?? lastError?.code ?? 'payment_failed';
-  } else if (transition.to === 'RELEASED') {
+  } else if (to === 'RELEASED') {
     update.released_at = new Date().toISOString();
     update.failure_reason = intent.cancellation_reason === 'automatic' ? 'hold_expired' : intent.cancellation_reason;
   }
@@ -278,15 +294,19 @@ export async function applyHoldState(
     .eq('payment_status', row.payment_status)
     .select('payment_status');
 
-  const changed = (updated?.length ?? 0) > 0 && transition.to !== row.payment_status;
+  const changed = (updated?.length ?? 0) > 0 && to !== row.payment_status;
   return { status: updated?.[0]?.payment_status ?? row.payment_status, changed };
 }
 
-// A passenger cancelled their ride after the group was confirmed. With a placed hold, FLOQQ keeps
-// only the platform fee: capturing less than the hold releases the rest automatically, in one
-// transaction. A hold still waiting for 3D Secure is simply cancelled (nothing is charged), and
-// without a hold there is nothing to charge. A failed capture never blocks the cancellation - it
-// is recorded as CAPTURE_FAILED for the admin.
+// A passenger cancelled their ride after the group was confirmed. With a placed hold:
+//   - up to FREE_CANCELLATION_HOURS before the ride (free_cancel_until), the whole hold is released
+//     - nothing is charged, fee included;
+//   - later, FLOQQ keeps only the platform fee: capturing less than the hold releases the rest
+//     automatically, in one transaction.
+// A hold still waiting for 3D Secure is simply cancelled (nothing is charged), and without a hold
+// there is nothing to charge. A failed capture never blocks the cancellation - it is recorded as
+// CAPTURE_FAILED with the fee outstanding, for the admin. A webhook may record the capture or the
+// release first, so the final updates accept that status too.
 export async function settleCancelledSeat(
   adminClient: SupabaseClient,
   stripe: Stripe,
@@ -306,13 +326,33 @@ export async function settleCancelledSeat(
   // They cancelled themselves - no "group dissolved" push for this seat.
   await markNotified(adminClient, row.id, 'ended_notified_at');
 
+  const isFree = row.free_cancel_until != null && Date.now() < new Date(row.free_cancel_until).getTime();
+
+  if (row.payment_status === 'HOLD_PLACED' && row.stripe_payment_intent_id && isFree) {
+    await cancelHold(stripe, row.stripe_payment_intent_id);
+    await adminClient
+      .from('ride_payments')
+      .update({
+        payment_status: 'RELEASED',
+        released_at: now,
+        released_cents: row.hold_amount_cents,
+        failure_reason: 'cancelled_free',
+        last_status_actor: 'passenger',
+      })
+      .eq('id', row.id)
+      .in('payment_status', ['HOLD_PLACED', 'RELEASED']);
+    return 'released_free';
+  }
+
   if (row.payment_status === 'HOLD_PLACED' && row.stripe_payment_intent_id) {
+    let capturedCents = row.platform_fee_cents;
     try {
-      await stripe.paymentIntents.capture(
+      const intent = await stripe.paymentIntents.capture(
         row.stripe_payment_intent_id,
         { amount_to_capture: row.platform_fee_cents },
         { idempotencyKey: `floqq-cancel-fee-${row.id}` }
       );
+      capturedCents = intent.amount_received;
     } catch (err) {
       console.error('cancellation fee capture failed', err);
       await adminClient
@@ -320,6 +360,9 @@ export async function settleCancelledSeat(
         .update({
           payment_status: 'CAPTURE_FAILED',
           failure_reason: `cancellation_fee: ${(err as { code?: string }).code ?? 'capture_error'}`,
+          outstanding_cents: row.platform_fee_cents,
+          outstanding_reason: 'cancellation_fee',
+          outstanding_since: now,
           last_status_actor: 'passenger',
         })
         .eq('id', row.id)
@@ -332,11 +375,13 @@ export async function settleCancelledSeat(
         payment_status: 'CAPTURED',
         final_share_cents: 0,
         captured_at: now,
+        captured_cents: capturedCents,
+        released_cents: row.hold_amount_cents - capturedCents,
         failure_reason: 'cancelled_by_passenger',
         last_status_actor: 'passenger',
       })
       .eq('id', row.id)
-      .eq('payment_status', 'HOLD_PLACED');
+      .in('payment_status', ['HOLD_PLACED', 'CAPTURED']);
     return 'fee_captured';
   }
 

@@ -18,8 +18,9 @@ type Props = {
 };
 
 // A passenger can always cancel their ride, also once the group is confirmed. Before confirming,
-// this spells out exactly what it costs: with payments on, a reserved seat keeps only the FLOQQ
-// fee and releases the rest; without a reservation nothing is charged.
+// this spells out exactly what it costs: with payments on, a reserved seat is released in full up to
+// 24 hours before the ride (free_cancel_until), and after that keeps only the FLOQQ fee and
+// releases the rest; without a reservation nothing is charged.
 export default function CancelConfirmedRide({ requestId, groupId, serviceFeeStatus, onCancelled }: Props) {
   const { t } = useTranslation();
 
@@ -42,7 +43,11 @@ export default function CancelConfirmedRide({ requestId, groupId, serviceFeeStat
     const { data: payment } = await fetchMyRidePayment(requestId, groupId);
     setIsPreparing(false);
 
-    if (payment?.payment_status === 'HOLD_PLACED') {
+    const isFree = payment?.free_cancel_until != null && Date.now() < new Date(payment.free_cancel_until).getTime();
+
+    if (payment?.payment_status === 'HOLD_PLACED' && isFree) {
+      setWarning(t('myRide.cancelFree', { amount: formatCents(payment.hold_amount_cents) }));
+    } else if (payment?.payment_status === 'HOLD_PLACED') {
       setWarning(
         t('myRide.cancelFeeKept', {
           fee: formatCents(payment.platform_fee_cents),

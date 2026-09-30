@@ -87,6 +87,14 @@ export type RidePayment = {
   charge_at: string | null;
   captured_cents: number | null;
   released_cents: number | null;
+  // Phase 7 - see 20261001000000_payment_failure_handling.sql.
+  // taxi_total_cents is the group's estimate: the payer never sent a receipt.
+  taxi_total_is_estimate: boolean;
+  // Cancelling before this releases the whole reservation, FLOQQ fee included.
+  free_cancel_until: string | null;
+  // What couldn't be charged (failed capture, expired reservation) and whether that's been sorted out.
+  outstanding_cents: number | null;
+  outstanding_resolved_at: string | null;
 };
 
 // The passenger's own ride payment for their current group (RLS only returns their own rows).
@@ -94,7 +102,7 @@ export function fetchMyRidePayment(requestId: string, groupId: string) {
   return supabase
     .from('ride_payments')
     .select(
-      'id, estimated_share_cents, hold_amount_cents, platform_fee_cents, payment_status, failure_reason, hold_window_opens_at, hold_deadline_at, final_share_cents, taxi_total_cents, charge_at, captured_cents, released_cents'
+      'id, estimated_share_cents, hold_amount_cents, platform_fee_cents, payment_status, failure_reason, hold_window_opens_at, hold_deadline_at, final_share_cents, taxi_total_cents, charge_at, captured_cents, released_cents, taxi_total_is_estimate, free_cancel_until, outstanding_cents, outstanding_resolved_at'
     )
     .eq('request_id', requestId)
     .eq('group_id', groupId)
@@ -180,14 +188,15 @@ export async function startPayoutOnboarding(returnUrl: string) {
 
 // --- Phase 5: the taxi receipt (prototype) ---
 
-export type ReceiptStatus = 'ACCEPTED' | 'NEEDS_REVIEW' | 'REJECTED';
+// ESTIMATED (phase 7): the payer didn't photograph the receipt in time - the group's estimated fare.
+export type ReceiptStatus = 'ACCEPTED' | 'NEEDS_REVIEW' | 'REJECTED' | 'ESTIMATED';
 
 export type RideReceipt = {
   status: ReceiptStatus;
   review_reasons: string[];
   review_note: string | null;
   total_cents: number;
-  total_source: 'photo' | 'admin';
+  total_source: 'photo' | 'admin' | 'estimate';
   receipt_at: string | null;
   taxi_licence: string | null;
   receipt_number: string | null;
@@ -293,7 +302,8 @@ export function parseEuroToCents(input: string): number | null {
 
 // --- Phase 6: the payer's reimbursement ---
 
-export type PayoutProgress = 'WAITING_FOR_PAYOUT_SETUP' | 'PENDING' | 'SENT';
+// HELD_FOR_REVIEW (phase 7): from an estimated receipt - the admin approves it first.
+export type PayoutProgress = 'WAITING_FOR_PAYOUT_SETUP' | 'PENDING' | 'SENT' | 'HELD_FOR_REVIEW';
 
 export type RidePayout = {
   amount_cents: number;
@@ -304,4 +314,121 @@ export type RidePayout = {
 // The payer's reimbursement for a group, once the others have been charged (RLS: payer + admin).
 export function fetchRidePayout(groupId: string) {
   return supabase.from('ride_payouts').select('amount_cents, status, sent_at').eq('group_id', groupId).maybeSingle<RidePayout>();
+}
+
+// --- Phase 7: payment problems the admin sorts out ---
+
+export type OutstandingPayment = {
+  id: string;
+  group_id: string | null;
+  outstanding_cents: number;
+  outstanding_reason: string | null;
+  outstanding_since: string | null;
+  outstanding_note: string | null;
+  passenger_requests: { passenger_name: string | null; flight_number: string } | null;
+};
+
+export type PayoutIssue = {
+  group_id: string;
+  amount_cents: number;
+  status: PayoutProgress;
+  failure_reason: string | null;
+};
+
+export type ReceiptIssue = { group_id: string; status: ReceiptStatus };
+
+export type GroupWithoutReceipt = { id: string; receipt_deadline_at: string };
+
+export type PaymentIssues = {
+  outstanding: OutstandingPayment[];
+  payouts: PayoutIssue[];
+  receipts: ReceiptIssue[];
+  // Earliest hold expiry per group, for receipts still waiting.
+  holdExpiries: Record<string, string>;
+  // Rides whose payer hasn't sent a receipt, and when FLOQQ falls back to the estimate.
+  missingReceipts: GroupWithoutReceipt[];
+};
+
+// Everything that needs the admin (RLS: admin reads all of these).
+export async function fetchPaymentIssues(): Promise<{ issues: PaymentIssues | null; error: Error | null }> {
+  const [outstanding, payouts, receipts, missing] = await Promise.all([
+    supabase
+      .from('ride_payments')
+      .select('id, group_id, outstanding_cents, outstanding_reason, outstanding_since, outstanding_note, passenger_requests(passenger_name, flight_number)')
+      .gt('outstanding_cents', 0)
+      .is('outstanding_resolved_at', null)
+      .order('outstanding_since', { ascending: true })
+      .returns<OutstandingPayment[]>(),
+    supabase
+      .from('ride_payouts')
+      .select('group_id, amount_cents, status, failure_reason')
+      .or('status.eq.HELD_FOR_REVIEW,and(status.neq.SENT,failure_reason.not.is.null)')
+      .returns<PayoutIssue[]>(),
+    supabase
+      .from('ride_receipts')
+      .select('group_id, status')
+      .in('status', ['NEEDS_REVIEW', 'REJECTED'])
+      .is('settlement_started_at', null)
+      .returns<ReceiptIssue[]>(),
+    supabase
+      .from('taxi_groups')
+      .select('id, receipt_deadline_at')
+      .eq('status', 'confirmed')
+      .not('receipt_deadline_at', 'is', null)
+      .returns<GroupWithoutReceipt[]>(),
+  ]);
+  const error = outstanding.error ?? payouts.error ?? receipts.error ?? missing.error;
+  if (error) return { issues: null, error };
+
+  const receiptGroupIds = new Set((receipts.data ?? []).map((r) => r.group_id));
+  const { data: allReceipts } = await supabase
+    .from('ride_receipts')
+    .select('group_id, status')
+    .in('group_id', (missing.data ?? []).map((g) => g.id));
+  const withReceipt = new Set((allReceipts ?? []).filter((r) => r.status !== 'REJECTED').map((r) => r.group_id));
+  const missingReceipts = (missing.data ?? []).filter((g) => !withReceipt.has(g.id) && !receiptGroupIds.has(g.id));
+
+  const waitingGroupIds = [...receiptGroupIds, ...missingReceipts.map((g) => g.id)];
+  const holdExpiries: Record<string, string> = {};
+  if (waitingGroupIds.length) {
+    const { data: holds } = await supabase
+      .from('ride_payments')
+      .select('group_id, hold_expires_at')
+      .in('group_id', waitingGroupIds)
+      .eq('payment_status', 'HOLD_PLACED')
+      .not('hold_expires_at', 'is', null);
+    for (const hold of holds ?? []) {
+      const current = holdExpiries[hold.group_id];
+      if (!current || new Date(hold.hold_expires_at).getTime() < new Date(current).getTime()) {
+        holdExpiries[hold.group_id] = hold.hold_expires_at;
+      }
+    }
+  }
+
+  return {
+    issues: {
+      outstanding: outstanding.data ?? [],
+      payouts: payouts.data ?? [],
+      receipts: receipts.data ?? [],
+      holdExpiries,
+      missingReceipts,
+    },
+    error: null,
+  };
+}
+
+export type AdminPaymentAction =
+  | { action: 'recharge'; ridePaymentId: string }
+  | { action: 'write_off'; ridePaymentId: string; note?: string }
+  | { action: 'approve_payout'; groupId: string };
+
+// Admin: charge an outstanding amount again, write it off, or release a held payout.
+export async function runAdminPaymentAction(body: AdminPaymentAction) {
+  const { data, error } = await supabase.functions.invoke('payments-admin-actions', { body });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    const response = context ? await context.json().catch(() => null) : null;
+    return { error: (response?.error as string | undefined) ?? 'action_failed' };
+  }
+  return { error: (data?.error as string | undefined) ?? null };
 }

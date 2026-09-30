@@ -24,6 +24,8 @@ type Props = {
   groupId: string;
   // The payer's own arrival: before it there's no taxi receipt yet, so the button stays hidden.
   arrivalAt: string;
+  // Phase 7: when FLOQQ falls back to the estimated fare if no receipt has come in.
+  deadlineAt: string | null;
 };
 
 // Server refusals -> what the payer is told.
@@ -42,7 +44,7 @@ const ERROR_KEYS: Record<string, string> = {
 // only, no gallery, and no typed amount. The server reads the total and the date from the photo
 // and checks it belongs to this ride; doubtful receipts go to FLOQQ for review before anyone is
 // charged. Shown inside PayerCard, for the payer only.
-export default function ReceiptCard({ groupId, arrivalAt }: Props) {
+export default function ReceiptCard({ groupId, arrivalAt, deadlineAt }: Props) {
   const { t } = useTranslation();
 
   const [receipt, setReceipt] = useState<RideReceipt | null>(null);
@@ -127,9 +129,11 @@ export default function ReceiptCard({ groupId, arrivalAt }: Props) {
   // Phase 6: when the others are charged, then where the payer's money is.
   const back = receipt ? formatCents(payout?.amount_cents ?? receipt.reimbursement_cents) : '';
   const payoutLine =
-    receipt?.status !== 'ACCEPTED'
+    receipt?.status !== 'ACCEPTED' && receipt?.status !== 'ESTIMATED'
       ? null
-      : payout?.status === 'SENT'
+      : payout?.status === 'HELD_FOR_REVIEW' || (receipt.status === 'ESTIMATED' && !payout)
+        ? t('settlement.payoutHeld', { amount: back })
+        : payout?.status === 'SENT'
         ? t('settlement.payoutSent', { amount: back })
         : payout?.status === 'WAITING_FOR_PAYOUT_SETUP'
           ? t('settlement.payoutWaiting', { amount: back })
@@ -138,6 +142,14 @@ export default function ReceiptCard({ groupId, arrivalAt }: Props) {
             : receipt.settle_after
               ? t('settlement.payoutAt', { amount: back, time: formatBarcelonaDateTime(receipt.settle_after) })
               : null;
+
+  // Phase 7: the payer's deadline, and whether a real receipt can still replace the estimate
+  // (until the passengers are charged).
+  const deadlineLine = deadlineAt ? (
+    <Text style={styles.warning}>{t('receipt.deadline', { time: formatBarcelonaDateTime(deadlineAt) })}</Text>
+  ) : null;
+  const canStillReplace =
+    receipt?.status === 'ESTIMATED' && !receipt.settled_at && receipt.settle_after != null && Date.now() < new Date(receipt.settle_after).getTime();
 
   const takePhotoButton = (
     <PrimaryButton
@@ -154,8 +166,21 @@ export default function ReceiptCard({ groupId, arrivalAt }: Props) {
       {!receipt ? (
         <>
           <Text style={styles.note}>{t('receipt.explainer')}</Text>
+          {deadlineLine}
           <Text style={styles.hint}>{t('receipt.photoTips')}</Text>
           {takePhotoButton}
+        </>
+      ) : receipt.status === 'ESTIMATED' ? (
+        <>
+          <Text style={styles.warning}>{t('receipt.estimated', { total: formatCents(receipt.total_cents) })}</Text>
+          <Text style={styles.line}>{t('receipt.summaryYourShare', { share: formatCents(receipt.payer_share_cents) })}</Text>
+          {payoutLine ? <Text style={styles.warning}>{payoutLine}</Text> : null}
+          {canStillReplace ? (
+            <>
+              <Text style={styles.hint}>{t('receipt.estimatedReplace')}</Text>
+              {takePhotoButton}
+            </>
+          ) : null}
         </>
       ) : receipt.status === 'ACCEPTED' ? (
         <>
@@ -189,6 +214,7 @@ export default function ReceiptCard({ groupId, arrivalAt }: Props) {
           <Text style={styles.warning}>
             {receipt.review_note ? t('receipt.rejectedWithNote', { note: receipt.review_note }) : t('receipt.rejected')}
           </Text>
+          {deadlineLine}
           <Text style={styles.hint}>{t('receipt.photoTips')}</Text>
           {takePhotoButton}
         </>

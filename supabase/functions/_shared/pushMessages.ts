@@ -16,7 +16,11 @@ export type PushMessageKey =
   | 'ridePaid'
   | 'captureFailed'
   | 'reimbursementSent'
-  | 'reimbursementWaiting';
+  | 'reimbursementWaiting'
+  | 'ridePaidEstimate'
+  | 'receiptReminder'
+  | 'receiptFinalReminder'
+  | 'receiptEstimated';
 
 export type PushParams = {
   amount?: string;
@@ -79,6 +83,22 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Your money is waiting for you',
       body: 'Finish your payout setup in FLOQQ and we’ll send you €{{amount}}.',
     },
+    ridePaidEstimate: {
+      title: 'Your ride is paid',
+      body: 'Estimated taxi fare €{{total}} - your share €{{share}} + €{{fee}} FLOQQ fee - paid. €{{released}} released.',
+    },
+    receiptReminder: {
+      title: 'Photograph the taxi receipt',
+      body: 'Take a photo of the receipt in FLOQQ before {{time}} to get the others’ shares back.',
+    },
+    receiptFinalReminder: {
+      title: 'Last chance for the taxi receipt',
+      body: 'Photograph the receipt before {{time}}. After that everyone pays the estimated fare and FLOQQ checks your refund by hand.',
+    },
+    receiptEstimated: {
+      title: 'No taxi receipt received',
+      body: 'Everyone is charged the estimated fare. FLOQQ checks the ride before sending you €{{amount}}.',
+    },
   },
   es: {
     holdOpen: {
@@ -129,6 +149,22 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Tu dinero te está esperando',
       body: 'Termina de configurar tu cobro en FLOQQ y te enviaremos {{amount}} €.',
     },
+    ridePaidEstimate: {
+      title: 'Tu viaje está pagado',
+      body: 'Tarifa estimada del taxi {{total}} € - tu parte {{share}} € + {{fee}} € de tarifa FLOQQ - pagado. {{released}} € liberados.',
+    },
+    receiptReminder: {
+      title: 'Fotografía el recibo del taxi',
+      body: 'Haz una foto del recibo en FLOQQ antes de las {{time}} para recuperar la parte de los demás.',
+    },
+    receiptFinalReminder: {
+      title: 'Última oportunidad para el recibo del taxi',
+      body: 'Fotografía el recibo antes de las {{time}}. Después todos pagan la tarifa estimada y FLOQQ revisa tu reembolso a mano.',
+    },
+    receiptEstimated: {
+      title: 'No hemos recibido el recibo del taxi',
+      body: 'Se cobra a todos la tarifa estimada. FLOQQ revisa el viaje antes de enviarte {{amount}} €.',
+    },
   },
   fr: {
     holdOpen: {
@@ -178,6 +214,22 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
     reimbursementWaiting: {
       title: 'Votre argent vous attend',
       body: 'Terminez la configuration de votre versement dans FLOQQ et nous vous enverrons {{amount}} €.',
+    },
+    ridePaidEstimate: {
+      title: 'Votre trajet est payé',
+      body: 'Tarif estimé du taxi {{total}} € - votre part {{share}} € + {{fee}} € de frais FLOQQ - payé. {{released}} € libérés.',
+    },
+    receiptReminder: {
+      title: 'Photographiez le reçu du taxi',
+      body: 'Prenez le reçu en photo dans FLOQQ avant {{time}} pour récupérer la part des autres.',
+    },
+    receiptFinalReminder: {
+      title: 'Dernière chance pour le reçu du taxi',
+      body: 'Photographiez le reçu avant {{time}}. Ensuite, tout le monde paie le tarif estimé et FLOQQ vérifie votre remboursement à la main.',
+    },
+    receiptEstimated: {
+      title: 'Aucun reçu de taxi reçu',
+      body: 'Tout le monde est débité du tarif estimé. FLOQQ vérifie le trajet avant de vous envoyer {{amount}} €.',
     },
   },
 };

@@ -21,7 +21,7 @@
     "activeRideKeep": "Garder mon trajet",
     "activeRideCheckError": "Impossible de vérifier votre trajet actuel. Veuillez réessayer.",
     "profileButton": "Profil",
-    "activeRideCancelConfirmedWarning": "Votre groupe est déjà confirmé. Si votre place est réservée, les frais FLOQQ de {{fee}} € sont conservés et le reste est libéré. Votre course actuelle sera annulée avant d'en créer une nouvelle."
+    "activeRideCancelConfirmedWarning": "Votre groupe est déjà confirmé. Si votre place est réservée et que le trajet a lieu dans moins de 24 heures, les frais FLOQQ de {{fee}} € sont conservés et le reste est libéré ; plus tôt, tout est libéré. Votre course actuelle sera annulée avant d’en créer une nouvelle."
   },
   "onboarding": {
     "title": "Bienvenue sur FLOQQ",
@@ -163,7 +163,8 @@
     "filterAllUpcoming": "Tous à venir",
     "filterEmpty": "Aucune demande en attente pour ce jour.",
     "guaranteeUsedFlag": "⚠ Garantie de paiement du trajet utilisée",
-    "receiptNeedsReviewFlag": "⚠ Reçu à vérifier"
+    "receiptNeedsReviewFlag": "⚠ Reçu à vérifier",
+    "receiptEstimatedFlag": "⚠ Pas de reçu - tarif estimé utilisé"
   },
   "groupDetail": {
     "title": "Répartition du tarif",
@@ -223,7 +224,8 @@
     "receiptStatus": {
       "ACCEPTED": "Accepté",
       "NEEDS_REVIEW": "À vérifier",
-      "REJECTED": "Refusé - en attente d'une nouvelle photo"
+      "REJECTED": "Refusé - en attente d'une nouvelle photo",
+      "ESTIMATED": "Estimé - le payeur n’a pas envoyé de reçu"
     },
     "receiptReason": {
       "no_date": "date illisible",
@@ -231,7 +233,8 @@
       "date_in_future": "daté dans le futur",
       "duplicate_receipt": "reçu déjà utilisé pour un autre trajet",
       "duplicate_photo": "photo déjà utilisée pour un autre trajet",
-      "amount_above_estimate": "montant bien supérieur à l'estimation"
+      "amount_above_estimate": "montant bien supérieur à l'estimation",
+      "no_receipt": "Pas de reçu avant la date limite"
     },
     "receiptRead": "Lu : {{date}} · licence {{licence}} · reçu nº {{number}}",
     "receiptCorrected": "(corrigé par l'admin)",
@@ -267,7 +270,8 @@
     "cancelNoCharge": "Rien n'a encore été réservé sur votre carte, vous ne serez donc pas débité.",
     "cancelLegacyFee": "Les frais de service de {{fee}} € que vous avez payés ne sont pas remboursés.",
     "cancelOthersNote": "La course des autres passagers sera recalculée sans vous.",
-    "cancelConfirmButton": "Oui, annuler ma course"
+    "cancelConfirmButton": "Oui, annuler ma course",
+    "cancelFree": "Vous annulez plus de 24 heures avant le trajet, c’est donc gratuit : toute votre réservation de {{amount}} € est libérée."
   },
   "findingMatch": {
     "title": "Recherche de votre correspondance...",
@@ -373,18 +377,45 @@
     "scanFailed": "Impossible de vérifier le reçu pour le moment. Réessayez dans une minute.",
     "photoFailed": "La photo n'a pas pu être envoyée. Réessayez.",
     "cameraDenied": "FLOQQ a besoin de l'appareil photo pour photographier le reçu. Autorisez-le dans les réglages du téléphone.",
-    "invalidTotal": "Saisissez le montant en euros, par ex. 38,50 (500 € maximum)."
+    "invalidTotal": "Saisissez le montant en euros, par ex. 38,50 (500 € maximum).",
+    "deadline": "Photographiez le reçu avant {{time}}. Ensuite, tout le monde paie le tarif estimé et FLOQQ vérifie votre remboursement à la main.",
+    "estimated": "Aucun reçu n’est arrivé à temps, tout le monde paie donc le tarif estimé de {{total}} €.",
+    "estimatedReplace": "Vous avez encore le reçu ? Photographiez-le maintenant et il remplacera l’estimation."
   },
   "settlement": {
-    "paid": "Taxi {{total}} € - votre part {{share}} € + {{fee}} € de frais FLOQQ - payé. {{released}} € libérés.",
-    "payerPaid": "Taxi {{total}} € - vous avez payé le taxi - frais FLOQQ de {{fee}} € payés. {{released}} € libérés.",
-    "chargeAt": "Taxi {{total}} € - votre part {{share}} € + {{fee}} € de frais FLOQQ sera débitée à {{time}}. Le reste de votre réservation est ensuite libéré.",
-    "payerChargeAt": "Taxi {{total}} € - vous avez payé le taxi, seuls les frais FLOQQ de {{fee}} € sont donc débités, à {{time}}. Le reste de votre réservation est ensuite libéré.",
+    "paid": "{{taxi}} {{total}} € - votre part {{share}} € + {{fee}} € de frais FLOQQ - payé. {{released}} € libérés.",
+    "payerPaid": "{{taxi}} {{total}} € - vous avez payé le taxi - frais FLOQQ de {{fee}} € payés. {{released}} € libérés.",
+    "chargeAt": "{{taxi}} {{total}} € - votre part {{share}} € + {{fee}} € de frais FLOQQ sera débitée à {{time}}. Le reste de votre réservation est ensuite libéré.",
+    "payerChargeAt": "{{taxi}} {{total}} € - vous avez payé le taxi, seuls les frais FLOQQ de {{fee}} € sont donc débités, à {{time}}. Le reste de votre réservation est ensuite libéré.",
     "captureFailed": "Nous n'avons pas pu débiter votre carte pour ce trajet. FLOQQ vous contactera.",
     "payoutAt": "Les autres sont débités à {{time}}. Ensuite, nous vous envoyons {{amount}} €.",
     "payoutSending": "Nous vous envoyons {{amount}} €.",
     "payoutWaiting": "{{amount}} € vous attendent : terminez la configuration de votre versement ci-dessus et nous vous les enverrons.",
     "payoutSent": "{{amount}} € en route vers vous.",
-    "cancelWhileSettling": "Votre trajet est en cours de paiement. Vous pourrez le clôturer une fois terminé, généralement en quelques heures."
+    "cancelWhileSettling": "Votre trajet est en cours de paiement. Vous pourrez le clôturer une fois terminé, généralement en quelques heures.",
+    "taxi": "Taxi",
+    "taxiEstimated": "Tarif estimé du taxi",
+    "outstanding": "Nous n’avons pas pu débiter {{amount}} € pour ce trajet : votre réservation avait déjà pris fin. FLOQQ vous contactera.",
+    "payoutHeld": "FLOQQ vérifie le trajet avant de vous envoyer {{amount}} €, car il n’y a pas eu de reçu."
+  },
+  "paymentIssues": {
+    "title": "Problèmes de paiement ({{count}})",
+    "outstanding": "{{name}} doit encore {{amount}} €",
+    "reason": {
+      "hold_expired": "La réservation a expiré avant d’être débitée",
+      "cancellation_fee": "Les frais d’annulation n’ont pas pu être débités",
+      "released": "La réservation a été libérée avant d’être débitée"
+    },
+    "recharge": "Débiter {{amount}} € sur sa carte",
+    "writeOff": "Passer en perte",
+    "openRide": "Ouvrir le trajet",
+    "payoutHeld": "{{amount}} € du payeur retenus : le tarif a été estimé (pas de reçu). Approuvez pour les envoyer.",
+    "payoutStuck": "{{amount}} € du payeur pas encore envoyés : {{reason}}",
+    "approvePayout": "Approuver et envoyer le versement",
+    "receiptReview": "Reçu en attente de votre vérification",
+    "receiptRejected": "Reçu refusé - en attente d’une nouvelle photo du payeur",
+    "noReceipt": "Pas encore de reçu - le tarif estimé est débité à {{time}}",
+    "holdsExpire": "Les réservations expirent {{time}}",
+    "actionError": "Cela n’a pas fonctionné ({{reason}})."
   }
 }
