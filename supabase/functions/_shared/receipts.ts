@@ -16,9 +16,12 @@ export function disputeWindowHours(): number {
   return Number.isFinite(hours) && hours >= 0 ? hours : DEFAULT_DISPUTE_WINDOW_HOURS;
 }
 
-// Sets (ACCEPTED) or clears (anything else) when the group's cards are charged, on the receipt and
-// on every passenger's payment, together with the taxi total they see. Leaves a receipt that is
-// already being settled alone. Returns the new time, if any.
+// Receipts the passengers are charged on: a checked one, or the fallback estimate (phase 7).
+export const SETTLEABLE_RECEIPT_STATUSES = ['ACCEPTED', 'ESTIMATED'];
+
+// Sets (ACCEPTED / ESTIMATED) or clears (anything else) when the group's cards are charged, on the
+// receipt and on every passenger's payment, together with the taxi total they see. Leaves a receipt
+// that is already being settled alone. Returns the new time, if any.
 export async function scheduleSettlement(
   adminClient: SupabaseClient,
   groupId: string,
@@ -26,7 +29,7 @@ export async function scheduleSettlement(
   now = new Date()
 ): Promise<string | null> {
   let settleAfter: string | null = null;
-  if (receipt.status === 'ACCEPTED') {
+  if (SETTLEABLE_RECEIPT_STATUSES.includes(receipt.status)) {
     const { data: holds } = await adminClient
       .from('ride_payments')
       .select('hold_expires_at')
@@ -48,13 +51,17 @@ export async function scheduleSettlement(
 
   await adminClient
     .from('ride_payments')
-    .update({ charge_at: settleAfter, taxi_total_cents: settleAfter ? receipt.totalCents : null })
+    .update({
+      charge_at: settleAfter,
+      taxi_total_cents: settleAfter ? receipt.totalCents : null,
+      taxi_total_is_estimate: receipt.status === 'ESTIMATED',
+    })
     .eq('group_id', groupId)
     .neq('payment_status', 'CAPTURED');
   return settleAfter;
 }
 
-export type ReceiptStatus = 'ACCEPTED' | 'NEEDS_REVIEW';
+export type ReceiptStatus = 'ACCEPTED' | 'NEEDS_REVIEW' | 'ESTIMATED';
 
 export type ReceiptDetails = {
   receipt_at?: string | null;
@@ -62,7 +69,7 @@ export type ReceiptDetails = {
   receipt_number?: string | null;
   photo_sha256?: string | null;
   review_reasons?: string[];
-  total_source?: 'photo' | 'admin';
+  total_source?: 'photo' | 'admin' | 'estimate';
   reviewed_by?: string;
   review_note?: string | null;
 };
@@ -78,7 +85,8 @@ export async function recordReceipt(
     photoPath: string | null;
     status: ReceiptStatus;
     details: ReceiptDetails;
-    actor: 'passenger' | 'admin';
+    // 'system': the fallback ESTIMATED receipt (payments-settle-rides).
+    actor: 'passenger' | 'admin' | 'system';
   }
 ): Promise<RecordResult> {
   const { data: members } = await adminClient

@@ -71,3 +71,59 @@ export function payoutPlan(reimbursementCents: number, captured: CapturedShare[]
     guaranteeCents: Math.max(0, reimbursementCents - fromCapturesCents),
   };
 }
+
+// --- Phase 7: failure handling ---
+
+// A passenger who cancels at least this long before the ride leaves gets their whole seat
+// reservation back, FLOQQ fee included: the others still have time to be matched again. Later
+// than that, the fee is kept and the rest released.
+export const FREE_CANCELLATION_HOURS = 24;
+
+export function freeCancelUntilMs(rideMs: number): number {
+  return rideMs - FREE_CANCELLATION_HOURS * 60 * MINUTE_MS;
+}
+
+// The payer is reminded to photograph the receipt this long after the ride leaves, and once more
+// this long before the deadline. At the deadline FLOQQ falls back to the group's estimated fare.
+export const RECEIPT_REMINDER_AFTER_RIDE_MINUTES = 60;
+export const RECEIPT_FINAL_REMINDER_BEFORE_DEADLINE_HOURS = 4;
+export const RECEIPT_DEADLINE_AFTER_RIDE_HOURS = 24;
+
+// The fallback still needs its dispute window and the capture margin before the first hold expires.
+export const RECEIPT_DEADLINE_BEFORE_HOLD_EXPIRY_HOURS = 4;
+
+// When the payer's time to photograph the receipt runs out.
+export function receiptDeadlineMs(departureMs: number, earliestHoldExpiryMs: number | null): number {
+  const deadlineMs = departureMs + RECEIPT_DEADLINE_AFTER_RIDE_HOURS * 60 * MINUTE_MS;
+  if (earliestHoldExpiryMs == null) return deadlineMs;
+  const latestSafeMs = earliestHoldExpiryMs - RECEIPT_DEADLINE_BEFORE_HOLD_EXPIRY_HOURS * 60 * MINUTE_MS;
+  return Math.max(departureMs, Math.min(deadlineMs, latestSafeMs));
+}
+
+export type MissingReceiptStep = 'wait' | 'reminder' | 'final_reminder' | 'fallback';
+
+// What to do about a ride whose payer hasn't sent a (valid) receipt yet. Each reminder is sent once;
+// the caller says which ones already went out. When the final reminder is due the first one is
+// skipped (the caller marks both as sent), so the payer never gets two in a row.
+export function missingReceiptStep(
+  nowMs: number,
+  departureMs: number,
+  deadlineMs: number,
+  sent: { reminder: boolean; finalReminder: boolean }
+): MissingReceiptStep {
+  if (nowMs >= deadlineMs) return 'fallback';
+  if (!sent.finalReminder && nowMs >= deadlineMs - RECEIPT_FINAL_REMINDER_BEFORE_DEADLINE_HOURS * 60 * MINUTE_MS) {
+    return 'final_reminder';
+  }
+  if (!sent.reminder && !sent.finalReminder && nowMs >= departureMs + RECEIPT_REMINDER_AFTER_RIDE_MINUTES * MINUTE_MS) {
+    return 'reminder';
+  }
+  return 'wait';
+}
+
+// What a passenger still owes when their hold couldn't be captured (capture failed, or the hold
+// expired first): what the capture would have taken - the share (not for the payer) plus the fee.
+// The payer was made whole by FLOQQ regardless.
+export function outstandingCents(input: { isPayer: boolean; finalShareCents: number | null; platformFeeCents: number }): number {
+  return (input.isPayer ? 0 : input.finalShareCents ?? 0) + input.platformFeeCents;
+}

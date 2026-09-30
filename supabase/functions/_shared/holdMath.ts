@@ -59,3 +59,23 @@ export function holdWindow(rideMs: number, nowMs: number): { opensAt: Date; dead
 export function holdCovers(holdCents: number, estimatedShareCents: number): boolean {
   return holdCents >= estimatedShareCents + PLATFORM_FEE_CENTS;
 }
+
+// From which ride_payments statuses each Stripe PaymentIntent state may move a row. Stripe may send
+// an event twice or out of order, but the webhook always applies the PaymentIntent's CURRENT state
+// (re-read from Stripe), and anything not listed here is ignored - so e.g. a late "failed" can never
+// undo a placed hold, and nothing can move a row out of CAPTURED.
+const HOLD_TRANSITIONS: Record<string, { to: string; from: string[] }> = {
+  requires_capture: { to: 'HOLD_PLACED', from: ['NOT_STARTED', 'HOLD_PENDING_AUTH', 'HOLD_FAILED'] },
+  requires_action: { to: 'HOLD_PENDING_AUTH', from: ['NOT_STARTED', 'HOLD_FAILED'] },
+  requires_payment_method: { to: 'HOLD_FAILED', from: ['NOT_STARTED', 'HOLD_PENDING_AUTH', 'HOLD_FAILED'] },
+  canceled: { to: 'RELEASED', from: ['HOLD_PLACED', 'HOLD_PENDING_AUTH'] },
+  // Phase 7: a capture whose own bookkeeping didn't finish (e.g. the settlement run stopped right
+  // after Stripe captured) is completed from the webhook instead.
+  succeeded: { to: 'CAPTURED', from: ['HOLD_PLACED'] },
+};
+
+// The status a row moves to for this PaymentIntent state, or null to leave it as it is.
+export function holdTransition(intentStatus: string, currentStatus: string): string | null {
+  const transition = HOLD_TRANSITIONS[intentStatus];
+  return transition && transition.from.includes(currentStatus) ? transition.to : null;
+}

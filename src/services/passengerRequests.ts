@@ -240,12 +240,14 @@ export type MyTaxiGroup = {
   total_fare: number | null;
   // Payments prototype, phase 4 - see 20260926030000_designated_payer.sql.
   payer_request_id: string | null;
+  // Payments prototype, phase 7: set once the ride has left and the payer owes a receipt.
+  receipt_deadline_at: string | null;
 };
 
 export function fetchMyGroupStatus(groupId: string) {
   return supabase
     .from('taxi_groups')
-    .select('id, status, total_fare, payer_request_id')
+    .select('id, status, total_fare, payer_request_id, receipt_deadline_at')
     .eq('id', groupId)
     .single<MyTaxiGroup>();
 }

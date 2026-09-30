@@ -132,14 +132,17 @@ export default function RideHoldCard({ requestId, groupId, isPayer, onOpenProfil
 
   const total = payment.taxi_total_cents != null ? formatCents(payment.taxi_total_cents) : null;
   const fee = formatCents(payment.platform_fee_cents);
+  // "Taxi €38.60", or "Estimated taxi fare €38.60" when the payer never sent a receipt.
+  const taxi = t(payment.taxi_total_is_estimate ? 'settlement.taxiEstimated' : 'settlement.taxi');
 
   if (payment.payment_status === 'CAPTURED' && total && payment.captured_cents != null) {
     const released = formatCents(payment.released_cents ?? 0);
     return (
       <Text style={styles.placed} accessibilityLiveRegion="polite">
         {isPayer
-          ? t('settlement.payerPaid', { total, fee, released })
+          ? t('settlement.payerPaid', { taxi, total, fee, released })
           : t('settlement.paid', {
+              taxi,
               total,
               share: formatCents(payment.captured_cents - payment.platform_fee_cents),
               fee,
@@ -147,6 +150,11 @@ export default function RideHoldCard({ requestId, groupId, isPayer, onOpenProfil
             })}
       </Text>
     );
+  }
+
+  // Phase 7: the reservation couldn't be charged (failed, or it expired first) - FLOQQ follows up.
+  if (payment.outstanding_cents && !payment.outstanding_resolved_at) {
+    return <ErrorNotice message={t('settlement.outstanding', { amount: formatCents(payment.outstanding_cents) })} />;
   }
 
   if (payment.payment_status === 'CAPTURE_FAILED' && total) {
@@ -158,8 +166,8 @@ export default function RideHoldCard({ requestId, groupId, isPayer, onOpenProfil
     return (
       <Text style={styles.note} accessibilityLiveRegion="polite">
         {isPayer
-          ? t('settlement.payerChargeAt', { total, fee, time })
-          : t('settlement.chargeAt', { total, share: formatCents(payment.final_share_cents), fee, time })}
+          ? t('settlement.payerChargeAt', { taxi, total, fee, time })
+          : t('settlement.chargeAt', { taxi, total, share: formatCents(payment.final_share_cents), fee, time })}
       </Text>
     );
   }

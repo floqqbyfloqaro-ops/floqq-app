@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import AdminPaymentIssues from '../components/AdminPaymentIssues';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
@@ -110,9 +111,12 @@ export default function AdminScreen({ session, onBack }: Props) {
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [rideDateFilter, setRideDateFilter] = useState<RideDateFilter>('all');
   const hasLoadedOnce = useRef(false);
+  // Payments prototype, phase 7: reloads the payment problems list together with the dashboard.
+  const [paymentIssuesKey, setPaymentIssuesKey] = useState(0);
 
   const loadData = useCallback(async () => {
     setIsLoading(!hasLoadedOnce.current);
+    setPaymentIssuesKey((key) => key + 1);
     const [pendingResult, groupsResult, historyRequestsResult, historyGroupsResult] = await Promise.all([
       fetchPendingRequests(),
       fetchTaxiGroups(),
@@ -166,6 +170,7 @@ export default function AdminScreen({ session, onBack }: Props) {
                 r.group_id,
                 [
                   r.status === 'NEEDS_REVIEW' ? t('admin.receiptNeedsReviewFlag') : null,
+                  r.status === 'ESTIMATED' ? t('admin.receiptEstimatedFlag') : null,
                   r.guarantee_used ? t('admin.guaranteeUsedFlag') : null,
                 ]
                   .filter(Boolean)
@@ -394,6 +399,7 @@ export default function AdminScreen({ session, onBack }: Props) {
 
         {activeTab === 'active' ? (
           <>
+        {PAYMENTS_ENABLED ? <AdminPaymentIssues onOpenGroup={setOpenGroupId} refreshKey={paymentIssuesKey} /> : null}
         <View style={styles.suggestionsSection}>
           <PrimaryButton
             label={t('admin.suggestGroups')}

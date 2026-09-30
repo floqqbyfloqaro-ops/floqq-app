@@ -140,7 +140,7 @@ export default function PayerCard({ requestId, group, arrivalAt }: Props) {
 
       {errorMessage ? <ErrorNotice message={errorMessage} /> : null}
 
-      <ReceiptCard groupId={group.id} arrivalAt={arrivalAt} />
+      <ReceiptCard groupId={group.id} arrivalAt={arrivalAt} deadlineAt={group.receipt_deadline_at} />
 
       <Text style={styles.hint}>{t('payer.cantPay')}</Text>
     </View>

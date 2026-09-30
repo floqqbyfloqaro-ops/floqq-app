@@ -1,8 +1,10 @@
 // Payments prototype, phase 6: captures the passengers' shares and reimburses the payer once a
 // ride's receipt is ACCEPTED and its dispute window (DISPUTE_WINDOW_HOURS) is over - see
 // _shared/settlement.ts and 20260930000000_capture_and_reimburse.sql.
-//   - Called every 5 minutes by pg_cron (no body): settles every ride that's due, and retries
-//     reimbursements that are still waiting (payout setup not finished, a refused transfer).
+//   - Called every 5 minutes by pg_cron (no body): reminds payers who haven't photographed the
+//     receipt and falls back to the estimated fare at the deadline (phase 7, _shared/missingReceipts.ts),
+//     settles every ride that's due, and retries reimbursements that are still waiting (payout setup
+//     not finished, a refused transfer, a payout the admin still has to approve).
 //   - Called by the admin with { groupId } to run the same steps for one group right away. It
 //     still only charges once that group's dispute window is over.
 // Does nothing while PAYMENTS_ENABLED is off. Deployed with --no-verify-jwt: authenticates via
@@ -14,7 +16,8 @@ import type Stripe from 'npm:stripe@17';
 import { isAuthorized } from '../_shared/auth.ts';
 import { ADMIN_EMAIL } from '../_shared/constants.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
-import { scheduleSettlement } from '../_shared/receipts.ts';
+import { handleMissingReceipts } from '../_shared/missingReceipts.ts';
+import { scheduleSettlement, SETTLEABLE_RECEIPT_STATUSES } from '../_shared/receipts.ts';
 import { SettleResult, settleGroup } from '../_shared/settlement.ts';
 import { createStripeClient, LiveKeyError, paymentsEnabled } from '../_shared/stripe.ts';
 
@@ -27,17 +30,17 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
-// Accepted receipts whose charge time was never set (the write right after recording failed).
+// Accepted (or estimated) receipts whose charge time was never set (the write right after recording failed).
 async function scheduleMissing(adminClient: SupabaseClient, now: Date): Promise<void> {
   const { data } = await adminClient
     .from('ride_receipts')
-    .select('group_id, total_cents')
-    .eq('status', 'ACCEPTED')
+    .select('group_id, status, total_cents')
+    .in('status', SETTLEABLE_RECEIPT_STATUSES)
     .is('settle_after', null)
     .is('settlement_started_at', null)
     .not('group_id', 'is', null);
   for (const receipt of data ?? []) {
-    await scheduleSettlement(adminClient, receipt.group_id, { status: 'ACCEPTED', totalCents: receipt.total_cents }, now);
+    await scheduleSettlement(adminClient, receipt.group_id, { status: receipt.status, totalCents: receipt.total_cents }, now);
   }
 }
 
@@ -49,7 +52,7 @@ async function groupsToSettle(adminClient: SupabaseClient, now: Date): Promise<s
   const { data: due } = await adminClient
     .from('ride_receipts')
     .select('group_id')
-    .eq('status', 'ACCEPTED')
+    .in('status', SETTLEABLE_RECEIPT_STATUSES)
     .is('settled_at', null)
     .lte('settle_after', now.toISOString())
     .gt('settle_after', new Date(now.getTime() - SWEEP_LOOKBACK_MS).toISOString())
@@ -114,6 +117,7 @@ Deno.serve(async (req) => {
 
   try {
     const now = new Date();
+    const missingReceipts = groupId ? [] : await handleMissingReceipts(adminClient, now);
     await scheduleMissing(adminClient, now);
 
     const groupIds = groupId ? [groupId] : await groupsToSettle(adminClient, now);
@@ -127,7 +131,7 @@ Deno.serve(async (req) => {
         results.push({ groupId: id, outcome: 'error' });
       }
     }
-    return jsonResponse({ results });
+    return jsonResponse({ missingReceipts, results });
   } finally {
     await releaseLock(adminClient, LOCK_ID);
   }

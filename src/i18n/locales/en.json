@@ -21,7 +21,7 @@
     "activeRideKeep": "Keep my ride",
     "activeRideCheckError": "We couldn’t check your current ride. Please try again.",
     "profileButton": "Profile",
-    "activeRideCancelConfirmedWarning": "Your group is already confirmed. If your seat is reserved, the €{{fee}} FLOQQ fee is kept and the rest is released. Your current ride is cancelled before you create a new one."
+    "activeRideCancelConfirmedWarning": "Your group is already confirmed. If your seat is reserved and the ride is less than 24 hours away, the €{{fee}} FLOQQ fee is kept and the rest is released; earlier than that, everything is released. Your current ride is cancelled before you create a new one."
   },
   "onboarding": {
     "title": "Welcome to FLOQQ",
@@ -163,7 +163,8 @@
     "filterAllUpcoming": "All upcoming",
     "filterEmpty": "No pending requests for this day.",
     "guaranteeUsedFlag": "⚠ Ride Payment Guarantee used",
-    "receiptNeedsReviewFlag": "⚠ Receipt needs review"
+    "receiptNeedsReviewFlag": "⚠ Receipt needs review",
+    "receiptEstimatedFlag": "⚠ No receipt - estimated fare used"
   },
   "groupDetail": {
     "title": "Group fare split",
@@ -223,7 +224,8 @@
     "receiptStatus": {
       "ACCEPTED": "Accepted",
       "NEEDS_REVIEW": "Needs your review",
-      "REJECTED": "Rejected - waiting for a new photo"
+      "REJECTED": "Rejected - waiting for a new photo",
+      "ESTIMATED": "Estimated - the payer sent no receipt"
     },
     "receiptReason": {
       "no_date": "no readable date",
@@ -231,7 +233,8 @@
       "date_in_future": "dated in the future",
       "duplicate_receipt": "receipt already used for another ride",
       "duplicate_photo": "photo already used for another ride",
-      "amount_above_estimate": "amount far above the estimate"
+      "amount_above_estimate": "amount far above the estimate",
+      "no_receipt": "No receipt before the deadline"
     },
     "receiptRead": "Read: {{date}} · licence {{licence}} · receipt no. {{number}}",
     "receiptCorrected": "(corrected by admin)",
@@ -267,7 +270,8 @@
     "cancelNoCharge": "Nothing has been reserved on your card yet, so you won't be charged.",
     "cancelLegacyFee": "The €{{fee}} service fee you paid isn't refunded.",
     "cancelOthersNote": "The other passengers' ride will be recalculated without you.",
-    "cancelConfirmButton": "Yes, cancel my ride"
+    "cancelConfirmButton": "Yes, cancel my ride",
+    "cancelFree": "You’re cancelling more than 24 hours before the ride, so it’s free: your whole reservation of €{{amount}} is released."
   },
   "findingMatch": {
     "title": "Finding your match...",
@@ -373,18 +377,45 @@
     "scanFailed": "We couldn't check the receipt right now. Please try again in a minute.",
     "photoFailed": "The photo couldn't be uploaded. Please try again.",
     "cameraDenied": "FLOQQ needs camera access to photograph the receipt. Allow it in your phone settings.",
-    "invalidTotal": "Enter the amount in euros, e.g. 38.50 (at most €500)."
+    "invalidTotal": "Enter the amount in euros, e.g. 38.50 (at most €500).",
+    "deadline": "Photograph the receipt before {{time}}. After that everyone pays the estimated fare and FLOQQ checks your refund by hand.",
+    "estimated": "No receipt came in on time, so everyone pays the estimated fare of €{{total}}.",
+    "estimatedReplace": "Still have the receipt? Photograph it now and it replaces the estimate."
   },
   "settlement": {
-    "paid": "Taxi €{{total}} - your share €{{share}} + €{{fee}} FLOQQ fee - paid. €{{released}} released.",
-    "payerPaid": "Taxi €{{total}} - you paid the taxi - €{{fee}} FLOQQ fee paid. €{{released}} released.",
-    "chargeAt": "Taxi €{{total}} - your share €{{share}} + €{{fee}} FLOQQ fee will be charged at {{time}}. The rest of your reservation is then released.",
-    "payerChargeAt": "Taxi €{{total}} - you paid the taxi, so only the €{{fee}} FLOQQ fee is charged, at {{time}}. The rest of your reservation is then released.",
+    "paid": "{{taxi}} €{{total}} - your share €{{share}} + €{{fee}} FLOQQ fee - paid. €{{released}} released.",
+    "payerPaid": "{{taxi}} €{{total}} - you paid the taxi - €{{fee}} FLOQQ fee paid. €{{released}} released.",
+    "chargeAt": "{{taxi}} €{{total}} - your share €{{share}} + €{{fee}} FLOQQ fee will be charged at {{time}}. The rest of your reservation is then released.",
+    "payerChargeAt": "{{taxi}} €{{total}} - you paid the taxi, so only the €{{fee}} FLOQQ fee is charged, at {{time}}. The rest of your reservation is then released.",
     "captureFailed": "We couldn't charge your card for this ride. FLOQQ will contact you.",
     "payoutAt": "The others are charged at {{time}}. Then €{{amount}} is sent to you.",
     "payoutSending": "We're sending you €{{amount}}.",
     "payoutWaiting": "€{{amount}} is waiting for you - finish your payout setup above and we'll send it.",
     "payoutSent": "€{{amount}} on its way to you.",
-    "cancelWhileSettling": "Your ride is being paid right now. You can close it once that's done - usually within a few hours."
+    "cancelWhileSettling": "Your ride is being paid right now. You can close it once that's done - usually within a few hours.",
+    "taxi": "Taxi",
+    "taxiEstimated": "Estimated taxi fare",
+    "outstanding": "We couldn’t charge €{{amount}} for this ride - your reservation had already ended. FLOQQ will contact you.",
+    "payoutHeld": "FLOQQ checks the ride before sending you €{{amount}}, because there was no receipt."
+  },
+  "paymentIssues": {
+    "title": "Payment problems ({{count}})",
+    "outstanding": "{{name}} still owes €{{amount}}",
+    "reason": {
+      "hold_expired": "The reservation expired before it was charged",
+      "cancellation_fee": "The cancellation fee couldn’t be charged",
+      "released": "The reservation was released before it was charged"
+    },
+    "recharge": "Charge €{{amount}} to their card",
+    "writeOff": "Write off",
+    "openRide": "Open ride",
+    "payoutHeld": "Payer’s €{{amount}} held: the fare was estimated (no receipt). Approve to send it.",
+    "payoutStuck": "Payer’s €{{amount}} not sent yet: {{reason}}",
+    "approvePayout": "Approve and send payout",
+    "receiptReview": "Receipt waiting for your review",
+    "receiptRejected": "Receipt rejected - waiting for a new photo from the payer",
+    "noReceipt": "No receipt yet - the estimated fare is charged at {{time}}",
+    "holdsExpire": "Reservations expire {{time}}",
+    "actionError": "That didn’t work ({{reason}})."
   }
 }
