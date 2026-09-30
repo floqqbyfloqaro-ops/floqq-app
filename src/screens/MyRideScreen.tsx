@@ -203,7 +203,12 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
               // separate service-fee Checkout below is replaced while PAYMENTS_ENABLED is on.
               <>
                 <StatusPill status="Group Confirmed" label={t('myRide.statusConfirmed')} />
-                <RideHoldCard requestId={request.id} groupId={group.id} onOpenProfile={onOpenProfile} />
+                <RideHoldCard
+                  requestId={request.id}
+                  groupId={group.id}
+                  isPayer={group.payer_request_id === request.id}
+                  onOpenProfile={onOpenProfile}
+                />
                 <PayerCard requestId={request.id} group={group} arrivalAt={request.arrival_at} />
               </>
             ) : request.service_fee_status === 'paid' ? (

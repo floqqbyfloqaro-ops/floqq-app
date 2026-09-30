@@ -374,5 +374,17 @@
     "photoFailed": "La photo n'a pas pu être envoyée. Réessayez.",
     "cameraDenied": "FLOQQ a besoin de l'appareil photo pour photographier le reçu. Autorisez-le dans les réglages du téléphone.",
     "invalidTotal": "Saisissez le montant en euros, par ex. 38,50 (500 € maximum)."
+  },
+  "settlement": {
+    "paid": "Taxi {{total}} € - votre part {{share}} € + {{fee}} € de frais FLOQQ - payé. {{released}} € libérés.",
+    "payerPaid": "Taxi {{total}} € - vous avez payé le taxi - frais FLOQQ de {{fee}} € payés. {{released}} € libérés.",
+    "chargeAt": "Taxi {{total}} € - votre part {{share}} € + {{fee}} € de frais FLOQQ sera débitée à {{time}}. Le reste de votre réservation est ensuite libéré.",
+    "payerChargeAt": "Taxi {{total}} € - vous avez payé le taxi, seuls les frais FLOQQ de {{fee}} € sont donc débités, à {{time}}. Le reste de votre réservation est ensuite libéré.",
+    "captureFailed": "Nous n'avons pas pu débiter votre carte pour ce trajet. FLOQQ vous contactera.",
+    "payoutAt": "Les autres sont débités à {{time}}. Ensuite, nous vous envoyons {{amount}} €.",
+    "payoutSending": "Nous vous envoyons {{amount}} €.",
+    "payoutWaiting": "{{amount}} € vous attendent : terminez la configuration de votre versement ci-dessus et nous vous les enverrons.",
+    "payoutSent": "{{amount}} € en route vers vous.",
+    "cancelWhileSettling": "Votre trajet est en cours de paiement. Vous pourrez le clôturer une fois terminé, généralement en quelques heures."
   }
 }

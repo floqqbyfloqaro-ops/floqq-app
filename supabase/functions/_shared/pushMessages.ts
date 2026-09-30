@@ -12,9 +12,20 @@ export type PushMessageKey =
   | 'removedDeadline'
   | 'groupDissolved'
   | 'payerAssigned'
-  | 'payerSetupReminder';
+  | 'payerSetupReminder'
+  | 'ridePaid'
+  | 'captureFailed'
+  | 'reimbursementSent'
+  | 'reimbursementWaiting';
 
-export type PushParams = { amount?: string; time?: string };
+export type PushParams = {
+  amount?: string;
+  time?: string;
+  total?: string;
+  share?: string;
+  fee?: string;
+  released?: string;
+};
 
 type Template = { title: string; body: string };
 
@@ -52,6 +63,22 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Set up your payout',
       body: 'Your ride is soon. Finish your payout setup in FLOQQ so we can send you the others’ shares.',
     },
+    ridePaid: {
+      title: 'Your ride is paid',
+      body: 'Taxi €{{total}} - your share €{{share}} + €{{fee}} FLOQQ fee - paid. €{{released}} released.',
+    },
+    captureFailed: {
+      title: 'We couldn’t charge your card',
+      body: 'Your share of the taxi couldn’t be charged. FLOQQ will contact you.',
+    },
+    reimbursementSent: {
+      title: 'Your money is on its way',
+      body: '€{{amount}} on its way to you.',
+    },
+    reimbursementWaiting: {
+      title: 'Your money is waiting for you',
+      body: 'Finish your payout setup in FLOQQ and we’ll send you €{{amount}}.',
+    },
   },
   es: {
     holdOpen: {
@@ -86,6 +113,22 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Configura tu cobro',
       body: 'Tu viaje es pronto. Termina de configurar tu cobro en FLOQQ para que podamos enviarte la parte de los demás.',
     },
+    ridePaid: {
+      title: 'Tu viaje está pagado',
+      body: 'Taxi {{total}} € - tu parte {{share}} € + {{fee}} € de tarifa FLOQQ - pagado. {{released}} € liberados.',
+    },
+    captureFailed: {
+      title: 'No hemos podido cobrar tu tarjeta',
+      body: 'No se ha podido cobrar tu parte del taxi. FLOQQ se pondrá en contacto contigo.',
+    },
+    reimbursementSent: {
+      title: 'Tu dinero está en camino',
+      body: '{{amount}} € en camino hacia ti.',
+    },
+    reimbursementWaiting: {
+      title: 'Tu dinero te está esperando',
+      body: 'Termina de configurar tu cobro en FLOQQ y te enviaremos {{amount}} €.',
+    },
   },
   fr: {
     holdOpen: {
@@ -119,6 +162,22 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
     payerSetupReminder: {
       title: 'Configurez votre versement',
       body: 'Votre trajet approche. Terminez la configuration de votre versement dans FLOQQ pour que nous puissions vous envoyer la part des autres.',
+    },
+    ridePaid: {
+      title: 'Votre trajet est payé',
+      body: 'Taxi {{total}} € - votre part {{share}} € + {{fee}} € de frais FLOQQ - payé. {{released}} € libérés.',
+    },
+    captureFailed: {
+      title: 'Impossible de débiter votre carte',
+      body: 'Votre part du taxi n’a pas pu être débitée. FLOQQ vous contactera.',
+    },
+    reimbursementSent: {
+      title: 'Votre argent est en route',
+      body: '{{amount}} € en route vers vous.',
+    },
+    reimbursementWaiting: {
+      title: 'Votre argent vous attend',
+      body: 'Terminez la configuration de votre versement dans FLOQQ et nous vous enverrons {{amount}} €.',
     },
   },
 };

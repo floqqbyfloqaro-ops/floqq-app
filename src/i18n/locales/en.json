@@ -374,5 +374,17 @@
     "photoFailed": "The photo couldn't be uploaded. Please try again.",
     "cameraDenied": "FLOQQ needs camera access to photograph the receipt. Allow it in your phone settings.",
     "invalidTotal": "Enter the amount in euros, e.g. 38.50 (at most €500)."
+  },
+  "settlement": {
+    "paid": "Taxi €{{total}} - your share €{{share}} + €{{fee}} FLOQQ fee - paid. €{{released}} released.",
+    "payerPaid": "Taxi €{{total}} - you paid the taxi - €{{fee}} FLOQQ fee paid. €{{released}} released.",
+    "chargeAt": "Taxi €{{total}} - your share €{{share}} + €{{fee}} FLOQQ fee will be charged at {{time}}. The rest of your reservation is then released.",
+    "payerChargeAt": "Taxi €{{total}} - you paid the taxi, so only the €{{fee}} FLOQQ fee is charged, at {{time}}. The rest of your reservation is then released.",
+    "captureFailed": "We couldn't charge your card for this ride. FLOQQ will contact you.",
+    "payoutAt": "The others are charged at {{time}}. Then €{{amount}} is sent to you.",
+    "payoutSending": "We're sending you €{{amount}}.",
+    "payoutWaiting": "€{{amount}} is waiting for you - finish your payout setup above and we'll send it.",
+    "payoutSent": "€{{amount}} on its way to you.",
+    "cancelWhileSettling": "Your ride is being paid right now. You can close it once that's done - usually within a few hours."
   }
 }

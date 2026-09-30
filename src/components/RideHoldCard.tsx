@@ -12,6 +12,8 @@ import SecondaryButton from './SecondaryButton';
 type Props = {
   requestId: string;
   groupId: string;
+  // The payer pays the taxi directly: only the FLOQQ fee is charged to their card.
+  isPayer: boolean;
   onOpenProfile: () => void;
 };
 
@@ -30,8 +32,10 @@ function formatDateTime(iso: string) {
 }
 
 // Payments prototype, phase 3: the passenger's seat reservation (card hold) for a confirmed group,
-// shown on My ride. Whether the hold is placed is always read back from the server.
-export default function RideHoldCard({ requestId, groupId, onOpenProfile }: Props) {
+// shown on My ride. Whether the hold is placed is always read back from the server. Phase 6: once
+// the taxi receipt is accepted it shows when the card is charged, and afterwards what was paid
+// and released.
+export default function RideHoldCard({ requestId, groupId, isPayer, onOpenProfile }: Props) {
   const { t } = useTranslation();
 
   const [payment, setPayment] = useState<RidePayment | null>(null);
@@ -125,6 +129,40 @@ export default function RideHoldCard({ requestId, groupId, onOpenProfile }: Prop
   const now = Date.now();
   const opensAt = payment.hold_window_opens_at ? new Date(payment.hold_window_opens_at).getTime() : now;
   const deadlinePassed = payment.hold_deadline_at != null && now > new Date(payment.hold_deadline_at).getTime();
+
+  const total = payment.taxi_total_cents != null ? formatCents(payment.taxi_total_cents) : null;
+  const fee = formatCents(payment.platform_fee_cents);
+
+  if (payment.payment_status === 'CAPTURED' && total && payment.captured_cents != null) {
+    const released = formatCents(payment.released_cents ?? 0);
+    return (
+      <Text style={styles.placed} accessibilityLiveRegion="polite">
+        {isPayer
+          ? t('settlement.payerPaid', { total, fee, released })
+          : t('settlement.paid', {
+              total,
+              share: formatCents(payment.captured_cents - payment.platform_fee_cents),
+              fee,
+              released,
+            })}
+      </Text>
+    );
+  }
+
+  if (payment.payment_status === 'CAPTURE_FAILED' && total) {
+    return <ErrorNotice message={t('settlement.captureFailed')} />;
+  }
+
+  if (payment.payment_status === 'HOLD_PLACED' && total && payment.charge_at && payment.final_share_cents != null) {
+    const time = formatDateTime(payment.charge_at);
+    return (
+      <Text style={styles.note} accessibilityLiveRegion="polite">
+        {isPayer
+          ? t('settlement.payerChargeAt', { total, fee, time })
+          : t('settlement.chargeAt', { total, share: formatCents(payment.final_share_cents), fee, time })}
+      </Text>
+    );
+  }
 
   if (payment.payment_status === 'HOLD_PLACED') {
     return (

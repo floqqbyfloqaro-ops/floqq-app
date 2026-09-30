@@ -80,7 +80,7 @@ export default function HomeScreen({
     }
     if (error) {
       console.warn('cancelPassengerRequest failed', error);
-      setErrorMessage(t('findingMatch.cancelError'));
+      setErrorMessage(t(blockedReason === 'ride_settling' ? 'settlement.cancelWhileSettling' : 'findingMatch.cancelError'));
       return;
     }
 

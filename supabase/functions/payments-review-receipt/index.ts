@@ -9,7 +9,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { ADMIN_EMAIL } from '../_shared/constants.ts';
 import { isValidReceiptTotal } from '../_shared/receiptMath.ts';
-import { recordReceipt } from '../_shared/receipts.ts';
+import { recordReceipt, scheduleSettlement } from '../_shared/receipts.ts';
 import { paymentsEnabled } from '../_shared/stripe.ts';
 
 const corsHeaders = {
@@ -91,6 +91,10 @@ Deno.serve(async (req) => {
     }
     const result = data as { rejected: boolean; reason?: string };
     if (!result.rejected) return jsonResponse({ error: result.reason ?? 'record_failed' }, 409);
+    // Nobody is charged on a rejected receipt.
+    await scheduleSettlement(adminClient, groupId, { status: 'REJECTED', totalCents: null }).catch((err) =>
+      console.error('scheduleSettlement failed', err)
+    );
     return jsonResponse({ status: 'REJECTED' });
   }
 
