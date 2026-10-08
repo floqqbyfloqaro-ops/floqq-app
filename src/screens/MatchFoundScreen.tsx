@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -9,17 +9,27 @@ import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
 import RouteMap from '../components/RouteMap';
 import ScreenBackground from '../components/ScreenBackground';
+import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import { PLATFORM_FEE_CENTS } from '../constants';
-import { decodePolyline, fetchMatchOffer, MatchOffer, MatchOfferMember, subscribeToRide } from '../services/matchOffer';
+import { authenticateHold, CARD_SETUP_SUPPORTED, stripeReturnUrl } from '../services/cardSetup';
+import {
+  decodePolyline,
+  fetchMatchOffer,
+  MatchOffer,
+  MatchOfferMember,
+  secureSpot,
+  subscribeToRide,
+} from '../services/matchOffer';
 import type { MyPassengerRequest } from '../services/passengerRequests';
-import { formatCents } from '../services/payments';
+import { formatCents, placeRideHold } from '../services/payments';
 import { baseText, borders, colors, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
   request: MyPassengerRequest;
   onBack: () => void;
   onEdit: () => void;
+  onOpenProfile: () => void;
 };
 
 const MAP_HEIGHT = 180;
@@ -28,6 +38,17 @@ const AVATAR_SIZE = 44;
 // Other passengers' rides can't be watched from the app (row level security), so the screen also
 // re-reads the offer on a timer to pick up e.g. someone else securing their spot.
 const REFRESH_MS = 20_000;
+
+// After the passenger's part of securing is done, wait this long for Stripe's webhook to reach
+// the server (the bank's verification finishes there, not in the app).
+const RESULT_POLL_ATTEMPTS = 8;
+const RESULT_POLL_INTERVAL_MS = 1500;
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const dateTime = (iso: string) => new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 
 // A flight landing this much after its scheduled time counts as delayed.
 const DELAYED_FROM_MINUTES = 10;
@@ -52,12 +73,20 @@ function arrivalStatus(member: MatchOfferMember, t: (key: string, options?: Reco
 // Shown while the passenger's group is still an offer (an unconfirmed taxi group): who they'd
 // ride with, the planned route, the estimated fare, and their answer. MyRideScreen decides when
 // this screen is up and moves on when the group is confirmed or gone.
-export default function MatchFoundScreen({ request, onBack, onEdit }: Props) {
+export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfile }: Props) {
   const { t } = useTranslation();
 
   const [offer, setOffer] = useState<MatchOffer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
+
+  const [isSecuring, setIsSecuring] = useState(false);
+  // A second tap before the first one's state update lands must not start a second attempt.
+  const securingRef = useRef(false);
+  const [secureError, setSecureError] = useState<string | null>(null);
+  const [secureNotice, setSecureNotice] = useState<string | null>(null);
+  const [needsCard, setNeedsCard] = useState(false);
+  const [cardFailed, setCardFailed] = useState(false);
 
   const load = useCallback(async () => {
     const { offer: loaded, error } = await fetchMatchOffer(request.id);
@@ -65,12 +94,84 @@ export default function MatchFoundScreen({ request, onBack, onEdit }: Props) {
     if (error) {
       console.warn('fetchMatchOffer failed', error);
       setLoadFailed(true);
-      return;
+      return null;
     }
     setLoadFailed(false);
     // A group that just disappeared: keep what's on screen until MyRideScreen moves on.
     if (loaded) setOffer(loaded);
+    return loaded;
   }, [request.id]);
+
+  // "Secure my spot". With payments off (or a ride too far away for a card hold) the server just
+  // records it. Otherwise the reservation is placed on the saved card; whether that worked is
+  // always read back from the server, never assumed here.
+  const handleSecure = async () => {
+    if (securingRef.current) return;
+    securingRef.current = true;
+    setSecureError(null);
+    setSecureNotice(null);
+    setNeedsCard(false);
+    setCardFailed(false);
+    setIsSecuring(true);
+
+    try {
+      const { result, error } = await secureSpot(request.id);
+      if (error || !result?.status) {
+        if (result?.error === 'no_offer') {
+          await load();
+          return;
+        }
+        console.warn('secureSpot failed', error);
+        setSecureError(t('matchFound.secureError'));
+        return;
+      }
+
+      if (result.status !== 'HOLD_REQUIRED' || !result.ridePaymentId) {
+        await load();
+        return;
+      }
+
+      const hold = await placeRideHold(result.ridePaymentId, stripeReturnUrl());
+      if (hold.error) {
+        if (hold.result?.error === 'no_payment_method') {
+          setNeedsCard(true);
+        } else {
+          console.warn('placeRideHold failed', hold.error);
+          setSecureError(t('matchFound.secureError'));
+        }
+        return;
+      }
+
+      if (hold.result?.status === 'HOLD_PENDING_AUTH' && hold.result.clientSecret && hold.result.publishableKey) {
+        if (!CARD_SETUP_SUPPORTED) {
+          setSecureNotice(t('payments.webAuth'));
+          return;
+        }
+        setSecureNotice(t('payments.pendingAuth'));
+        const auth = await authenticateHold(hold.result.clientSecret, hold.result.publishableKey);
+        if (auth.status === 'failed') {
+          console.warn('authenticateHold failed', auth.message);
+        }
+      }
+
+      let failed = hold.result?.status === 'HOLD_FAILED';
+      for (let attempt = 0; attempt < RESULT_POLL_ATTEMPTS && !failed; attempt += 1) {
+        const latest = await load();
+        if (latest?.members.find((m) => m.isMe)?.secured) break;
+        failed = latest?.myHoldStatus === 'HOLD_FAILED';
+        if (!failed) await wait(RESULT_POLL_INTERVAL_MS);
+      }
+      setSecureNotice(null);
+      if (failed) {
+        setCardFailed(true);
+        setSecureError(t('payments.failed'));
+        await load();
+      }
+    } finally {
+      securingRef.current = false;
+      setIsSecuring(false);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -100,6 +201,9 @@ export default function MatchFoundScreen({ request, onBack, onEdit }: Props) {
       stops,
     };
   }, [offer]);
+
+  // A card hold can only be placed close enough to the ride; before that, securing reserves nothing.
+  const holdComesLater = offer != null && new Date(offer.holdOpensAt).getTime() > Date.now();
 
   return (
     <ScreenBackground
@@ -165,7 +269,10 @@ export default function MatchFoundScreen({ request, onBack, onEdit }: Props) {
                   >
                     <Avatar index={member.order - 1} size={AVATAR_SIZE} />
                     <View style={styles.memberText}>
-                      <Text style={styles.memberName}>{name}</Text>
+                      <View style={styles.memberNameRow}>
+                        <Text style={styles.memberName}>{name}</Text>
+                        {member.secured ? <Ionicons name="checkmark-circle" size={16} color={colors.success} /> : null}
+                      </View>
                       <Text style={styles.memberDestination} numberOfLines={2}>
                         {destination}
                       </Text>
@@ -194,9 +301,69 @@ export default function MatchFoundScreen({ request, onBack, onEdit }: Props) {
               <Text style={styles.fareNote}>{t('fare_estimate_note')}</Text>
             </Card>
 
-            {/* Answering the offer ("Secure my spot" / "Not for me") arrives in the next build steps. */}
-            <PrimaryButton label={t('secure_my_spot')} onPress={() => undefined} disabled />
-            <Text style={styles.feeNote}>{t('secure_spot_fee_note', { fee: formatCents(PLATFORM_FEE_CENTS) })}</Text>
+            {members[0]?.isMe && members[0].secured ? (
+              <Card highlighted style={styles.securedCard}>
+                <View style={styles.securedTitleRow}>
+                  <Ionicons name="checkmark-circle" size={22} color={colors.success} />
+                  <Text style={styles.securedTitle} accessibilityLiveRegion="polite">
+                    {t('matchFound.spotSecured')}
+                  </Text>
+                </View>
+                {offer.myHoldStatus === 'HOLD_PLACED' && offer.holdCents != null ? (
+                  <Text style={styles.securedNote}>{t('hold_placed_message', { amount: formatCents(offer.holdCents) })}</Text>
+                ) : offer.paymentsEnabled && offer.holdCents != null && holdComesLater ? (
+                  <Text style={styles.securedNote}>
+                    {t('payments.opensOn', { amount: formatCents(offer.holdCents), date: dateTime(offer.holdOpensAt) })}
+                  </Text>
+                ) : null}
+                {members.slice(1).map((member) => (
+                  <Text key={member.order} style={styles.securedNote}>
+                    {t(member.secured ? 'matchFound.otherSecured' : 'matchFound.waitingFor', {
+                      name: member.firstName ?? t('matchFound.traveler'),
+                    })}
+                  </Text>
+                ))}
+              </Card>
+            ) : (
+              <>
+                {/* What securing does to the card, shown before the passenger taps. */}
+                {offer.paymentsEnabled && offer.holdCents != null && offer.myShareCents != null ? (
+                  <Text style={styles.reserveNote}>
+                    {holdComesLater
+                      ? t('payments.opensOn', { amount: formatCents(offer.holdCents), date: dateTime(offer.holdOpensAt) })
+                      : t('payments.reserveExplainer', {
+                          amount: formatCents(offer.holdCents),
+                          share: formatCents(offer.myShareCents),
+                          fee: formatCents(offer.feeCents),
+                        })}
+                  </Text>
+                ) : null}
+
+                {secureError ? <ErrorNotice message={secureError} /> : null}
+                {secureNotice ? (
+                  <Text style={styles.reserveNote} accessibilityLiveRegion="polite">
+                    {secureNotice}
+                  </Text>
+                ) : null}
+                {needsCard ? <Text style={styles.reserveNote}>{t('payments.noCard')}</Text> : null}
+
+                <View style={styles.secureButtons}>
+                  {needsCard ? (
+                    <SecondaryButton label={t('payments.addCardButton')} onPress={onOpenProfile} />
+                  ) : (
+                    <PrimaryButton
+                      label={offer.myHoldStatus === 'HOLD_PENDING_AUTH' ? t('payments.continueAuth') : t('secure_my_spot')}
+                      onPress={handleSecure}
+                      loading={isSecuring}
+                    />
+                  )}
+                  {cardFailed ? (
+                    <SecondaryButton label={t('profile.replaceCard')} onPress={onOpenProfile} disabled={isSecuring} />
+                  ) : null}
+                </View>
+                <Text style={styles.feeNote}>{t('secure_spot_fee_note', { fee: formatCents(PLATFORM_FEE_CENTS) })}</Text>
+              </>
+            )}
 
             <Pressable
               onPress={onEdit}
@@ -281,6 +448,11 @@ const styles = StyleSheet.create({
   memberText: {
     flex: 1,
   },
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.x1,
+  },
   memberName: {
     ...baseText.body,
     fontWeight: '600',
@@ -323,6 +495,28 @@ const styles = StyleSheet.create({
     ...baseText.bodySmall,
     textAlign: 'center',
     marginTop: spacing.x3,
+  },
+  reserveNote: {
+    ...baseText.bodySmall,
+    marginBottom: spacing.x3,
+  },
+  secureButtons: {
+    gap: spacing.x2,
+  },
+  securedCard: {
+    gap: spacing.x2,
+  },
+  securedTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.x2,
+  },
+  securedTitle: {
+    ...baseText.h3,
+    color: colors.success,
+  },
+  securedNote: {
+    ...baseText.bodySmall,
   },
   textButton: {
     alignSelf: 'center',

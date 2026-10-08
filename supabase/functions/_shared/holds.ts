@@ -2,6 +2,11 @@
 // and releases holds that no longer belong to an active group member. Used by
 // payments-sync-holds (admin "confirm" + the 5-minute cron job). Every payment_status change
 // is written to payment_events by the ride_payments trigger; last_status_actor says who did it.
+//
+// A group that is still an offer (unconfirmed, "Match found") can already have holds: a passenger
+// who taps "Secure my spot" gets their row from the secure-spot function and places the hold
+// right away. Those rows are kept in step here too, but none are created for passengers who
+// haven't answered.
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import type Stripe from 'npm:stripe@17';
@@ -28,12 +33,13 @@ export type RidePaymentRow = {
   stripe_payment_intent_id: string | null;
   payment_status: string;
   hold_deadline_at: string | null;
+  hold_open_notified_at: string | null;
   ended_notified_at: string | null;
   free_cancel_until: string | null;
 };
 
 export const RIDE_PAYMENT_COLUMNS =
-  'id, request_id, group_id, user_id, estimated_share_cents, hold_amount_cents, stripe_payment_intent_id, payment_status, hold_deadline_at, ended_notified_at, free_cancel_until';
+  'id, request_id, group_id, user_id, estimated_share_cents, hold_amount_cents, stripe_payment_intent_id, payment_status, hold_deadline_at, hold_open_notified_at, ended_notified_at, free_cancel_until';
 
 // Statuses in which a Stripe hold may still be open and must be cancelled if it's no longer needed.
 const OPEN_HOLD_STATUSES = ['HOLD_PENDING_AUTH', 'HOLD_PLACED'];
@@ -63,6 +69,29 @@ export async function markNotified(adminClient: SupabaseClient, rowId: string, c
     .is(column, null)
     .select('id');
   return (data?.length ?? 0) > 0;
+}
+
+// Records that a passenger secured their spot in the group offered to them ("Match found"):
+// right away when no hold is needed yet, otherwise the moment their hold is placed. Only counts
+// while they are in that group, and only once per group (audit event spot_secured).
+export async function markSpotSecured(adminClient: SupabaseClient, requestId: string, groupId: string): Promise<boolean> {
+  const { data } = await adminClient
+    .from('passenger_requests')
+    .update({ spot_secured_at: new Date().toISOString(), spot_secured_group_id: groupId })
+    .eq('id', requestId)
+    .eq('group_id', groupId)
+    .or(`spot_secured_group_id.is.null,spot_secured_group_id.neq.${groupId}`)
+    .select('id, user_id');
+  if (!data?.length) return false;
+
+  await adminClient.from('group_events').insert({
+    group_id: groupId,
+    request_id: requestId,
+    event_type: 'spot_secured',
+    actor_type: 'passenger',
+    actor_id: data[0].user_id,
+  });
+  return true;
 }
 
 export type SyncResult = { groupId: string; outcome: string };
@@ -98,9 +127,11 @@ export async function syncGroupHolds(
   const rows = (existingRows ?? []) as RidePaymentRow[];
 
   const memberIds = new Set(members.map((m) => m.id));
-  const groupActive = group.status === 'confirmed';
+  // Still an offer: only passengers who tapped "Secure my spot" have a row.
+  const isOffer = group.status === 'unconfirmed';
+  const groupActive = group.status === 'confirmed' || isOffer;
 
-  // Release holds of passengers who are no longer in this (still confirmed) group.
+  // Release holds of passengers who are no longer in this (still active) group.
   for (const row of rows) {
     const stillMember = groupActive && row.request_id != null && memberIds.has(row.request_id);
     if (stillMember) continue;
@@ -148,6 +179,7 @@ export async function syncGroupHolds(
     const row = rowByRequest.get(member.id);
 
     if (!row) {
+      if (isOffer) continue;
       const { opensAt, deadlineAt } = holdWindow(rideMs, now.getTime());
       await adminClient.from('ride_payments').upsert(
         {
@@ -170,6 +202,23 @@ export async function syncGroupHolds(
     // The ride time moves when the group changes, and with it the free-cancellation cutoff.
     if (row.free_cancel_until == null || new Date(row.free_cancel_until).getTime() !== new Date(freeCancelUntil).getTime()) {
       await adminClient.from('ride_payments').update({ free_cancel_until: freeCancelUntil }).eq('id', row.id);
+    }
+
+    // A row from the offer that never got its hold (e.g. a declined card) was never given the
+    // usual "reserve your seat" window - it gets one now that the group is confirmed.
+    if (
+      !isOffer &&
+      row.hold_open_notified_at == null &&
+      (row.payment_status === 'NOT_STARTED' || row.payment_status === 'HOLD_FAILED')
+    ) {
+      const { opensAt, deadlineAt } = holdWindow(rideMs, now.getTime());
+      if (row.hold_deadline_at == null || new Date(row.hold_deadline_at).getTime() < deadlineAt.getTime()) {
+        await adminClient
+          .from('ride_payments')
+          .update({ hold_window_opens_at: opensAt.toISOString(), hold_deadline_at: deadlineAt.toISOString() })
+          .eq('id', row.id)
+          .eq('payment_status', row.payment_status);
+      }
     }
 
     if (row.estimated_share_cents === shareCents) continue;
@@ -214,6 +263,15 @@ export async function syncGroupHolds(
         })
         .eq('id', row.id)
         .eq('payment_status', row.payment_status);
+
+      // In an offer the spot was secured by that hold: they secure it again for the new amount.
+      if (isOffer) {
+        await adminClient
+          .from('passenger_requests')
+          .update({ spot_secured_at: null, spot_secured_group_id: null })
+          .eq('id', member.id)
+          .eq('spot_secured_group_id', groupId);
+      }
     }
   }
 
@@ -238,7 +296,7 @@ export async function applyHoldState(
 
   const { data: row } = await adminClient
     .from('ride_payments')
-    .select('id, payment_status, stripe_payment_intent_id, hold_attempts, hold_amount_cents')
+    .select('id, request_id, group_id, payment_status, stripe_payment_intent_id, hold_attempts, hold_amount_cents')
     .eq('id', ridePaymentId)
     .single();
   if (!row) return { status: null, changed: false };
@@ -295,6 +353,12 @@ export async function applyHoldState(
     .select('payment_status');
 
   const changed = (updated?.length ?? 0) > 0 && to !== row.payment_status;
+
+  // A placed hold is what secures the passenger's spot in a group that's still an offer.
+  if ((updated?.length ?? 0) > 0 && to === 'HOLD_PLACED' && row.request_id && row.group_id) {
+    await markSpotSecured(adminClient, row.request_id, row.group_id);
+  }
+
   return { status: updated?.[0]?.payment_status ?? row.payment_status, changed };
 }
 

@@ -492,6 +492,10 @@
     "fareUnknown": "-",
     "loadError": "We couldn’t load your match.",
     "mapWebOnly": "The route map is shown in the FLOQQ mobile app.",
-    "editRide": "Change my ride details"
+    "editRide": "Change my ride details",
+    "spotSecured": "Spot secured",
+    "waitingFor": "Waiting for {{name}} to confirm",
+    "otherSecured": "{{name}} has secured their spot",
+    "secureError": "We couldn’t secure your spot. Please try again."
   }
 }

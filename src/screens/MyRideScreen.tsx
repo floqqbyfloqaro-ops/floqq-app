@@ -170,6 +170,7 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
         request={request}
         onBack={() => setSubScreen(null)}
         onEdit={() => onCreateRequest(request.id)}
+        onOpenProfile={onOpenProfile}
       />
     );
   }

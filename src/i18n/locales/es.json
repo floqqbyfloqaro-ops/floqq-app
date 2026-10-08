@@ -488,6 +488,10 @@
     "fareUnknown": "-",
     "loadError": "No hemos podido cargar tu grupo.",
     "mapWebOnly": "El mapa de la ruta se muestra en la app móvil de FLOQQ.",
-    "editRide": "Cambiar los datos de mi viaje"
+    "editRide": "Cambiar los datos de mi viaje",
+    "spotSecured": "Plaza asegurada",
+    "waitingFor": "Esperando a que {{name}} confirme",
+    "otherSecured": "{{name}} ha asegurado su plaza",
+    "secureError": "No hemos podido asegurar tu plaza. Inténtalo de nuevo."
   }
 }

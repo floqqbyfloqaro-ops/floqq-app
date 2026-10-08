@@ -106,10 +106,11 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'not_holdable', status: row.payment_status }, 409);
   }
 
-  // Still a member of that confirmed group?
+  // Still a member of that group - confirmed, or still an offer the passenger is securing their
+  // spot in ("Match found": the row then comes from the secure-spot function)?
   const { data: request } = await adminClient.from('passenger_requests').select('group_id').eq('id', row.request_id).single();
   const { data: group } = await adminClient.from('taxi_groups').select('status').eq('id', row.group_id).single();
-  if (request?.group_id !== row.group_id || group?.status !== 'confirmed') {
+  if (request?.group_id !== row.group_id || (group?.status !== 'confirmed' && group?.status !== 'unconfirmed')) {
     return jsonResponse({ error: 'not_in_group' }, 409);
   }
 

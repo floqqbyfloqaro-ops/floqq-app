@@ -54,6 +54,9 @@ async function removeMissedDeadlines(adminClient: SupabaseClient, stripe: Stripe
 
   for (const row of data as RidePaymentRow[]) {
     if (!row.group_id || !row.request_id) continue;
+    // Never told "reserve your seat": a row from an offer ("Match found") whose hold wasn't
+    // placed. It gets a proper window once the group is confirmed (syncGroupHolds).
+    if (!row.hold_open_notified_at && row.payment_status !== 'HOLD_PENDING_AUTH') continue;
 
     // Only act if they're still in that confirmed group (not already removed or regrouped).
     const { data: request } = await adminClient
@@ -62,6 +65,10 @@ async function removeMissedDeadlines(adminClient: SupabaseClient, stripe: Stripe
       .eq('id', row.request_id)
       .single();
     if (request?.group_id !== row.group_id) continue;
+
+    // A group that's still an offer has its own response deadline; this one is for confirmed groups.
+    const { data: group } = await adminClient.from('taxi_groups').select('status').eq('id', row.group_id).single();
+    if (group?.status !== 'confirmed') continue;
 
     if (row.payment_status === 'HOLD_PENDING_AUTH' && row.stripe_payment_intent_id) {
       await cancelHold(stripe, row.stripe_payment_intent_id);

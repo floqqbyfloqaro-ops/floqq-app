@@ -492,6 +492,10 @@
     "fareUnknown": "-",
     "loadError": "Impossible de charger votre groupe.",
     "mapWebOnly": "La carte de l’itinéraire s’affiche dans l’application mobile FLOQQ.",
-    "editRide": "Modifier les détails de mon trajet"
+    "editRide": "Modifier les détails de mon trajet",
+    "spotSecured": "Place réservée",
+    "waitingFor": "En attente de la confirmation de {{name}}",
+    "otherSecured": "{{name}} a réservé sa place",
+    "secureError": "Impossible de réserver votre place. Veuillez réessayer."
   }
 }

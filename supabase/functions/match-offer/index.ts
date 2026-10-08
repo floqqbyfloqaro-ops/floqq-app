@@ -15,7 +15,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { AIRPORT } from '../_shared/constants.ts';
 import { computeRoutePolyline, lookupNeighborhood } from '../_shared/googleRoutes.ts';
-import { estimatedSharesCents, holdAmountCents, PLATFORM_FEE_CENTS } from '../_shared/holdMath.ts';
+import { estimatedSharesCents, holdAmountCents, holdWindow, PLATFORM_FEE_CENTS, rideDepartureMs } from '../_shared/holdMath.ts';
+import { paymentsEnabled } from '../_shared/stripe.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -157,6 +158,18 @@ Deno.serve(async (req) => {
     : null;
   const myShareCents = shares?.get(requestId) ?? null;
 
+  // "Secure my spot": whether it reserves money on the card, and from when that's possible.
+  const withPayments = paymentsEnabled();
+  const { opensAt: holdOpensAt } = holdWindow(rideDepartureMs(members.map((m) => m.arrival_at)), Date.now());
+  const { data: myPayment } = withPayments
+    ? await adminClient
+        .from('ride_payments')
+        .select('payment_status')
+        .eq('request_id', requestId)
+        .eq('group_id', group.id)
+        .maybeSingle()
+    : { data: null };
+
   return jsonResponse({
     offer: {
       groupId: group.id,
@@ -166,6 +179,9 @@ Deno.serve(async (req) => {
       myShareCents,
       feeCents: PLATFORM_FEE_CENTS,
       holdCents: myShareCents != null ? holdAmountCents(myShareCents) : null,
+      paymentsEnabled: withPayments,
+      holdOpensAt: holdOpensAt.toISOString(),
+      myHoldStatus: myPayment?.payment_status ?? null,
       airport: { lat: AIRPORT.lat, lng: AIRPORT.lng, name: AIRPORT.name },
       polyline,
       members: members.map((member, index) => {

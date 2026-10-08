@@ -104,16 +104,18 @@ Deno.serve(async (req) => {
   }
 
   // Payments first: the cancelling passenger's fee is settled from their own hold before the
-  // group's remaining holds are adjusted. Never blocks the cancellation itself.
+  // group's remaining holds are adjusted. Never blocks the cancellation itself. A group that was
+  // still an offer ("Match found") can have holds too: nothing is charged there - the leaving
+  // passenger's hold is simply released by syncGroupHolds below.
   let stripe: ReturnType<typeof createStripeClient> = null;
-  if (result.was_confirmed && paymentsEnabled()) {
+  if (result.group_id && paymentsEnabled()) {
     try {
       stripe = createStripeClient();
     } catch (err) {
       console.error('Stripe not usable for cancellation', err);
     }
   }
-  if (stripe && result.group_id) {
+  if (stripe && result.was_confirmed && result.group_id) {
     try {
       await settleCancelledSeat(adminClient, stripe, body.requestId as string, result.group_id);
     } catch (err) {
