@@ -23,7 +23,8 @@ export type PushMessageKey =
   | 'receiptEstimated'
   | 'matchFound'
   | 'offerExpired'
-  | 'groupConfirmed';
+  | 'groupConfirmed'
+  | 'memberJoined';
 
 export type PushParams = {
   amount?: string;
@@ -114,6 +115,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Your group is confirmed!',
       body: 'Everyone has secured their spot.',
     },
+    memberJoined: {
+      title: 'A traveler joined your group',
+      body: 'Your estimated share is now €{{amount}}.',
+    },
   },
   es: {
     holdOpen: {
@@ -192,6 +197,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: '¡Tu grupo está confirmado!',
       body: 'Todos han asegurado su plaza.',
     },
+    memberJoined: {
+      title: 'Un viajero se ha unido a tu grupo',
+      body: 'Tu parte estimada es ahora de {{amount}} €.',
+    },
   },
   fr: {
     holdOpen: {
@@ -269,6 +278,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
     groupConfirmed: {
       title: 'Votre groupe est confirmé !',
       body: 'Tout le monde a réservé sa place.',
+    },
+    memberJoined: {
+      title: 'Un voyageur a rejoint votre groupe',
+      body: 'Votre part estimée est maintenant de {{amount}} €.',
     },
   },
 };

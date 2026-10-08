@@ -63,3 +63,7 @@ export const SERVICE_FEE_EUR = 2.49;
 // answered - then the window starts again). Server-side only; the app shows the deadline it is
 // given.
 export const MATCH_OFFER_TIMEOUT_MINUTES = 60;
+
+// Late join: a waiting passenger is only added to an existing offer whose ride leaves at least
+// this far in the future, so they still have time to answer (and reserve) before it does.
+export const LATE_JOIN_MIN_MINUTES_BEFORE_RIDE = 45;

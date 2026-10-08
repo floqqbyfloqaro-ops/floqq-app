@@ -504,6 +504,7 @@
     "declineKeep": "Keep this match",
     "declineError": "We couldn’t update your match. Please try again.",
     "confirmedTitle": "Group confirmed",
-    "confirmedNote": "Your group is confirmed. Your seat reservation and payment details are on My Ride."
+    "confirmedNote": "Your group is confirmed. Your seat reservation and payment details are on My Ride.",
+    "memberJoined": "A traveler joined your group. The route and your share have been updated."
   }
 }

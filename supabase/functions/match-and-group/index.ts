@@ -11,6 +11,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { isAuthorized } from '../_shared/auth.ts';
 import { ADMIN_EMAIL } from '../_shared/constants.ts';
+import { joinOpenOffers } from '../_shared/lateJoin.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { suggestTaxiGroups } from '../_shared/matchingEngine.ts';
 import { announceOffer } from '../_shared/offers.ts';
@@ -61,7 +62,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const suggestions = await suggestTaxiGroups(adminClient, pending ?? []);
+    // First fill free seats in groups that are still an offer; whoever fits nowhere goes on to
+    // form new groups.
+    const joined = await joinOpenOffers(adminClient, pending ?? []);
+    const stillPending = (pending ?? []).filter((r) => !joined.has(r.id));
+
+    const suggestions = await suggestTaxiGroups(adminClient, stillPending);
 
     const claimed = new Set<string>();
     let groupsCreated = 0;
@@ -116,7 +122,7 @@ Deno.serve(async (req) => {
       groupsCreated++;
     }
 
-    return new Response(JSON.stringify({ groupsCreated }), {
+    return new Response(JSON.stringify({ groupsCreated, joinedExistingGroups: joined.size }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
