@@ -122,6 +122,10 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
   const [isDeclining, setIsDeclining] = useState(false);
   const [declineError, setDeclineError] = useState<string | null>(null);
 
+  // Set when the group grew or shrank while the passenger was looking at it.
+  const [groupChange, setGroupChange] = useState<'joined' | 'left' | null>(null);
+  const knownGroup = useRef<{ groupId: string; size: number } | null>(null);
+
   const load = useCallback(async () => {
     const { offer: loaded, error } = await fetchMatchOffer(request.id);
     setIsLoading(false);
@@ -132,7 +136,14 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
     }
     setLoadFailed(false);
     // A group that just disappeared: keep what's on screen until MyRideScreen moves on.
-    if (loaded) setOffer(loaded);
+    if (loaded) {
+      const known = knownGroup.current;
+      if (known && known.groupId === loaded.groupId && known.size !== loaded.members.length) {
+        setGroupChange(loaded.members.length > known.size ? 'joined' : 'left');
+      }
+      knownGroup.current = { groupId: loaded.groupId, size: loaded.members.length };
+      setOffer(loaded);
+    }
     return loaded;
   }, [request.id]);
 
@@ -307,6 +318,12 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
           <>
             {/* No match percentage: the matching engine's score is a cost, not a percentage. */}
             <Text style={styles.summary}>{t('matchFound.passengers', { count: offer.members.length })}</Text>
+
+            {groupChange ? (
+              <Text style={styles.groupChange} accessibilityLiveRegion="polite">
+                {t(groupChange === 'joined' ? 'matchFound.memberJoined' : 'group_member_left')}
+              </Text>
+            ) : null}
 
             {!isConfirmed && !mySpotSecured && offer.offerExpiresAt ? (
               <OfferCountdown expiresAt={offer.offerExpiresAt} />
@@ -524,6 +541,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: spacing.x6,
+  },
+  groupChange: {
+    ...baseText.bodySmall,
+    color: colors.info,
+    textAlign: 'center',
+    marginBottom: spacing.x4,
   },
   countdown: {
     flexDirection: 'row',

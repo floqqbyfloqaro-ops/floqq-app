@@ -500,6 +500,7 @@
     "declineKeep": "Seguir en este grupo",
     "declineError": "No hemos podido actualizar tu grupo. Inténtalo de nuevo.",
     "confirmedTitle": "Grupo confirmado",
-    "confirmedNote": "Tu grupo está confirmado. La reserva de tu plaza y los datos de pago están en Mi trayecto."
+    "confirmedNote": "Tu grupo está confirmado. La reserva de tu plaza y los datos de pago están en Mi trayecto.",
+    "memberJoined": "Un viajero se ha unido a tu grupo. Hemos actualizado la ruta y tu parte."
   }
 }

@@ -504,6 +504,7 @@
     "declineKeep": "Rester dans ce groupe",
     "declineError": "Impossible de mettre à jour votre groupe. Veuillez réessayer.",
     "confirmedTitle": "Groupe confirmé",
-    "confirmedNote": "Votre groupe est confirmé. La réservation de votre place et les détails du paiement sont dans Mon trajet."
+    "confirmedNote": "Votre groupe est confirmé. La réservation de votre place et les détails du paiement sont dans Mon trajet.",
+    "memberJoined": "Un voyageur a rejoint votre groupe. L’itinéraire et votre part ont été mis à jour."
   }
 }
