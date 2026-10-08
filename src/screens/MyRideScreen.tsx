@@ -12,11 +12,12 @@ import ScreenBackground from '../components/ScreenBackground';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
 import { PAYMENTS_ENABLED, SERVICE_FEE_EUR } from '../constants';
+import { subscribeToRide } from '../services/matchOffer';
 import { createServiceFeeCheckout } from '../services/payments';
 import { fetchMyGroupStatus, fetchMyLatestRequest, MyPassengerRequest, MyTaxiGroup } from '../services/passengerRequests';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
 import FindingMatchScreen from './FindingMatchScreen';
-import GroupDetailsScreen from './GroupDetailsScreen';
+import MatchFoundScreen from './MatchFoundScreen';
 
 type Props = {
   onBack: () => void;
@@ -24,7 +25,11 @@ type Props = {
   onOpenProfile: () => void;
 };
 
-type SubScreen = 'findingMatch' | 'groupDetails' | null;
+type SubScreen = 'findingMatch' | 'matchFound' | null;
+
+// How often the ride is re-read while the passenger is waiting for (or looking at) a match, on top
+// of the live updates - a safety net for a missed one.
+const LIVE_RECHECK_MS = 15_000;
 
 export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }: Props) {
   const { t } = useTranslation();
@@ -92,6 +97,35 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
     return () => subscription.remove();
   }, [loadData]);
 
+  // While the passenger is waiting for a match or looking at one, follow their ride live
+  // (Supabase Realtime on their own ride and group)...
+  const requestId = request?.id;
+  const groupId = request?.group_id ?? null;
+  const isWatchingMatch = subScreen === 'findingMatch' || subScreen === 'matchFound';
+  useEffect(() => {
+    if (!requestId || !isWatchingMatch) return;
+    const unsubscribe = subscribeToRide('myride', requestId, groupId, loadData);
+    const timer = setInterval(loadData, LIVE_RECHECK_MS);
+    return () => {
+      unsubscribe();
+      clearInterval(timer);
+    };
+  }, [requestId, groupId, isWatchingMatch, loadData]);
+
+  // ...and move to the screen that fits where the ride is now: a group was proposed ("Match
+  // found" - which also shows the group once it's confirmed), or it fell apart again. `group` can
+  // briefly still be the previous group while the new one loads, so it only counts once it's the
+  // ride's current one.
+  const groupStatus = group && group.id === groupId ? group.status : null;
+  const isActiveRide = request?.status === 'pending' || request?.status === 'matched';
+  useEffect(() => {
+    if (subScreen === 'findingMatch' && (groupStatus === 'unconfirmed' || groupStatus === 'confirmed')) {
+      setSubScreen('matchFound');
+    } else if (subScreen === 'matchFound' && (!groupId || groupStatus === 'dissolved')) {
+      setSubScreen(isActiveRide ? 'findingMatch' : null);
+    }
+  }, [subScreen, groupId, groupStatus, isActiveRide]);
+
   const handlePay = async () => {
     if (!request) return;
     setCheckoutError(null);
@@ -110,8 +144,8 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
 
   const handleCardPress = () => {
     if (!request || request.status === 'cancelled' || request.status === 'expired') return;
-    const isSearchingPhase = !group || group.status === 'unconfirmed';
-    setSubScreen(isSearchingPhase ? 'findingMatch' : 'groupDetails');
+    // "Match found" shows the group both while it's an offer and once it's confirmed.
+    setSubScreen(group ? 'matchFound' : 'findingMatch');
   };
 
   if (subScreen === 'findingMatch' && request) {
@@ -128,8 +162,19 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
     );
   }
 
-  if (subScreen === 'groupDetails') {
-    return <GroupDetailsScreen onBack={() => setSubScreen(null)} />;
+  if (subScreen === 'matchFound' && request) {
+    return (
+      <MatchFoundScreen
+        request={request}
+        onBack={() => setSubScreen(null)}
+        onEdit={() => onCreateRequest(request.id)}
+        onOpenProfile={onOpenProfile}
+        onLeft={() => {
+          setSubScreen('findingMatch');
+          loadData();
+        }}
+      />
+    );
   }
 
   return (

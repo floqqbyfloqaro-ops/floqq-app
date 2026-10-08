@@ -5,7 +5,8 @@ export const ADMIN_EMAIL = 'floqqbyfloqaro@gmail.com';
 
 // Kept in sync with src/constants.ts.
 export const MAX_PASSENGERS_PER_TAXI = 3;
-export const MAX_BAGS_PER_TAXI = 4;
+// Large luggage only - hand luggage (at most 2 per passenger) doesn't count towards it.
+export const MAX_LARGE_LUGGAGE_PER_TAXI = 4;
 
 export const AIRPORT = {
   code: 'BCN',
@@ -56,3 +57,9 @@ export const DETOUR_LIMITS = {
 } as const;
 
 export const SERVICE_FEE_EUR = 2.49;
+
+// "Match found": how long passengers have to secure their spot in a group offered to them. When
+// it runs out, whoever didn't answer is removed and goes back to searching (unless nobody
+// answered - then the window starts again). Server-side only; the app shows the deadline it is
+// given.
+export const MATCH_OFFER_TIMEOUT_MINUTES = 60;

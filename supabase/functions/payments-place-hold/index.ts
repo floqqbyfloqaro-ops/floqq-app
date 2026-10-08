@@ -11,6 +11,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 
 import { applyHoldState, cancelHold } from '../_shared/holds.ts';
+import { confirmOfferIfComplete } from '../_shared/offers.ts';
 import { createStripeClient, getPublishableKey, LiveKeyError, paymentsEnabled } from '../_shared/stripe.ts';
 
 const corsHeaders = {
@@ -106,10 +107,11 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'not_holdable', status: row.payment_status }, 409);
   }
 
-  // Still a member of that confirmed group?
+  // Still a member of that group - confirmed, or still an offer the passenger is securing their
+  // spot in ("Match found": the row then comes from the secure-spot function)?
   const { data: request } = await adminClient.from('passenger_requests').select('group_id').eq('id', row.request_id).single();
   const { data: group } = await adminClient.from('taxi_groups').select('status').eq('id', row.group_id).single();
-  if (request?.group_id !== row.group_id || group?.status !== 'confirmed') {
+  if (request?.group_id !== row.group_id || (group?.status !== 'confirmed' && group?.status !== 'unconfirmed')) {
     return jsonResponse({ error: 'not_in_group' }, 409);
   }
 
@@ -127,7 +129,8 @@ Deno.serve(async (req) => {
     if (pending.status === 'requires_action') {
       return jsonResponse({ status: 'HOLD_PENDING_AUTH', clientSecret: pending.client_secret, publishableKey });
     }
-    const { status } = await applyHoldState(adminClient, stripe, pending.id, 'stripe');
+    const { status, securedGroupId } = await applyHoldState(adminClient, stripe, pending.id, 'stripe');
+    if (securedGroupId) await confirmOfferIfComplete(adminClient, stripe, securedGroupId);
     if (status === 'HOLD_PLACED') return jsonResponse({ status });
   }
 
@@ -201,7 +204,9 @@ Deno.serve(async (req) => {
     await cancelHold(stripe, previousIntentId).catch((err) => console.warn('cancel previous hold failed', err));
   }
 
-  const { status } = await applyHoldState(adminClient, stripe, intent.id, 'passenger');
+  const { status, securedGroupId } = await applyHoldState(adminClient, stripe, intent.id, 'passenger');
+  // The last passenger of an offer to secure their spot confirms the group ("Match found").
+  if (securedGroupId) await confirmOfferIfComplete(adminClient, stripe, securedGroupId);
 
   if (status === 'HOLD_PENDING_AUTH') {
     return jsonResponse({ status, clientSecret: intent.client_secret, publishableKey });

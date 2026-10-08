@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildGroupTotalsPayload, buildMemberScoresPayload, isGroupStillValid } from './groupRebalance.ts';
+import { buildGroupTotalsPayload, buildMemberScoresPayload, groupRejection, isGroupStillValid } from './groupRebalance.ts';
 import type { SuggestionLike } from './groupRebalance.ts';
 
 const MAX_BAGS = 4;
@@ -30,8 +30,8 @@ test('valid group: within detour and each member within their own wait tolerance
     totalRouteDurationMinutes: 20,
   };
   const remaining = [
-    { id: 'a', bagsCount: 1, maxWaitMinutes: 10 },
-    { id: 'b', bagsCount: 1, maxWaitMinutes: 10 },
+    { id: 'a', largeLuggageCount: 1, maxWaitMinutes: 10 },
+    { id: 'b', largeLuggageCount: 1, maxWaitMinutes: 10 },
   ];
 
   assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), true);
@@ -45,8 +45,8 @@ test('invalid: a member now exceeds MAX_DETOUR_MINUTES', () => {
     totalRouteDurationMinutes: 20,
   };
   const remaining = [
-    { id: 'a', bagsCount: 1, maxWaitMinutes: 10 },
-    { id: 'b', bagsCount: 1, maxWaitMinutes: 10 },
+    { id: 'a', largeLuggageCount: 1, maxWaitMinutes: 10 },
+    { id: 'b', largeLuggageCount: 1, maxWaitMinutes: 10 },
   ];
 
   assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
@@ -60,8 +60,8 @@ test('invalid: a member is within 15 min but over 50% of their own short direct 
     totalRouteDurationMinutes: 24,
   };
   const remaining = [
-    { id: 'a', bagsCount: 1, maxWaitMinutes: 10 },
-    { id: 'b', bagsCount: 1, maxWaitMinutes: 10 },
+    { id: 'a', largeLuggageCount: 1, maxWaitMinutes: 10 },
+    { id: 'b', largeLuggageCount: 1, maxWaitMinutes: 10 },
   ];
 
   assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
@@ -75,8 +75,8 @@ test('invalid: a member now waits longer than their own max_wait_minutes', () =>
     totalRouteDurationMinutes: 20,
   };
   const remaining = [
-    { id: 'a', bagsCount: 1, maxWaitMinutes: 15 },
-    { id: 'b', bagsCount: 1, maxWaitMinutes: 15 },
+    { id: 'a', largeLuggageCount: 1, maxWaitMinutes: 15 },
+    { id: 'b', largeLuggageCount: 1, maxWaitMinutes: 15 },
   ];
 
   assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
@@ -90,15 +90,15 @@ test('invalid: combined luggage now exceeds taxi capacity', () => {
     totalRouteDurationMinutes: 20,
   };
   const remaining = [
-    { id: 'a', bagsCount: 3, maxWaitMinutes: 15 },
-    { id: 'b', bagsCount: 3, maxWaitMinutes: 15 },
+    { id: 'a', largeLuggageCount: 3, maxWaitMinutes: 15 },
+    { id: 'b', largeLuggageCount: 3, maxWaitMinutes: 15 },
   ];
 
   assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
 });
 
 test('invalid: route recomputation failed (null suggestion)', () => {
-  const remaining = [{ id: 'a', bagsCount: 1, maxWaitMinutes: 15 }];
+  const remaining = [{ id: 'a', largeLuggageCount: 1, maxWaitMinutes: 15 }];
   assert.equal(isGroupStillValid(null, remaining, MAX_BAGS, DETOUR_LIMITS), false);
 });
 
@@ -129,4 +129,38 @@ test('buildGroupTotalsPayload sums fare across members', () => {
     total_route_distance_km: 20,
     total_route_duration_minutes: 30,
   });
+});
+
+test('groupRejection names the rule that failed, with its numbers', () => {
+  const remaining = [
+    { id: 'a', largeLuggageCount: 2, maxWaitMinutes: 15 },
+    { id: 'b', largeLuggageCount: 2, maxWaitMinutes: 15 },
+  ];
+  const fits: SuggestionLike = {
+    members: [member({ id: 'a', waitingMinutes: 10 }), member({ id: 'b', waitingMinutes: 10, extraDetourMinutes: 4, directMinutes: 20 })],
+    worstIndividualScore: 9,
+    totalRouteDistanceKm: 12,
+    totalRouteDurationMinutes: 20,
+  };
+
+  assert.equal(groupRejection(fits, remaining, MAX_BAGS, DETOUR_LIMITS), null);
+  assert.deepEqual(groupRejection(null, remaining, MAX_BAGS, DETOUR_LIMITS), { reason: 'route_lookup_failed' });
+  assert.deepEqual(groupRejection(fits, [...remaining, { id: 'c', largeLuggageCount: 2, maxWaitMinutes: 15 }], MAX_BAGS, DETOUR_LIMITS), {
+    reason: 'too_much_large_luggage',
+    total_large_luggage: 6,
+    max_large_luggage: 4,
+  });
+  assert.deepEqual(
+    groupRejection(
+      { ...fits, members: [fits.members[0], member({ id: 'b', extraDetourMinutes: 11, directMinutes: 20 })] },
+      remaining,
+      MAX_BAGS,
+      DETOUR_LIMITS
+    ),
+    { reason: 'detour_over_limit', request_id: 'b', detour_minutes: 11, allowed_minutes: 10 }
+  );
+  assert.deepEqual(
+    groupRejection({ ...fits, members: [member({ id: 'a', waitingMinutes: 20 }), fits.members[1]] }, remaining, MAX_BAGS, DETOUR_LIMITS),
+    { reason: 'wait_over_limit', request_id: 'a', waiting_minutes: 20, max_wait_minutes: 15 }
+  );
 });

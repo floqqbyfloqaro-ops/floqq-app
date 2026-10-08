@@ -9,7 +9,7 @@
 // structurally compatible with matchingEngine.ts's MatchSuggestion/MatchMember, so a real
 // MatchSuggestion can be passed in as-is. (detourLimit.ts is import-free too, so it's safe here.)
 
-import { exceedsDetourLimit } from './detourLimit.ts';
+import { allowedDetourMinutes, exceedsDetourLimit } from './detourLimit.ts';
 import type { DetourLimits } from './detourLimit.ts';
 
 export type SuggestionMemberLike = {
@@ -31,32 +31,60 @@ export type SuggestionLike = {
 
 export type RemainingMember = {
   id: string;
-  bagsCount: number;
+  largeLuggageCount: number;
   maxWaitMinutes: number;
 };
 
+// Why a group no longer fits, with the numbers behind it - recorded in the audit trail when a
+// rescore dissolves a group, so "no longer compatible" can be explained afterwards.
+export type GroupRejection =
+  | { reason: 'route_lookup_failed' }
+  | { reason: 'too_much_large_luggage'; total_large_luggage: number; max_large_luggage: number }
+  | { reason: 'detour_over_limit'; request_id: string; detour_minutes: number; allowed_minutes: number }
+  | { reason: 'wait_over_limit'; request_id: string; waiting_minutes: number; max_wait_minutes: number };
+
 // Re-checks each surviving member's own constraints (detour, their own wait tolerance, and the
-// taxi's total luggage capacity) now that the group is smaller. A null suggestion means the
-// route recomputation itself failed (e.g. Google Routes returned nothing usable) - treated as
-// "no longer valid" rather than silently keeping stale numbers.
-export function isGroupStillValid(
+// taxi's large-luggage capacity - hand luggage doesn't count) now that the group is smaller, and returns the first one that
+// fails - null when the group still fits. A null suggestion means the route recomputation itself
+// failed (e.g. Google Routes returned nothing usable) - treated as "no longer valid" rather than
+// silently keeping stale numbers.
+export function groupRejection(
   suggestion: SuggestionLike | null,
   members: RemainingMember[],
-  maxBagsPerTaxi: number,
+  maxLargeLuggagePerTaxi: number,
   detourLimits: DetourLimits
-): boolean {
-  if (!suggestion) return false;
+): GroupRejection | null {
+  if (!suggestion) return { reason: 'route_lookup_failed' };
 
-  const totalBags = members.reduce((sum, m) => sum + m.bagsCount, 0);
-  if (totalBags > maxBagsPerTaxi) return false;
+  const totalLargeLuggage = members.reduce((sum, m) => sum + m.largeLuggageCount, 0);
+  if (totalLargeLuggage > maxLargeLuggagePerTaxi) return { reason: 'too_much_large_luggage', total_large_luggage: totalLargeLuggage, max_large_luggage: maxLargeLuggagePerTaxi };
 
   const maxWaitById = new Map(members.map((m) => [m.id, m.maxWaitMinutes]));
 
-  return suggestion.members.every((m) => {
-    if (exceedsDetourLimit(m, detourLimits)) return false;
+  for (const m of suggestion.members) {
+    if (exceedsDetourLimit(m, detourLimits)) {
+      return {
+        reason: 'detour_over_limit',
+        request_id: m.id,
+        detour_minutes: m.extraDetourMinutes,
+        allowed_minutes: allowedDetourMinutes(m.directMinutes, detourLimits),
+      };
+    }
     const ownMaxWait = maxWaitById.get(m.id);
-    return ownMaxWait == null || m.waitingMinutes <= ownMaxWait;
-  });
+    if (ownMaxWait != null && m.waitingMinutes > ownMaxWait) {
+      return { reason: 'wait_over_limit', request_id: m.id, waiting_minutes: m.waitingMinutes, max_wait_minutes: ownMaxWait };
+    }
+  }
+  return null;
+}
+
+export function isGroupStillValid(
+  suggestion: SuggestionLike | null,
+  members: RemainingMember[],
+  maxLargeLuggagePerTaxi: number,
+  detourLimits: DetourLimits
+): boolean {
+  return groupRejection(suggestion, members, maxLargeLuggagePerTaxi, detourLimits) === null;
 }
 
 export function buildMemberScoresPayload(suggestion: SuggestionLike) {

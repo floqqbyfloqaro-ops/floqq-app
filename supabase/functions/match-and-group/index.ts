@@ -13,6 +13,7 @@ import { isAuthorized } from '../_shared/auth.ts';
 import { ADMIN_EMAIL } from '../_shared/constants.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { suggestTaxiGroups } from '../_shared/matchingEngine.ts';
+import { announceOffer } from '../_shared/offers.ts';
 
 const LOCK_ID = 1;
 
@@ -48,7 +49,7 @@ Deno.serve(async (req) => {
     const { data: pending, error: pendingError } = await adminClient
       .from('passenger_requests')
       .select(
-        'id, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng'
+        'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng'
       )
       .eq('status', 'pending')
       .order('arrival_at', { ascending: true });
@@ -106,6 +107,10 @@ Deno.serve(async (req) => {
           total_route_duration_minutes: suggestion.totalRouteDurationMinutes,
         })
         .eq('id', group.id);
+
+      // The group is an offer now ("Match found"): start its response window and tell its
+      // passengers (audit event match_offered).
+      await announceOffer(adminClient, group.id);
 
       suggestion.requestIds.forEach((id) => claimed.add(id));
       groupsCreated++;

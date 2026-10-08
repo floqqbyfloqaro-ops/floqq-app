@@ -2,8 +2,9 @@
 // (2026-09-24) - kept in sync with supabase/functions/_shared/constants.ts.
 export const MAX_PASSENGERS_PER_TAXI = 3;
 
-// Caps total bags across a group so everything fits in one taxi's trunk.
-export const MAX_BAGS_PER_TAXI = 4;
+// Caps the LARGE luggage across a group so everything fits in one taxi's trunk. Hand luggage (at
+// most 2 per passenger, see the request form) always fits and doesn't count.
+export const MAX_LARGE_LUGGAGE_PER_TAXI = 4;
 
 // Only this account can see and use the admin screen (also enforced server-side via RLS).
 export const ADMIN_EMAIL = 'floqqbyfloqaro@gmail.com';
@@ -89,6 +90,10 @@ export const DETOUR_LIMITS = {
 // separate from the taxi fare itself, which is still split via fareSplit.ts and settled directly
 // between passengers/driver - no automatic splitting of that fare is handled by this app yet.
 export const SERVICE_FEE_EUR = 2.49;
+
+// The same fee in integer cents, as the payments code counts money - kept in sync with
+// supabase/functions/_shared/holdMath.ts.
+export const PLATFORM_FEE_CENTS = Math.round(SERVICE_FEE_EUR * 100);
 
 // Admin dashboard History tab: rows older than this are hidden by default (never deleted - the
 // admin can still reveal them with "Show all history"). Pilot default; revisit once there's real
