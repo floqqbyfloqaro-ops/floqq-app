@@ -6,7 +6,7 @@
 import type { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { DETOUR_LIMITS, MAX_BAGS_PER_TAXI } from './constants.ts';
-import { buildGroupTotalsPayload, buildMemberScoresPayload, isGroupStillValid } from './groupRebalance.ts';
+import { buildGroupTotalsPayload, buildMemberScoresPayload, groupRejection } from './groupRebalance.ts';
 import { computeGroupScore, PendingPassengerRequest } from './matchingEngine.ts';
 
 const MAX_RESCORE_ATTEMPTS = 3;
@@ -47,12 +47,13 @@ export async function rescoreGroup(
     if (group.length < 2) return;
 
     const suggestion = await computeGroupScore(group);
-    const stillValid = isGroupStillValid(
+    const rejection = groupRejection(
       suggestion,
       group.map((r) => ({ id: r.id, bagsCount: r.bags_count, maxWaitMinutes: r.max_wait_minutes })),
       MAX_BAGS_PER_TAXI,
       DETOUR_LIMITS
     );
+    const stillValid = rejection === null;
 
     const { data: applyResult, error: applyError } = await adminClient.rpc(target.rpc, {
       p_group_id: groupId,
@@ -63,7 +64,19 @@ export async function rescoreGroup(
     });
 
     if (applyError) return;
-    if ((applyResult as { applied: boolean }).applied) return;
+    if ((applyResult as { applied: boolean }).applied) {
+      // The dissolution itself is logged by the SQL as "no_longer_compatible"; this says which
+      // rule failed and by how much.
+      if (rejection) {
+        await adminClient.from('group_events').insert({
+          group_id: groupId,
+          event_type: 'group_recalculated',
+          details: { outcome: 'rejected', ...rejection },
+          actor_type: 'system',
+        });
+      }
+      return;
+    }
 
     const { data: freshGroup } = await adminClient.from('taxi_groups').select('version, status').eq('id', groupId).single();
     if (!freshGroup || freshGroup.status !== target.groupStatus) return;
