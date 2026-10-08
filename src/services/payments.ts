@@ -432,3 +432,103 @@ export async function runAdminPaymentAction(body: AdminPaymentAction) {
   }
   return { error: (data?.error as string | undefined) ?? null };
 }
+
+// --- Phase 8: the admin's payments overview ---
+
+export type AdminRidePayment = {
+  id: string;
+  request_id: string | null;
+  payment_status: RidePaymentStatus;
+  hold_amount_cents: number;
+  captured_cents: number | null;
+  released_cents: number | null;
+  guarantee_cents: number;
+  failure_reason: string | null;
+  outstanding_cents: number | null;
+  outstanding_resolution: 'recharged' | 'written_off' | null;
+  // The transfer of this passenger's share to the payer.
+  payer_transfer_id: string | null;
+  passenger_requests: { passenger_name: string | null; flight_number: string } | null;
+};
+
+export type AdminRidePayout = {
+  payer_request_id: string | null;
+  amount_cents: number;
+  from_captures_cents: number;
+  guarantee_cents: number;
+  transferred_cents: number;
+  status: PayoutProgress;
+  failure_reason: string | null;
+  guarantee_transfer_id: string | null;
+  sent_at: string | null;
+};
+
+// Every member's ride payment and the payer's reimbursement for one group (RLS: admin reads all).
+// Read by group, not by member, so a ride that's over - its passengers detached - still shows.
+export async function fetchGroupPayments(groupId: string) {
+  const [payments, payout] = await Promise.all([
+    supabase
+      .from('ride_payments')
+      .select(
+        'id, request_id, payment_status, hold_amount_cents, captured_cents, released_cents, guarantee_cents, failure_reason, outstanding_cents, outstanding_resolution, payer_transfer_id, passenger_requests(passenger_name, flight_number)'
+      )
+      .eq('group_id', groupId)
+      .order('created_at', { ascending: true })
+      .returns<AdminRidePayment[]>(),
+    supabase
+      .from('ride_payouts')
+      .select(
+        'payer_request_id, amount_cents, from_captures_cents, guarantee_cents, transferred_cents, status, failure_reason, guarantee_transfer_id, sent_at'
+      )
+      .eq('group_id', groupId)
+      .maybeSingle<AdminRidePayout>(),
+  ]);
+  return {
+    payments: payments.data ?? [],
+    payout: payout.data ?? null,
+    error: payments.error ?? payout.error,
+  };
+}
+
+export type GroupPaymentSummary = {
+  // Members with a seat: a released or refunded reservation belongs to someone who left.
+  total: number;
+  reserved: number;
+  charged: number;
+  failed: number;
+  payout: PayoutProgress | null;
+};
+
+// One line per group for the dashboard's groups list.
+export async function fetchGroupPaymentSummaries(groupIds: string[]) {
+  const summaries: Record<string, GroupPaymentSummary> = {};
+  if (groupIds.length === 0) return { summaries, error: null };
+
+  const [payments, payouts] = await Promise.all([
+    supabase
+      .from('ride_payments')
+      .select('group_id, payment_status')
+      .in('group_id', groupIds)
+      .returns<{ group_id: string; payment_status: RidePaymentStatus }[]>(),
+    supabase
+      .from('ride_payouts')
+      .select('group_id, status')
+      .in('group_id', groupIds)
+      .returns<{ group_id: string; status: PayoutProgress }[]>(),
+  ]);
+  const error = payments.error ?? payouts.error;
+  if (error) return { summaries, error };
+
+  for (const row of payments.data ?? []) {
+    if (row.payment_status === 'RELEASED' || row.payment_status === 'REFUNDED') continue;
+    const summary = (summaries[row.group_id] ??= { total: 0, reserved: 0, charged: 0, failed: 0, payout: null });
+    summary.total += 1;
+    if (row.payment_status === 'HOLD_PLACED') summary.reserved += 1;
+    if (row.payment_status === 'CAPTURED') summary.charged += 1;
+    if (row.payment_status === 'HOLD_FAILED' || row.payment_status === 'CAPTURE_FAILED') summary.failed += 1;
+  }
+  for (const row of payouts.data ?? []) {
+    if (summaries[row.group_id]) summaries[row.group_id].payout = row.status;
+  }
+  return { summaries, error: null };
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import AdminGroupPayments from '../components/AdminGroupPayments';
 import AdminReceiptReview from '../components/AdminReceiptReview';
 import AuthTextInput from '../components/AuthTextInput';
 import Card from '../components/Card';
@@ -398,6 +399,15 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
             ) : null}
 
             {receipt ? <AdminReceiptReview groupId={groupId} receipt={receipt} onChanged={loadData} /> : null}
+
+            {PAYMENTS_ENABLED ? (
+              <AdminGroupPayments
+                groupId={groupId}
+                receipt={receipt}
+                payerRequestId={payer?.requestId ?? null}
+                payerPayout={payer?.payout ?? null}
+              />
+            ) : null}
 
             {pendingAction ? (
               <Card style={styles.actionConfirmCard}>

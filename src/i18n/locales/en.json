@@ -417,5 +417,59 @@
     "noReceipt": "No receipt yet - the estimated fare is charged at {{time}}",
     "holdsExpire": "Reservations expire {{time}}",
     "actionError": "That didn’t work ({{reason}})."
+  },
+  "adminPayments": {
+    "title": "Payments",
+    "paysTaxi": "pays the taxi",
+    "status": {
+      "NOT_STARTED": "Not reserved yet",
+      "HOLD_PENDING_AUTH": "Waiting for the bank’s approval (3D Secure)",
+      "HOLD_PLACED": "Reserved",
+      "HOLD_FAILED": "Reservation failed",
+      "CAPTURED": "Charged",
+      "RELEASED": "Released - nothing charged",
+      "CAPTURE_FAILED": "Charge failed",
+      "REFUNDED": "Refunded"
+    },
+    "reserved": "Reserved €{{amount}}",
+    "charged": "charged €{{amount}}",
+    "released": "released €{{amount}}",
+    "failure": "Reason: {{reason}}",
+    "outstanding": {
+      "open": "Still owes €{{amount}}",
+      "recharged": "€{{amount}} was owed - charged again later",
+      "written_off": "€{{amount}} was owed - written off"
+    },
+    "memberGuarantee": "FLOQQ’s guarantee covers €{{amount}} of this share",
+    "transfer": "Transfer to payer: {{id}}",
+    "payerTitle": "Payer",
+    "payoutAccount": "payout account: {{payout}}",
+    "noPayer": "No payer yet",
+    "receiptTitle": "Receipt",
+    "receiptLine": "€{{total}} · {{status}}",
+    "noReceipt": "No receipt yet",
+    "chargeAt": "Cards are charged {{time}}",
+    "chargedAt": "Cards charged {{time}}",
+    "payoutTitle": "Transfers to the payer",
+    "payoutLine": "€{{sent}} of €{{amount}} sent · {{status}}",
+    "payoutStatus": {
+      "WAITING_FOR_PAYOUT_SETUP": "waiting for the payer’s payout account",
+      "PENDING": "on its way",
+      "SENT": "sent",
+      "HELD_FOR_REVIEW": "held for your approval"
+    },
+    "payoutSplit": "€{{captures}} from the passengers’ charges · €{{guarantee}} from FLOQQ",
+    "payoutSentAt": "Sent {{time}}",
+    "payoutProblem": "Not sent yet: {{reason}}",
+    "guaranteeTransfer": "FLOQQ’s own transfer: {{id}}",
+    "payoutNotStarted": "Payer gets €{{amount}} once the cards are charged",
+    "payoutNoReceipt": "Nothing yet - waiting for the receipt",
+    "guaranteeTitle": "Ride Payment Guarantee",
+    "guaranteeUsed": "Used: FLOQQ covers €{{amount}}",
+    "guaranteeNotUsed": "Not used",
+    "summaryReserved": "Payments: {{reserved}} of {{total}} reserved",
+    "summaryCharged": "Payments: {{charged}} of {{total}} charged",
+    "summaryFailed": "{{count}} failed",
+    "summaryPayout": "payout {{status}}"
   }
 }
