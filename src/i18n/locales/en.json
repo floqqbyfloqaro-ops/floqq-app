@@ -471,5 +471,27 @@
     "summaryCharged": "Payments: {{charged}} of {{total}} charged",
     "summaryFailed": "{{count}} failed",
     "summaryPayout": "payout {{status}}"
+  },
+  "match_found_title": "Match found!",
+  "match_found_subtitle": "You’re riding together.",
+  "fare_estimate_note": "Final amount based on the taxi meter",
+  "secure_my_spot": "Secure my spot",
+  "secure_spot_fee_note": "Secure your ride and pay the €{{fee}} platform fee",
+  "decline_match": "Not for me",
+  "matchFound": {
+    "passengers": "{{count}} passengers",
+    "you": "You",
+    "traveler": "Traveler",
+    "destinationHidden": "Nearby destination",
+    "lands": "Lands {{time}}",
+    "landed": "Landed {{time}}",
+    "onTime": "On time",
+    "delayed": "Delayed {{minutes}} min",
+    "totalFareLabel": "Est. total fare",
+    "yourShareLabel": "Your share",
+    "fareUnknown": "-",
+    "loadError": "We couldn’t load your match.",
+    "mapWebOnly": "The route map is shown in the FLOQQ mobile app.",
+    "editRide": "Change my ride details"
   }
 }

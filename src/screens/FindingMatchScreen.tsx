@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import Avatar, { AVATAR_COUNT } from '../components/Avatar';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import ScreenBackground from '../components/ScreenBackground';
@@ -18,15 +19,11 @@ type Props = {
   onCancelled: () => void;
 };
 
-// No real per-passenger candidate data is reachable from the client today: the corridor-match
-// DB function isn't security-definer, so RLS limits a passenger's query to their own row, and
-// there's no avatar/photo concept anywhere in this app's schema. These are generic placeholders,
-// not a claim that this many travelers have actually been found.
-const PLACEHOLDER_AVATARS = [
-  require('../../assets/avatars/avatar-1.png'),
-  require('../../assets/avatars/avatar-2.png'),
-  require('../../assets/avatars/avatar-3.png'),
-];
+// No real per-passenger candidate data is reachable from the client while searching: the
+// corridor-match DB function isn't security-definer, so RLS limits a passenger's query to their
+// own row. The avatars are generic placeholders (see Avatar), not a claim that this many
+// travelers have actually been found.
+const AVATAR_INDICES = Array.from({ length: AVATAR_COUNT }, (_, index) => index);
 
 export default function FindingMatchScreen({ request, onBack, onEdit, onCancelled }: Props) {
   const { t } = useTranslation();
@@ -127,12 +124,9 @@ export default function FindingMatchScreen({ request, onBack, onEdit, onCancelle
         <Text style={styles.subtitle}>{t('findingMatch.subtitle')}</Text>
 
         <View style={styles.avatarRow}>
-          {PLACEHOLDER_AVATARS.map((source, index) => (
-            <Animated.View
-              key={index}
-              style={[styles.avatarFrame, index === 1 && styles.avatarFrameRaised, breatheStyle]}
-            >
-              <Image source={source} style={styles.avatarImage} resizeMode="cover" />
+          {AVATAR_INDICES.map((index) => (
+            <Animated.View key={index} style={[index === 1 && styles.avatarFrameRaised, breatheStyle]}>
+              <Avatar index={index} />
             </Animated.View>
           ))}
         </View>
@@ -223,24 +217,8 @@ const styles = StyleSheet.create({
     gap: spacing.x4,
     marginBottom: spacing.x8,
   },
-  avatarFrame: {
-    width: 56,
-    height: 56,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surfaceCard,
-    borderWidth: borders.regular,
-    borderColor: colors.borderSubtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    ...elevation.resting,
-  },
   avatarFrameRaised: {
     marginBottom: spacing.x3,
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
   },
   centerStage: {
     width: 160,

@@ -64,3 +64,70 @@ export async function computeRouteMatrix(points: LatLng[]): Promise<RouteMatrixC
       distanceMeters: row.distanceMeters ?? 0,
     }));
 }
+
+// The drawn route through these points in order (first = origin, last = destination), as a
+// Google encoded polyline - for the "Match found" map. Null when Google has no route or the key
+// is missing: the app shows a placeholder instead of a map.
+export async function computeRoutePolyline(points: LatLng[]): Promise<string | null> {
+  if (!GOOGLE_ROUTES_API_KEY || points.length < 2) {
+    return null;
+  }
+
+  const toLocation = (point: LatLng) => ({ location: { latLng: { latitude: point.lat, longitude: point.lng } } });
+
+  const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_ROUTES_API_KEY,
+      'X-Goog-FieldMask': 'routes.polyline.encodedPolyline',
+    },
+    body: JSON.stringify({
+      origin: toLocation(points[0]),
+      destination: toLocation(points[points.length - 1]),
+      intermediates: points.slice(1, -1).map(toLocation),
+      travelMode: 'DRIVE',
+      polylineQuality: 'OVERVIEW',
+    }),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json();
+  const encoded = data?.routes?.[0]?.polyline?.encodedPolyline;
+  return typeof encoded === 'string' && encoded.length > 0 ? encoded : null;
+}
+
+// The neighbourhood-level name of a place ("Eixample", "Gràcia", or the town outside Barcelona) -
+// what other passengers see instead of an address. Uses the same key, which must also allow the
+// Geocoding API; null when it doesn't or Google has no such name.
+export async function lookupNeighborhood(point: LatLng): Promise<string | null> {
+  if (!GOOGLE_ROUTES_API_KEY) {
+    return null;
+  }
+
+  const url =
+    'https://maps.googleapis.com/maps/api/geocode/json' +
+    `?latlng=${point.lat},${point.lng}&language=ca&key=${GOOGLE_ROUTES_API_KEY}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json();
+  if (data?.status !== 'OK' || !Array.isArray(data.results)) {
+    if (data?.status && data.status !== 'ZERO_RESULTS') console.warn('lookupNeighborhood failed', data.status);
+    return null;
+  }
+
+  // District first (Barcelona's "Eixample"), then a smaller neighbourhood, then the town.
+  for (const type of ['sublocality_level_1', 'sublocality', 'neighborhood', 'locality']) {
+    for (const result of data.results) {
+      const component = (result.address_components ?? []).find((c: any) => (c.types ?? []).includes(type));
+      if (component?.long_name) return component.long_name as string;
+    }
+  }
+  return null;
+}

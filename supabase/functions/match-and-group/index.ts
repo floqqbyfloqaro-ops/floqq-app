@@ -107,6 +107,14 @@ Deno.serve(async (req) => {
         })
         .eq('id', group.id);
 
+      // Audit trail: this group was proposed to its passengers ("Match found").
+      await adminClient.from('group_events').insert({
+        group_id: group.id,
+        event_type: 'match_offered',
+        details: { request_ids: suggestion.requestIds },
+        actor_type: 'system',
+      });
+
       suggestion.requestIds.forEach((id) => claimed.add(id));
       groupsCreated++;
     }

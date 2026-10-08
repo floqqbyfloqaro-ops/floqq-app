@@ -21,13 +21,17 @@ const LOCK_ID = 2;
 // is what actually triggers a rescore.
 const LANDING_TIME_CHANGE_THRESHOLD_SECONDS = 60;
 
-type GroupedRow = PendingPassengerRequest & { group_id: string };
+type GroupedRow = PendingPassengerRequest & { group_id: string; scheduled_arrival_at: string | null };
+
+// The flight's current landing time and the one it was scheduled for ("Match found" shows the
+// difference as "On time" / "Delayed").
+type LandingTimes = { estimate: string | null; scheduled: string | null };
 
 // anchorMs is the member's own current arrival_at, not "now" - a reused flight number/ident
 // (e.g. a daily route) would otherwise resolve to whichever occurrence is nearest to whenever
 // this job happens to run, which can silently overwrite arrival_at with the wrong day's landing
 // time. See _shared/flightLookup.ts.
-async function fetchEstimatedLandingUtc(flightNumber: string, anchorMs: number, apiKey: string): Promise<string | null> {
+async function fetchLandingTimes(flightNumber: string, anchorMs: number, apiKey: string): Promise<LandingTimes | null> {
   const response = await fetch(`${AEROAPI_BASE_URL}/flights/${encodeURIComponent(flightNumber)}`, {
     headers: { 'x-apikey': apiKey },
   });
@@ -37,7 +41,10 @@ async function fetchEstimatedLandingUtc(flightNumber: string, anchorMs: number, 
   const flight = pickBestFlight(data?.flights, anchorMs);
   if (!flight) return null;
 
-  return flight.actual_in ?? flight.estimated_in ?? flight.scheduled_in ?? null;
+  return {
+    estimate: flight.actual_in ?? flight.estimated_in ?? flight.scheduled_in ?? null,
+    scheduled: flight.scheduled_in ?? null,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -71,7 +78,7 @@ Deno.serve(async (req) => {
     const { data: rows, error: rowsError } = await adminClient
       .from('passenger_requests')
       .select(
-        'id, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng, group_id, taxi_groups!inner(status)'
+        'id, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng, group_id, scheduled_arrival_at, taxi_groups!inner(status)'
       )
       .eq('taxi_groups.status', 'unconfirmed');
 
@@ -93,8 +100,20 @@ Deno.serve(async (req) => {
     let groupsRescored = 0;
 
     for (const [groupId, members] of groups) {
-      const estimates = await Promise.all(
-        members.map((m) => fetchEstimatedLandingUtc(m.flight_number, new Date(m.arrival_at).getTime(), apiKey))
+      const landings = await Promise.all(
+        members.map((m) => fetchLandingTimes(m.flight_number, new Date(m.arrival_at).getTime(), apiKey))
+      );
+      const estimates = landings.map((landing) => landing?.estimate ?? null);
+
+      // Remember each flight's scheduled landing; it changes nothing about the group's scoring.
+      await Promise.all(
+        members.map((member, index) => {
+          const scheduled = landings[index]?.scheduled;
+          const known = member.scheduled_arrival_at ? new Date(member.scheduled_arrival_at).getTime() : null;
+          return scheduled && new Date(scheduled).getTime() !== known
+            ? adminClient.from('passenger_requests').update({ scheduled_arrival_at: scheduled }).eq('id', member.id)
+            : Promise.resolve();
+        })
       );
 
       let changed = false;

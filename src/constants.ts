@@ -90,6 +90,10 @@ export const DETOUR_LIMITS = {
 // between passengers/driver - no automatic splitting of that fare is handled by this app yet.
 export const SERVICE_FEE_EUR = 2.49;
 
+// The same fee in integer cents, as the payments code counts money - kept in sync with
+// supabase/functions/_shared/holdMath.ts.
+export const PLATFORM_FEE_CENTS = Math.round(SERVICE_FEE_EUR * 100);
+
 // Admin dashboard History tab: rows older than this are hidden by default (never deleted - the
 // admin can still reveal them with "Show all history"). Pilot default; revisit once there's real
 // History-tab volume to judge against.
