@@ -10,6 +10,8 @@ export type PendingPassengerRequest = {
   created_at: string;
   destination_address: string;
   bags_count: number;
+  // Only large luggage counts towards the taxi's limit (see MAX_LARGE_LUGGAGE_PER_TAXI).
+  large_luggage_count: number;
   max_wait_minutes: number;
   destination_lat: number | null;
   destination_lng: number | null;
@@ -23,7 +25,7 @@ export function fetchPendingRequests() {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng'
+      'id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng'
     )
     .eq('status', 'pending')
     .order('arrival_at', { ascending: true });

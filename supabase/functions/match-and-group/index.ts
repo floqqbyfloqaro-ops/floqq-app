@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     const { data: pending, error: pendingError } = await adminClient
       .from('passenger_requests')
       .select(
-        'id, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng'
+        'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng'
       )
       .eq('status', 'pending')
       .order('arrival_at', { ascending: true });

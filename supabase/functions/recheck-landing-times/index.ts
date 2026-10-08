@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
     const { data: rows, error: rowsError } = await adminClient
       .from('passenger_requests')
       .select(
-        'id, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng, group_id, scheduled_arrival_at, taxi_groups!inner(status)'
+        'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, group_id, scheduled_arrival_at, taxi_groups!inner(status)'
       )
       .eq('taxi_groups.status', 'unconfirmed');
 

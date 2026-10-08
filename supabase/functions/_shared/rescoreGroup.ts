@@ -5,7 +5,7 @@
 
 import type { createClient } from 'npm:@supabase/supabase-js@2';
 
-import { DETOUR_LIMITS, MAX_BAGS_PER_TAXI } from './constants.ts';
+import { DETOUR_LIMITS, MAX_LARGE_LUGGAGE_PER_TAXI } from './constants.ts';
 import { buildGroupTotalsPayload, buildMemberScoresPayload, groupRejection } from './groupRebalance.ts';
 import { computeGroupScore, PendingPassengerRequest } from './matchingEngine.ts';
 
@@ -32,7 +32,7 @@ export async function rescoreGroup(
   for (let attempt = 0; attempt < MAX_RESCORE_ATTEMPTS; attempt++) {
     const { data: members, error: membersError } = await adminClient
       .from('passenger_requests')
-      .select('id, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng')
+      .select('id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng')
       .eq('group_id', groupId);
 
     if (membersError || !members) return;
@@ -49,8 +49,8 @@ export async function rescoreGroup(
     const suggestion = await computeGroupScore(group);
     const rejection = groupRejection(
       suggestion,
-      group.map((r) => ({ id: r.id, bagsCount: r.bags_count, maxWaitMinutes: r.max_wait_minutes })),
-      MAX_BAGS_PER_TAXI,
+      group.map((r) => ({ id: r.id, largeLuggageCount: r.large_luggage_count, maxWaitMinutes: r.max_wait_minutes })),
+      MAX_LARGE_LUGGAGE_PER_TAXI,
       DETOUR_LIMITS
     );
     const stillValid = rejection === null;

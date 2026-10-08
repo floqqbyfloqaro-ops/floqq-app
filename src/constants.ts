@@ -2,8 +2,9 @@
 // (2026-09-24) - kept in sync with supabase/functions/_shared/constants.ts.
 export const MAX_PASSENGERS_PER_TAXI = 3;
 
-// Caps total bags across a group so everything fits in one taxi's trunk.
-export const MAX_BAGS_PER_TAXI = 4;
+// Caps the LARGE luggage across a group so everything fits in one taxi's trunk. Hand luggage (at
+// most 2 per passenger, see the request form) always fits and doesn't count.
+export const MAX_LARGE_LUGGAGE_PER_TAXI = 4;
 
 // Only this account can see and use the admin screen (also enforced server-side via RLS).
 export const ADMIN_EMAIL = 'floqqbyfloqaro@gmail.com';

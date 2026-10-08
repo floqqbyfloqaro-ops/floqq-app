@@ -14,7 +14,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-import { ADMIN_EMAIL, DETOUR_LIMITS, MAX_BAGS_PER_TAXI, MAX_PASSENGERS_PER_TAXI } from '../_shared/constants.ts';
+import { ADMIN_EMAIL, DETOUR_LIMITS, MAX_LARGE_LUGGAGE_PER_TAXI, MAX_PASSENGERS_PER_TAXI } from '../_shared/constants.ts';
 import { buildGroupTotalsPayload, buildMemberScoresPayload, isGroupStillValid } from '../_shared/groupRebalance.ts';
 import { computeGroupScore, PendingPassengerRequest } from '../_shared/matchingEngine.ts';
 import { rescoreGroup } from '../_shared/rescoreGroup.ts';
@@ -37,7 +37,7 @@ function isBody(value: unknown): value is Body {
 }
 
 const GROUP_COLUMNS =
-  'id, flight_number, arrival_at, destination_address, bags_count, max_wait_minutes, destination_lat, destination_lng';
+  'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng';
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
@@ -168,8 +168,8 @@ Deno.serve(async (req) => {
 
   const compatible = isGroupStillValid(
     suggestion,
-    geocoded.map((r) => ({ id: r.id, bagsCount: r.bags_count, maxWaitMinutes: r.max_wait_minutes })),
-    MAX_BAGS_PER_TAXI,
+    geocoded.map((r) => ({ id: r.id, largeLuggageCount: r.large_luggage_count, maxWaitMinutes: r.max_wait_minutes })),
+    MAX_LARGE_LUGGAGE_PER_TAXI,
     DETOUR_LIMITS
   );
 

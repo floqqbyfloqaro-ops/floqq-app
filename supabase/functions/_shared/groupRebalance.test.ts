@@ -30,8 +30,8 @@ test('valid group: within detour and each member within their own wait tolerance
     totalRouteDurationMinutes: 20,
   };
   const remaining = [
-    { id: 'a', bagsCount: 1, maxWaitMinutes: 10 },
-    { id: 'b', bagsCount: 1, maxWaitMinutes: 10 },
+    { id: 'a', largeLuggageCount: 1, maxWaitMinutes: 10 },
+    { id: 'b', largeLuggageCount: 1, maxWaitMinutes: 10 },
   ];
 
   assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), true);
@@ -45,8 +45,8 @@ test('invalid: a member now exceeds MAX_DETOUR_MINUTES', () => {
     totalRouteDurationMinutes: 20,
   };
   const remaining = [
-    { id: 'a', bagsCount: 1, maxWaitMinutes: 10 },
-    { id: 'b', bagsCount: 1, maxWaitMinutes: 10 },
+    { id: 'a', largeLuggageCount: 1, maxWaitMinutes: 10 },
+    { id: 'b', largeLuggageCount: 1, maxWaitMinutes: 10 },
   ];
 
   assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
@@ -60,8 +60,8 @@ test('invalid: a member is within 15 min but over 50% of their own short direct 
     totalRouteDurationMinutes: 24,
   };
   const remaining = [
-    { id: 'a', bagsCount: 1, maxWaitMinutes: 10 },
-    { id: 'b', bagsCount: 1, maxWaitMinutes: 10 },
+    { id: 'a', largeLuggageCount: 1, maxWaitMinutes: 10 },
+    { id: 'b', largeLuggageCount: 1, maxWaitMinutes: 10 },
   ];
 
   assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
@@ -75,8 +75,8 @@ test('invalid: a member now waits longer than their own max_wait_minutes', () =>
     totalRouteDurationMinutes: 20,
   };
   const remaining = [
-    { id: 'a', bagsCount: 1, maxWaitMinutes: 15 },
-    { id: 'b', bagsCount: 1, maxWaitMinutes: 15 },
+    { id: 'a', largeLuggageCount: 1, maxWaitMinutes: 15 },
+    { id: 'b', largeLuggageCount: 1, maxWaitMinutes: 15 },
   ];
 
   assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
@@ -90,15 +90,15 @@ test('invalid: combined luggage now exceeds taxi capacity', () => {
     totalRouteDurationMinutes: 20,
   };
   const remaining = [
-    { id: 'a', bagsCount: 3, maxWaitMinutes: 15 },
-    { id: 'b', bagsCount: 3, maxWaitMinutes: 15 },
+    { id: 'a', largeLuggageCount: 3, maxWaitMinutes: 15 },
+    { id: 'b', largeLuggageCount: 3, maxWaitMinutes: 15 },
   ];
 
   assert.equal(isGroupStillValid(suggestion, remaining, MAX_BAGS, DETOUR_LIMITS), false);
 });
 
 test('invalid: route recomputation failed (null suggestion)', () => {
-  const remaining = [{ id: 'a', bagsCount: 1, maxWaitMinutes: 15 }];
+  const remaining = [{ id: 'a', largeLuggageCount: 1, maxWaitMinutes: 15 }];
   assert.equal(isGroupStillValid(null, remaining, MAX_BAGS, DETOUR_LIMITS), false);
 });
 
@@ -133,8 +133,8 @@ test('buildGroupTotalsPayload sums fare across members', () => {
 
 test('groupRejection names the rule that failed, with its numbers', () => {
   const remaining = [
-    { id: 'a', bagsCount: 2, maxWaitMinutes: 15 },
-    { id: 'b', bagsCount: 2, maxWaitMinutes: 15 },
+    { id: 'a', largeLuggageCount: 2, maxWaitMinutes: 15 },
+    { id: 'b', largeLuggageCount: 2, maxWaitMinutes: 15 },
   ];
   const fits: SuggestionLike = {
     members: [member({ id: 'a', waitingMinutes: 10 }), member({ id: 'b', waitingMinutes: 10, extraDetourMinutes: 4, directMinutes: 20 })],
@@ -145,10 +145,10 @@ test('groupRejection names the rule that failed, with its numbers', () => {
 
   assert.equal(groupRejection(fits, remaining, MAX_BAGS, DETOUR_LIMITS), null);
   assert.deepEqual(groupRejection(null, remaining, MAX_BAGS, DETOUR_LIMITS), { reason: 'route_lookup_failed' });
-  assert.deepEqual(groupRejection(fits, [...remaining, { id: 'c', bagsCount: 2, maxWaitMinutes: 15 }], MAX_BAGS, DETOUR_LIMITS), {
-    reason: 'too_many_bags',
-    total_bags: 6,
-    max_bags: 4,
+  assert.deepEqual(groupRejection(fits, [...remaining, { id: 'c', largeLuggageCount: 2, maxWaitMinutes: 15 }], MAX_BAGS, DETOUR_LIMITS), {
+    reason: 'too_much_large_luggage',
+    total_large_luggage: 6,
+    max_large_luggage: 4,
   });
   assert.deepEqual(
     groupRejection(

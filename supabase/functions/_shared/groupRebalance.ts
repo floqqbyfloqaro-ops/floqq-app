@@ -31,7 +31,7 @@ export type SuggestionLike = {
 
 export type RemainingMember = {
   id: string;
-  bagsCount: number;
+  largeLuggageCount: number;
   maxWaitMinutes: number;
 };
 
@@ -39,25 +39,25 @@ export type RemainingMember = {
 // rescore dissolves a group, so "no longer compatible" can be explained afterwards.
 export type GroupRejection =
   | { reason: 'route_lookup_failed' }
-  | { reason: 'too_many_bags'; total_bags: number; max_bags: number }
+  | { reason: 'too_much_large_luggage'; total_large_luggage: number; max_large_luggage: number }
   | { reason: 'detour_over_limit'; request_id: string; detour_minutes: number; allowed_minutes: number }
   | { reason: 'wait_over_limit'; request_id: string; waiting_minutes: number; max_wait_minutes: number };
 
 // Re-checks each surviving member's own constraints (detour, their own wait tolerance, and the
-// taxi's total luggage capacity) now that the group is smaller, and returns the first one that
+// taxi's large-luggage capacity - hand luggage doesn't count) now that the group is smaller, and returns the first one that
 // fails - null when the group still fits. A null suggestion means the route recomputation itself
 // failed (e.g. Google Routes returned nothing usable) - treated as "no longer valid" rather than
 // silently keeping stale numbers.
 export function groupRejection(
   suggestion: SuggestionLike | null,
   members: RemainingMember[],
-  maxBagsPerTaxi: number,
+  maxLargeLuggagePerTaxi: number,
   detourLimits: DetourLimits
 ): GroupRejection | null {
   if (!suggestion) return { reason: 'route_lookup_failed' };
 
-  const totalBags = members.reduce((sum, m) => sum + m.bagsCount, 0);
-  if (totalBags > maxBagsPerTaxi) return { reason: 'too_many_bags', total_bags: totalBags, max_bags: maxBagsPerTaxi };
+  const totalLargeLuggage = members.reduce((sum, m) => sum + m.largeLuggageCount, 0);
+  if (totalLargeLuggage > maxLargeLuggagePerTaxi) return { reason: 'too_much_large_luggage', total_large_luggage: totalLargeLuggage, max_large_luggage: maxLargeLuggagePerTaxi };
 
   const maxWaitById = new Map(members.map((m) => [m.id, m.maxWaitMinutes]));
 
@@ -81,10 +81,10 @@ export function groupRejection(
 export function isGroupStillValid(
   suggestion: SuggestionLike | null,
   members: RemainingMember[],
-  maxBagsPerTaxi: number,
+  maxLargeLuggagePerTaxi: number,
   detourLimits: DetourLimits
 ): boolean {
-  return groupRejection(suggestion, members, maxBagsPerTaxi, detourLimits) === null;
+  return groupRejection(suggestion, members, maxLargeLuggagePerTaxi, detourLimits) === null;
 }
 
 export function buildMemberScoresPayload(suggestion: SuggestionLike) {

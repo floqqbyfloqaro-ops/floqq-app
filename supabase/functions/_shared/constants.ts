@@ -5,7 +5,8 @@ export const ADMIN_EMAIL = 'floqqbyfloqaro@gmail.com';
 
 // Kept in sync with src/constants.ts.
 export const MAX_PASSENGERS_PER_TAXI = 3;
-export const MAX_BAGS_PER_TAXI = 4;
+// Large luggage only - hand luggage (at most 2 per passenger) doesn't count towards it.
+export const MAX_LARGE_LUGGAGE_PER_TAXI = 4;
 
 export const AIRPORT = {
   code: 'BCN',
