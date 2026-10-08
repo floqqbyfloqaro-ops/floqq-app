@@ -38,6 +38,7 @@ import {
   updatePassengerDistance,
 } from '../services/adminGrouping';
 import { computeGroupScore, MatchSuggestion, suggestTaxiGroups } from '../services/matchingEngine';
+import { fetchGroupPaymentSummaries, GroupPaymentSummary } from '../services/payments';
 import { baseText, colors, motion, overlays, spacing } from '../theme/colors';
 import { addDaysToDayKey, barcelonaDayKey, formatBarcelonaDateTime, weekdayForDayKey } from '../utils/formatDateTime';
 import GroupDetailScreen from './GroupDetailScreen';
@@ -98,6 +99,8 @@ export default function AdminScreen({ session, onBack }: Props) {
   const [groupRideDates, setGroupRideDates] = useState<Record<string, string>>({});
   // Payments prototype, phase 5: groupId -> what the admin needs to know about its taxi receipt.
   const [receiptFlags, setReceiptFlags] = useState<Record<string, string>>({});
+  // Phase 8: groupId -> how far its reservations, charges and payout are.
+  const [paymentSummaries, setPaymentSummaries] = useState<Record<string, GroupPaymentSummary>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -160,6 +163,13 @@ export default function AdminScreen({ session, onBack }: Props) {
       }
 
       if (PAYMENTS_ENABLED && activeGroups.length > 0) {
+        const { summaries, error: summariesError } = await fetchGroupPaymentSummaries(activeGroups.map((g) => g.id));
+        if (summariesError) {
+          console.warn('fetchGroupPaymentSummaries failed', summariesError);
+        } else {
+          setPaymentSummaries(summaries);
+        }
+
         const { data: flagged, error: flaggedError } = await fetchReceiptFlags(activeGroups.map((g) => g.id));
         if (flaggedError) {
           console.warn('fetchReceiptFlags failed', flaggedError);
@@ -578,18 +588,33 @@ export default function AdminScreen({ session, onBack }: Props) {
                 ? t('admin.groupRideDateLabel', { date: formatRideDateTime(t, i18n.language, rideDate) })
                 : null;
               const createdLabel = t('admin.groupCreatedLabel', { date: formatBarcelonaDateTime(group.created_at) });
+              const summary = paymentSummaries[group.id];
+              const paymentsLabel = summary
+                ? [
+                    summary.charged > 0
+                      ? t('adminPayments.summaryCharged', { charged: summary.charged, total: summary.total })
+                      : t('adminPayments.summaryReserved', { reserved: summary.reserved, total: summary.total }),
+                    summary.failed > 0 ? t('adminPayments.summaryFailed', { count: summary.failed }) : null,
+                    summary.payout
+                      ? t('adminPayments.summaryPayout', { status: t(`adminPayments.payoutStatus.${summary.payout}`) })
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : null;
               return (
                 <Card
                   key={group.id}
                   onPress={() => setOpenGroupId(group.id)}
                   style={styles.groupRow}
                   accessibilityLabel={`${rideDateLabel ? `${rideDateLabel}, ` : ''}${createdLabel}, ${fareLabel}, ${
-                    receiptFlags[group.id] ? `${receiptFlags[group.id]}, ` : ''
-                  }${statusLabel}`}
+                    paymentsLabel ? `${paymentsLabel}, ` : ''
+                  }${receiptFlags[group.id] ? `${receiptFlags[group.id]}, ` : ''}${statusLabel}`}
                 >
                   {rideDateLabel ? <Text style={styles.groupTitle}>{rideDateLabel}</Text> : null}
                   <Text style={rideDateLabel ? styles.groupSubtitle : styles.groupTitle}>{createdLabel}</Text>
                   <Text style={styles.groupSubtitle}>{fareLabel}</Text>
+                  {paymentsLabel ? <Text style={styles.groupSubtitle}>{paymentsLabel}</Text> : null}
                   {receiptFlags[group.id] ? <Text style={styles.guaranteeFlag}>{receiptFlags[group.id]}</Text> : null}
                   <StatusPill
                     status={group.status === 'confirmed' ? 'Group Confirmed' : group.status === 'dissolved' ? 'Cancelled' : 'Searching'}

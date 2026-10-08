@@ -417,5 +417,59 @@
     "noReceipt": "Pas encore de reçu - le tarif estimé est débité à {{time}}",
     "holdsExpire": "Les réservations expirent {{time}}",
     "actionError": "Cela n’a pas fonctionné ({{reason}})."
+  },
+  "adminPayments": {
+    "title": "Paiements",
+    "paysTaxi": "paie le taxi",
+    "status": {
+      "NOT_STARTED": "Pas encore réservé",
+      "HOLD_PENDING_AUTH": "En attente de l’accord de la banque (3D Secure)",
+      "HOLD_PLACED": "Réservé",
+      "HOLD_FAILED": "Réservation échouée",
+      "CAPTURED": "Débité",
+      "RELEASED": "Libéré - rien n’a été débité",
+      "CAPTURE_FAILED": "Débit échoué",
+      "REFUNDED": "Remboursé"
+    },
+    "reserved": "Réservé {{amount}} €",
+    "charged": "débité {{amount}} €",
+    "released": "libéré {{amount}} €",
+    "failure": "Raison : {{reason}}",
+    "outstanding": {
+      "open": "Doit encore {{amount}} €",
+      "recharged": "Devait {{amount}} € - débité à nouveau plus tard",
+      "written_off": "Devait {{amount}} € - annulé"
+    },
+    "memberGuarantee": "La garantie FLOQQ couvre {{amount}} € de cette part",
+    "transfer": "Virement au payeur : {{id}}",
+    "payerTitle": "Payeur",
+    "payoutAccount": "compte de versement : {{payout}}",
+    "noPayer": "Pas encore de payeur",
+    "receiptTitle": "Reçu",
+    "receiptLine": "{{total}} € · {{status}}",
+    "noReceipt": "Pas encore de reçu",
+    "chargeAt": "Les cartes sont débitées {{time}}",
+    "chargedAt": "Cartes débitées {{time}}",
+    "payoutTitle": "Virements au payeur",
+    "payoutLine": "{{sent}} € sur {{amount}} € envoyés · {{status}}",
+    "payoutStatus": {
+      "WAITING_FOR_PAYOUT_SETUP": "en attente du compte de versement du payeur",
+      "PENDING": "en cours",
+      "SENT": "envoyé",
+      "HELD_FOR_REVIEW": "retenu jusqu’à votre accord"
+    },
+    "payoutSplit": "{{captures}} € des débits des passagers · {{guarantee}} € de FLOQQ",
+    "payoutSentAt": "Envoyé {{time}}",
+    "payoutProblem": "Pas encore envoyé : {{reason}}",
+    "guaranteeTransfer": "Virement propre de FLOQQ : {{id}}",
+    "payoutNotStarted": "Le payeur reçoit {{amount}} € une fois les cartes débitées",
+    "payoutNoReceipt": "Rien pour l’instant - en attente du reçu",
+    "guaranteeTitle": "Garantie de paiement du trajet",
+    "guaranteeUsed": "Utilisée : FLOQQ couvre {{amount}} €",
+    "guaranteeNotUsed": "Non utilisée",
+    "summaryReserved": "Paiements : {{reserved}} sur {{total}} réservés",
+    "summaryCharged": "Paiements : {{charged}} sur {{total}} débités",
+    "summaryFailed": "{{count}} échoués",
+    "summaryPayout": "versement au payeur : {{status}}"
   }
 }

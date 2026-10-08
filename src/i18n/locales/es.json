@@ -413,5 +413,59 @@
     "noReceipt": "Aún sin recibo: la tarifa estimada se cobra a las {{time}}",
     "holdsExpire": "Las reservas caducan {{time}}",
     "actionError": "No ha funcionado ({{reason}})."
+  },
+  "adminPayments": {
+    "title": "Pagos",
+    "paysTaxi": "paga el taxi",
+    "status": {
+      "NOT_STARTED": "Aún sin reservar",
+      "HOLD_PENDING_AUTH": "Esperando la aprobación del banco (3D Secure)",
+      "HOLD_PLACED": "Reservado",
+      "HOLD_FAILED": "Reserva fallida",
+      "CAPTURED": "Cobrado",
+      "RELEASED": "Liberado - no se ha cobrado nada",
+      "CAPTURE_FAILED": "Cobro fallido",
+      "REFUNDED": "Reembolsado"
+    },
+    "reserved": "Reservado {{amount}} €",
+    "charged": "cobrado {{amount}} €",
+    "released": "liberado {{amount}} €",
+    "failure": "Motivo: {{reason}}",
+    "outstanding": {
+      "open": "Aún debe {{amount}} €",
+      "recharged": "Debía {{amount}} € - cobrado de nuevo más tarde",
+      "written_off": "Debía {{amount}} € - cancelado"
+    },
+    "memberGuarantee": "La garantía de FLOQQ cubre {{amount}} € de esta parte",
+    "transfer": "Transferencia al pagador: {{id}}",
+    "payerTitle": "Pagador",
+    "payoutAccount": "cuenta de cobro: {{payout}}",
+    "noPayer": "Aún no hay pagador",
+    "receiptTitle": "Recibo",
+    "receiptLine": "{{total}} € · {{status}}",
+    "noReceipt": "Aún no hay recibo",
+    "chargeAt": "Las tarjetas se cobran {{time}}",
+    "chargedAt": "Tarjetas cobradas {{time}}",
+    "payoutTitle": "Transferencias al pagador",
+    "payoutLine": "{{sent}} € de {{amount}} € enviados · {{status}}",
+    "payoutStatus": {
+      "WAITING_FOR_PAYOUT_SETUP": "esperando la cuenta de cobro del pagador",
+      "PENDING": "en camino",
+      "SENT": "enviado",
+      "HELD_FOR_REVIEW": "retenido hasta tu aprobación"
+    },
+    "payoutSplit": "{{captures}} € de los cobros a los pasajeros · {{guarantee}} € de FLOQQ",
+    "payoutSentAt": "Enviado {{time}}",
+    "payoutProblem": "Aún no enviado: {{reason}}",
+    "guaranteeTransfer": "Transferencia propia de FLOQQ: {{id}}",
+    "payoutNotStarted": "El pagador recibe {{amount}} € cuando se cobren las tarjetas",
+    "payoutNoReceipt": "Nada todavía - esperando el recibo",
+    "guaranteeTitle": "Garantía de Pago del Viaje",
+    "guaranteeUsed": "Usada: FLOQQ cubre {{amount}} €",
+    "guaranteeNotUsed": "No usada",
+    "summaryReserved": "Pagos: {{reserved}} de {{total}} reservados",
+    "summaryCharged": "Pagos: {{charged}} de {{total}} cobrados",
+    "summaryFailed": "{{count}} fallidos",
+    "summaryPayout": "pago al pagador: {{status}}"
   }
 }
