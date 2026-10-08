@@ -56,3 +56,9 @@ export const DETOUR_LIMITS = {
 } as const;
 
 export const SERVICE_FEE_EUR = 2.49;
+
+// "Match found": how long passengers have to secure their spot in a group offered to them. When
+// it runs out, whoever didn't answer is removed and goes back to searching (unless nobody
+// answered - then the window starts again). Server-side only; the app shows the deadline it is
+// given.
+export const MATCH_OFFER_TIMEOUT_MINUTES = 60;

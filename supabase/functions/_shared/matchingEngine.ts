@@ -235,6 +235,20 @@ export async function suggestTaxiGroups(
   const suggestions: MatchSuggestion[] = [];
   const seenGroupKeys = new Set<string>();
 
+  // Passengers who said "Not for me" to each other aren't offered each other again
+  // (match_declines holds a row per direction).
+  const { data: declines } = geocoded.length
+    ? await client
+        .from('match_declines')
+        .select('request_id, declined_request_id')
+        .in(
+          'request_id',
+          geocoded.map((r) => r.id)
+        )
+    : { data: [] };
+  const declined = new Set((declines ?? []).map((d) => `${d.request_id}:${d.declined_request_id}`));
+  const hasDecline = (group: GeoRequest[]) => group.some((a) => group.some((b) => declined.has(`${a.id}:${b.id}`)));
+
   for (const anchor of geocoded) {
     const layer1Pool = filterHardConstraints(anchor, geocoded);
     const layer1Ids = new Set(layer1Pool.map((r) => r.id));
@@ -243,6 +257,7 @@ export async function suggestTaxiGroups(
     for (let companionCount = 1; companionCount <= MAX_PASSENGERS_PER_TAXI - 1; companionCount++) {
       for (const companions of combinations(corridorPool, companionCount)) {
         const group = [anchor, ...companions];
+        if (hasDecline(group)) continue;
 
         const totalBags = group.reduce((sum, r) => sum + r.bags_count, 0);
         if (totalBags > MAX_BAGS_PER_TAXI) continue;

@@ -289,7 +289,9 @@ export async function applyHoldState(
   stripe: Stripe,
   paymentIntentId: string,
   actor: StatusActor
-): Promise<{ status: string | null; changed: boolean }> {
+  // securedGroupId: this hold just secured the passenger's spot in that offer - the caller then
+  // checks whether the whole group is complete (confirmOfferIfComplete in offers.ts).
+): Promise<{ status: string | null; changed: boolean; securedGroupId?: string }> {
   const intent = await stripe.paymentIntents.retrieve(paymentIntentId, { expand: ['latest_charge'] });
   const ridePaymentId = intent.metadata?.ride_payment_id;
   if (!ridePaymentId) return { status: null, changed: false }; // Not a ride hold (e.g. the old service-fee Checkout).
@@ -355,11 +357,12 @@ export async function applyHoldState(
   const changed = (updated?.length ?? 0) > 0 && to !== row.payment_status;
 
   // A placed hold is what secures the passenger's spot in a group that's still an offer.
+  let securedGroupId: string | undefined;
   if ((updated?.length ?? 0) > 0 && to === 'HOLD_PLACED' && row.request_id && row.group_id) {
-    await markSpotSecured(adminClient, row.request_id, row.group_id);
+    if (await markSpotSecured(adminClient, row.request_id, row.group_id)) securedGroupId = row.group_id;
   }
 
-  return { status: updated?.[0]?.payment_status ?? row.payment_status, changed };
+  return { status: updated?.[0]?.payment_status ?? row.payment_status, changed, securedGroupId };
 }
 
 // A passenger cancelled their ride after the group was confirmed. With a placed hold:

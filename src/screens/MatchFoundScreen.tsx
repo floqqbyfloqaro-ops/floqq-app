@@ -14,6 +14,7 @@ import Skeleton from '../components/Skeleton';
 import { PLATFORM_FEE_CENTS } from '../constants';
 import { authenticateHold, CARD_SETUP_SUPPORTED, stripeReturnUrl } from '../services/cardSetup';
 import {
+  declineMatch,
   decodePolyline,
   fetchMatchOffer,
   MatchOffer,
@@ -30,6 +31,8 @@ type Props = {
   onBack: () => void;
   onEdit: () => void;
   onOpenProfile: () => void;
+  // The passenger left the group ("Not for me"): their ride is searching again.
+  onLeft: () => void;
 };
 
 const MAP_HEIGHT = 180;
@@ -70,10 +73,36 @@ function arrivalStatus(member: MatchOfferMember, t: (key: string, options?: Reco
   return { label: t('matchFound.lands', { time: clockTime(member.arrivalAt) }), delayed: false };
 }
 
-// Shown while the passenger's group is still an offer (an unconfirmed taxi group): who they'd
-// ride with, the planned route, the estimated fare, and their answer. MyRideScreen decides when
-// this screen is up and moves on when the group is confirmed or gone.
-export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfile }: Props) {
+// Time left to answer the offer, ticking by itself so the rest of the screen (the map) doesn't
+// redraw every second.
+function OfferCountdown({ expiresAt }: { expiresAt: string }) {
+  const { t } = useTranslation();
+  const [nowMs, setNowMs] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const secondsLeft = Math.max(0, Math.round((new Date(expiresAt).getTime() - nowMs) / 1000));
+  const time = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`;
+
+  return (
+    <View style={styles.countdown} accessible accessibilityRole="timer">
+      <Ionicons name="time-outline" size={16} color={colors.warning} />
+      <Text style={styles.countdownText}>
+        {secondsLeft > 0 ? t('matchFound.respondWithin', { time }) : t('matchFound.timeUp')}
+      </Text>
+    </View>
+  );
+}
+
+// The passenger's group: who they ride with, the planned route and the estimated fare. While the
+// group is still an offer (an unconfirmed taxi group) it also takes their answer - "Secure my
+// spot" or "Not for me" - within the response window. Once the group is confirmed the same
+// screen stays up, read-only. MyRideScreen decides when it is shown and leaves it when the group
+// is gone.
+export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfile, onLeft }: Props) {
   const { t } = useTranslation();
 
   const [offer, setOffer] = useState<MatchOffer | null>(null);
@@ -87,6 +116,11 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
   const [secureNotice, setSecureNotice] = useState<string | null>(null);
   const [needsCard, setNeedsCard] = useState(false);
   const [cardFailed, setCardFailed] = useState(false);
+
+  // "Not for me" asks for confirmation inline (a multi-button Alert does nothing on the web).
+  const [isDeclineOpen, setIsDeclineOpen] = useState(false);
+  const [isDeclining, setIsDeclining] = useState(false);
+  const [declineError, setDeclineError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { offer: loaded, error } = await fetchMatchOffer(request.id);
@@ -202,6 +236,29 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
     };
   }, [offer]);
 
+  const handleDecline = async () => {
+    setDeclineError(null);
+    setIsDeclining(true);
+    const { error } = await declineMatch(request.id);
+    setIsDeclining(false);
+
+    if (error === 'not_offered') {
+      // Confirmed in the meantime: show it as it is now.
+      setIsDeclineOpen(false);
+      await load();
+      return;
+    }
+    if (error) {
+      console.warn('declineMatch failed', error);
+      setDeclineError(t('matchFound.declineError'));
+      return;
+    }
+    onLeft();
+  };
+
+  const isConfirmed = offer?.groupStatus === 'confirmed';
+  const mySpotSecured = members[0]?.isMe === true && members[0].secured;
+
   // A card hold can only be placed close enough to the ride; before that, securing reserves nothing.
   const holdComesLater = offer != null && new Date(offer.holdOpensAt).getTime() > Date.now();
 
@@ -224,8 +281,12 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
         </Pressable>
 
         <View style={styles.titleRow}>
-          <Text style={styles.title}>{t('match_found_title')}</Text>
-          <Ionicons name="sparkles" size={24} color={colors.accentGold} />
+          <Text style={styles.title}>{t(isConfirmed ? 'matchFound.confirmedTitle' : 'match_found_title')}</Text>
+          <Ionicons
+            name={isConfirmed ? 'checkmark-circle' : 'sparkles'}
+            size={24}
+            color={isConfirmed ? colors.success : colors.accentGold}
+          />
         </View>
         <Text style={styles.subtitle}>{t('match_found_subtitle')}</Text>
 
@@ -246,6 +307,10 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
           <>
             {/* No match percentage: the matching engine's score is a cost, not a percentage. */}
             <Text style={styles.summary}>{t('matchFound.passengers', { count: offer.members.length })}</Text>
+
+            {!isConfirmed && !mySpotSecured && offer.offerExpiresAt ? (
+              <OfferCountdown expiresAt={offer.offerExpiresAt} />
+            ) : null}
 
             <Card style={styles.mapCard}>
               {map ? (
@@ -301,7 +366,11 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
               <Text style={styles.fareNote}>{t('fare_estimate_note')}</Text>
             </Card>
 
-            {members[0]?.isMe && members[0].secured ? (
+            {isConfirmed ? (
+              <Card highlighted style={styles.securedCard}>
+                <Text style={styles.securedNote}>{t('matchFound.confirmedNote')}</Text>
+              </Card>
+            ) : mySpotSecured ? (
               <Card highlighted style={styles.securedCard}>
                 <View style={styles.securedTitleRow}>
                   <Ionicons name="checkmark-circle" size={22} color={colors.success} />
@@ -323,6 +392,11 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
                     })}
                   </Text>
                 ))}
+                {offer.offerExpiresAt && members.slice(1).some((member) => !member.secured) ? (
+                  <Text style={styles.securedNote}>
+                    {t('matchFound.othersDeadline', { time: clockTime(offer.offerExpiresAt) })}
+                  </Text>
+                ) : null}
               </Card>
             ) : (
               <>
@@ -362,17 +436,44 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
                   ) : null}
                 </View>
                 <Text style={styles.feeNote}>{t('secure_spot_fee_note', { fee: formatCents(PLATFORM_FEE_CENTS) })}</Text>
+
+                {isDeclineOpen ? (
+                  <Card style={styles.declineCard}>
+                    <Text style={styles.declineText} accessibilityLiveRegion="polite">
+                      {t('matchFound.declineConfirm')}
+                    </Text>
+                    {declineError ? <ErrorNotice message={declineError} /> : null}
+                    <SecondaryButton label={t('decline_match')} onPress={handleDecline} loading={isDeclining} />
+                    <SecondaryButton
+                      label={t('matchFound.declineKeep')}
+                      onPress={() => setIsDeclineOpen(false)}
+                      disabled={isDeclining}
+                    />
+                  </Card>
+                ) : (
+                  <Pressable
+                    onPress={() => setIsDeclineOpen(true)}
+                    disabled={isSecuring}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    style={styles.textButton}
+                  >
+                    <Text style={styles.textButtonLabel}>{t('decline_match')}</Text>
+                  </Pressable>
+                )}
               </>
             )}
 
-            <Pressable
-              onPress={onEdit}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              style={styles.textButton}
-            >
-              <Text style={styles.textButtonLabel}>{t('matchFound.editRide')}</Text>
-            </Pressable>
+            {isConfirmed ? null : (
+              <Pressable
+                onPress={onEdit}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                style={styles.textButton}
+              >
+                <Text style={styles.textButtonLabel}>{t('matchFound.editRide')}</Text>
+              </Pressable>
+            )}
           </>
         )}
       </ScrollView>
@@ -423,6 +524,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: spacing.x6,
+  },
+  countdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: spacing.x2,
+    paddingVertical: spacing.x2,
+    paddingHorizontal: spacing.x4,
+    borderRadius: radii.pill,
+    backgroundColor: colors.warningSoft,
+    marginBottom: spacing.x4,
+  },
+  countdownText: {
+    ...baseText.bodySmall,
+    color: colors.warning,
+    fontWeight: '700',
+  },
+  declineCard: {
+    marginTop: spacing.x6,
+    gap: spacing.x2,
+  },
+  declineText: {
+    ...baseText.body,
+    marginBottom: spacing.x2,
   },
   loading: {
     gap: spacing.x4,

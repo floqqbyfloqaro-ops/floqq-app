@@ -496,6 +496,14 @@
     "spotSecured": "Place réservée",
     "waitingFor": "En attente de la confirmation de {{name}}",
     "otherSecured": "{{name}} a réservé sa place",
-    "secureError": "Impossible de réserver votre place. Veuillez réessayer."
+    "secureError": "Impossible de réserver votre place. Veuillez réessayer.",
+    "respondWithin": "Répondez dans {{time}}",
+    "timeUp": "Temps écoulé - nous mettons à jour votre groupe…",
+    "othersDeadline": "Ils ont jusqu’à {{time}} pour confirmer.",
+    "declineConfirm": "Quitter ce groupe ? Votre trajet repasse en recherche et nous chercherons un autre groupe.",
+    "declineKeep": "Rester dans ce groupe",
+    "declineError": "Impossible de mettre à jour votre groupe. Veuillez réessayer.",
+    "confirmedTitle": "Groupe confirmé",
+    "confirmedNote": "Votre groupe est confirmé. La réservation de votre place et les détails du paiement sont dans Mon trajet."
   }
 }

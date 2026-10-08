@@ -17,7 +17,6 @@ import { createServiceFeeCheckout } from '../services/payments';
 import { fetchMyGroupStatus, fetchMyLatestRequest, MyPassengerRequest, MyTaxiGroup } from '../services/passengerRequests';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
 import FindingMatchScreen from './FindingMatchScreen';
-import GroupDetailsScreen from './GroupDetailsScreen';
 import MatchFoundScreen from './MatchFoundScreen';
 
 type Props = {
@@ -26,7 +25,7 @@ type Props = {
   onOpenProfile: () => void;
 };
 
-type SubScreen = 'findingMatch' | 'matchFound' | 'groupDetails' | null;
+type SubScreen = 'findingMatch' | 'matchFound' | null;
 
 // How often the ride is re-read while the passenger is waiting for (or looking at) a match, on top
 // of the live updates - a safety net for a missed one.
@@ -114,15 +113,14 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
   }, [requestId, groupId, isWatchingMatch, loadData]);
 
   // ...and move to the screen that fits where the ride is now: a group was proposed ("Match
-  // found"), it got confirmed, or it fell apart again. `group` can briefly still be the previous
-  // group while the new one loads, so it only counts once it's the ride's current one.
+  // found" - which also shows the group once it's confirmed), or it fell apart again. `group` can
+  // briefly still be the previous group while the new one loads, so it only counts once it's the
+  // ride's current one.
   const groupStatus = group && group.id === groupId ? group.status : null;
   const isActiveRide = request?.status === 'pending' || request?.status === 'matched';
   useEffect(() => {
-    if (subScreen === 'findingMatch' && groupStatus === 'unconfirmed') {
+    if (subScreen === 'findingMatch' && (groupStatus === 'unconfirmed' || groupStatus === 'confirmed')) {
       setSubScreen('matchFound');
-    } else if (subScreen === 'matchFound' && groupStatus === 'confirmed') {
-      setSubScreen('groupDetails');
     } else if (subScreen === 'matchFound' && (!groupId || groupStatus === 'dissolved')) {
       setSubScreen(isActiveRide ? 'findingMatch' : null);
     }
@@ -146,8 +144,8 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
 
   const handleCardPress = () => {
     if (!request || request.status === 'cancelled' || request.status === 'expired') return;
-    // An unconfirmed group is a match that's been proposed and not yet locked in.
-    setSubScreen(!group ? 'findingMatch' : group.status === 'unconfirmed' ? 'matchFound' : 'groupDetails');
+    // "Match found" shows the group both while it's an offer and once it's confirmed.
+    setSubScreen(group ? 'matchFound' : 'findingMatch');
   };
 
   if (subScreen === 'findingMatch' && request) {
@@ -171,12 +169,12 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
         onBack={() => setSubScreen(null)}
         onEdit={() => onCreateRequest(request.id)}
         onOpenProfile={onOpenProfile}
+        onLeft={() => {
+          setSubScreen('findingMatch');
+          loadData();
+        }}
       />
     );
-  }
-
-  if (subScreen === 'groupDetails') {
-    return <GroupDetailsScreen onBack={() => setSubScreen(null)} />;
   }
 
   return (

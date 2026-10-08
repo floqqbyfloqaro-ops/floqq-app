@@ -66,6 +66,16 @@ export async function secureSpot(requestId: string) {
   return { result: data as SecureSpotResponse, error: null };
 }
 
+// "Not for me" (decline-match Edge Function): leaves the offered group; the ride goes back to
+// searching. 'not_offered' means the group was confirmed in the meantime.
+export async function declineMatch(requestId: string) {
+  const { error } = await supabase.functions.invoke('decline-match', { body: { requestId } });
+  if (!error) return { error: null as string | null };
+  const context = (error as { context?: Response }).context;
+  const body = context ? await context.json().catch(() => null) : null;
+  return { error: (body?.error as string | undefined) ?? 'decline_failed' };
+}
+
 export type MapPoint = { latitude: number; longitude: number };
 
 // Google's encoded polyline format -> points (precision 5).

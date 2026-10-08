@@ -20,7 +20,10 @@ export type PushMessageKey =
   | 'ridePaidEstimate'
   | 'receiptReminder'
   | 'receiptFinalReminder'
-  | 'receiptEstimated';
+  | 'receiptEstimated'
+  | 'matchFound'
+  | 'offerExpired'
+  | 'groupConfirmed';
 
 export type PushParams = {
   amount?: string;
@@ -99,6 +102,18 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'No taxi receipt received',
       body: 'Everyone is charged the estimated fare. FLOQQ checks the ride before sending you €{{amount}}.',
     },
+    matchFound: {
+      title: 'Match found!',
+      body: 'Open FLOQQ and secure your spot before {{time}}.',
+    },
+    offerExpired: {
+      title: 'Your match expired',
+      body: 'Your spot wasn’t secured in time. We’re looking for a new match.',
+    },
+    groupConfirmed: {
+      title: 'Your group is confirmed!',
+      body: 'Everyone has secured their spot.',
+    },
   },
   es: {
     holdOpen: {
@@ -165,6 +180,18 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'No hemos recibido el recibo del taxi',
       body: 'Se cobra a todos la tarifa estimada. FLOQQ revisa el viaje antes de enviarte {{amount}} €.',
     },
+    matchFound: {
+      title: '¡Grupo encontrado!',
+      body: 'Abre FLOQQ y asegura tu plaza antes de las {{time}}.',
+    },
+    offerExpired: {
+      title: 'Tu grupo ha caducado',
+      body: 'No aseguraste tu plaza a tiempo. Estamos buscando un nuevo grupo.',
+    },
+    groupConfirmed: {
+      title: '¡Tu grupo está confirmado!',
+      body: 'Todos han asegurado su plaza.',
+    },
   },
   fr: {
     holdOpen: {
@@ -230,6 +257,18 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
     receiptEstimated: {
       title: 'Aucun reçu de taxi reçu',
       body: 'Tout le monde est débité du tarif estimé. FLOQQ vérifie le trajet avant de vous envoyer {{amount}} €.',
+    },
+    matchFound: {
+      title: 'Groupe trouvé !',
+      body: 'Ouvrez FLOQQ et réservez votre place avant {{time}}.',
+    },
+    offerExpired: {
+      title: 'Votre groupe a expiré',
+      body: 'Votre place n’a pas été réservée à temps. Nous cherchons un nouveau groupe.',
+    },
+    groupConfirmed: {
+      title: 'Votre groupe est confirmé !',
+      body: 'Tout le monde a réservé sa place.',
     },
   },
 };

@@ -17,6 +17,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { estimatedSharesCents, holdAmountCents, holdWindow, PLATFORM_FEE_CENTS, rideDepartureMs } from '../_shared/holdMath.ts';
 import { markSpotSecured } from '../_shared/holds.ts';
+import { confirmOfferIfComplete, stripeForOffers } from '../_shared/offers.ts';
 import { freeCancelUntilMs } from '../_shared/settlementMath.ts';
 import { paymentsEnabled } from '../_shared/stripe.ts';
 
@@ -98,6 +99,7 @@ Deno.serve(async (req) => {
 
   if (!paymentsEnabled()) {
     await markSpotSecured(adminClient, requestId, group.id);
+    await confirmOfferIfComplete(adminClient, null, group.id);
     return jsonResponse({ status: 'SECURED' });
   }
 
@@ -116,6 +118,7 @@ Deno.serve(async (req) => {
   // Too early for a card hold: accepting is enough for now.
   if (opensAt.getTime() > now.getTime()) {
     await markSpotSecured(adminClient, requestId, group.id);
+    await confirmOfferIfComplete(adminClient, stripeForOffers(), group.id);
     return jsonResponse({ status: 'SECURED', holdOpensAt: opensAt.toISOString() });
   }
 
@@ -158,6 +161,7 @@ Deno.serve(async (req) => {
   if (row.payment_status === 'HOLD_PLACED') {
     // The hold is there but the spot wasn't marked (an interrupted earlier attempt).
     await markSpotSecured(adminClient, requestId, group.id);
+    await confirmOfferIfComplete(adminClient, stripeForOffers(), group.id);
     return jsonResponse({ status: 'SECURED' });
   }
 

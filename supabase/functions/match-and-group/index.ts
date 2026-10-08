@@ -13,6 +13,7 @@ import { isAuthorized } from '../_shared/auth.ts';
 import { ADMIN_EMAIL } from '../_shared/constants.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { suggestTaxiGroups } from '../_shared/matchingEngine.ts';
+import { announceOffer } from '../_shared/offers.ts';
 
 const LOCK_ID = 1;
 
@@ -107,13 +108,9 @@ Deno.serve(async (req) => {
         })
         .eq('id', group.id);
 
-      // Audit trail: this group was proposed to its passengers ("Match found").
-      await adminClient.from('group_events').insert({
-        group_id: group.id,
-        event_type: 'match_offered',
-        details: { request_ids: suggestion.requestIds },
-        actor_type: 'system',
-      });
+      // The group is an offer now ("Match found"): start its response window and tell its
+      // passengers (audit event match_offered).
+      await announceOffer(adminClient, group.id);
 
       suggestion.requestIds.forEach((id) => claimed.add(id));
       groupsCreated++;

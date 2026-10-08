@@ -496,6 +496,14 @@
     "spotSecured": "Spot secured",
     "waitingFor": "Waiting for {{name}} to confirm",
     "otherSecured": "{{name}} has secured their spot",
-    "secureError": "We couldn’t secure your spot. Please try again."
+    "secureError": "We couldn’t secure your spot. Please try again.",
+    "respondWithin": "Respond within {{time}}",
+    "timeUp": "Time’s up - we’re updating your match…",
+    "othersDeadline": "They have until {{time}} to confirm.",
+    "declineConfirm": "Leave this match? Your ride goes back to searching and we’ll look for another group.",
+    "declineKeep": "Keep this match",
+    "declineError": "We couldn’t update your match. Please try again.",
+    "confirmedTitle": "Group confirmed",
+    "confirmedNote": "Your group is confirmed. Your seat reservation and payment details are on My Ride."
   }
 }

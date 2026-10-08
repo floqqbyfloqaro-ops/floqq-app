@@ -492,6 +492,14 @@
     "spotSecured": "Plaza asegurada",
     "waitingFor": "Esperando a que {{name}} confirme",
     "otherSecured": "{{name}} ha asegurado su plaza",
-    "secureError": "No hemos podido asegurar tu plaza. Inténtalo de nuevo."
+    "secureError": "No hemos podido asegurar tu plaza. Inténtalo de nuevo.",
+    "respondWithin": "Responde en {{time}}",
+    "timeUp": "Se acabó el tiempo - estamos actualizando tu grupo…",
+    "othersDeadline": "Tienen hasta las {{time}} para confirmar.",
+    "declineConfirm": "¿Salir de este grupo? Tu viaje vuelve a la búsqueda y buscaremos otro grupo.",
+    "declineKeep": "Seguir en este grupo",
+    "declineError": "No hemos podido actualizar tu grupo. Inténtalo de nuevo.",
+    "confirmedTitle": "Grupo confirmado",
+    "confirmedNote": "Tu grupo está confirmado. La reserva de tu plaza y los datos de pago están en Mi trayecto."
   }
 }

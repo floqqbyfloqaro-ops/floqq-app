@@ -14,6 +14,7 @@ import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 
 import { applyHoldState } from '../_shared/holds.ts';
+import { confirmOfferIfComplete } from '../_shared/offers.ts';
 import { sendPush } from '../_shared/push.ts';
 import { createStripeClient, LiveKeyError } from '../_shared/stripe.ts';
 
@@ -158,7 +159,9 @@ Deno.serve(async (req) => {
       // Always re-reads the hold from Stripe, so duplicate or out-of-order events converge on the
       // same state. Service-fee Checkout PaymentIntents carry no ride_payment_id and are skipped.
       const intentId = (event.data.object as Stripe.PaymentIntent).id;
-      const { status, changed } = await applyHoldState(adminClient, stripe, intentId, 'stripe');
+      const { status, changed, securedGroupId } = await applyHoldState(adminClient, stripe, intentId, 'stripe');
+      // A hold placed after the bank's verification may be the one that completes an offer.
+      if (securedGroupId) await confirmOfferIfComplete(adminClient, stripe, securedGroupId);
 
       // A hold that failed after the passenger left the app (e.g. abandoned bank verification):
       // tell them, once - only the event that actually changed the status gets here.
