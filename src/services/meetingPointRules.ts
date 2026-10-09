@@ -7,6 +7,12 @@ export type MeetingPointLanguage = (typeof MEETING_POINT_LANGUAGES)[number];
 
 export type LocalizedText = Partial<Record<MeetingPointLanguage, string>>;
 
+// The language a point is read in: the app's own, if it is one the points are worded in.
+export function wordingLanguageFor(appLanguage: string): MeetingPointLanguage {
+  const base = appLanguage.split('-')[0];
+  return (MEETING_POINT_LANGUAGES as readonly string[]).includes(base) ? (base as MeetingPointLanguage) : 'en';
+}
+
 export type MeetingPoint = {
   id: string;
   airport_code: string;
@@ -29,13 +35,20 @@ export type MeetingPoint = {
 
 export type WordingField = 'name' | 'directions';
 
+// The part of a point its wording comes from.
+export type WordedPoint = Pick<MeetingPoint, 'name_key' | 'directions_key' | 'name_i18n' | 'directions_i18n'>;
+
+// A point as a passenger sees it: where it is and what it is called, nothing about its status.
+export type MeetingPointSummary = WordedPoint &
+  Pick<MeetingPoint, 'id' | 'terminal' | 'short_code' | 'latitude' | 'longitude' | 'photo_path'>;
+
 // Looks up the wording shipped with the app for one language; null when there is none.
 export type ShippedText = (key: string, language: MeetingPointLanguage) => string | null;
 
 // What a passenger reading `language` sees: the admin's wording if there is one, else the shipped
 // wording. Empty when neither exists.
 export function meetingPointText(
-  point: MeetingPoint,
+  point: WordedPoint,
   field: WordingField,
   language: MeetingPointLanguage,
   shipped: ShippedText
@@ -45,7 +58,7 @@ export function meetingPointText(
   return shipped(field === 'name' ? point.name_key : point.directions_key, language)?.trim() ?? '';
 }
 
-export function hasAllWording(point: MeetingPoint, shipped: ShippedText): boolean {
+export function hasAllWording(point: WordedPoint, shipped: ShippedText): boolean {
   return MEETING_POINT_LANGUAGES.every(
     (language) =>
       meetingPointText(point, 'name', language, shipped) !== '' &&

@@ -141,15 +141,14 @@ export function fetchGroupById(groupId: string) {
 export type SetMeetingPointBlockedReason = 'group_not_confirmed' | 'point_not_active' | 'terminal_mismatch';
 
 // The admin's manual override of a confirmed group's meeting point. Null hands the choice back to
-// the automatic assignment, which picks again within a minute.
+// the automatic assignment, which picks again within a minute. Through admin-manage-group rather
+// than the database function directly, so the group's passengers are told about the new point.
 export async function setGroupMeetingPoint(groupId: string, meetingPointId: string | null) {
-  const { data, error } = await supabase.rpc('admin_set_group_meeting_point', {
-    p_group_id: groupId,
-    p_meeting_point_id: meetingPointId,
+  const { error } = await supabase.functions.invoke('admin-manage-group', {
+    body: { action: 'set_meeting_point', groupId, meetingPointId },
   });
-  if (error) return { error: error as { message: string } | null, blockedReason: undefined };
-  const result = data as { applied: boolean; reason?: SetMeetingPointBlockedReason };
-  return { error: null, blockedReason: result.applied ? undefined : result.reason };
+  if (!error) return { error: null, blockedReason: undefined };
+  return { error, blockedReason: (await blockedReasonFromError(error)) as SetMeetingPointBlockedReason | undefined };
 }
 
 // Payments prototype, phase 4: the designated payer's payout setup (admin can read every profile).

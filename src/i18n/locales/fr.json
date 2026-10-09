@@ -300,7 +300,8 @@
     "cancelConfirmButton": "Oui, annuler ma course",
     "cancelFree": "Vous annulez plus de 24 heures avant le trajet, c’est donc gratuit : toute votre réservation de {{amount}} € est libérée.",
     "findGroupButton": "Retrouvez votre groupe",
-    "noFlightNumber": "Sans numéro de vol"
+    "noFlightNumber": "Sans numéro de vol",
+    "meetAt": "Rendez-vous : {{name}} · {{terminal}}"
   },
   "findingMatch": {
     "title": "Recherche de votre correspondance...",
@@ -662,5 +663,13 @@
     "confirmedTitle": "Groupe confirmé",
     "confirmedNote": "Votre groupe est confirmé. La réservation de votre place et les détails du paiement sont dans Mon trajet.",
     "memberJoined": "Un voyageur a rejoint votre groupe. L’itinéraire et votre part ont été mis à jour."
+  },
+  "meetingPointCard": {
+    "title": "Votre point de rencontre",
+    "terminal": "Terminal {{terminal}}",
+    "pending": "Votre point de rencontre apparaîtra ici dans un instant.",
+    "meetingTime": "Heure de rendez-vous : {{time}} (heure de Barcelone)",
+    "openInMaps": "Ouvrir dans Google Maps",
+    "photoLabel": "Photo du point de rencontre : {{name}}"
   }
 }

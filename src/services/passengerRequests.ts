@@ -254,12 +254,14 @@ export type MyTaxiGroup = {
   payer_request_id: string | null;
   // Payments prototype, phase 7: set once the ride has left and the payer owes a receipt.
   receipt_deadline_at: string | null;
+  // Where the confirmed group meets at the airport; null until one is assigned.
+  meeting_point_id: string | null;
 };
 
 export function fetchMyGroupStatus(groupId: string) {
   return supabase
     .from('taxi_groups')
-    .select('id, status, total_fare, payer_request_id, receipt_deadline_at')
+    .select('id, status, total_fare, payer_request_id, receipt_deadline_at, meeting_point_id')
     .eq('id', groupId)
     .single<MyTaxiGroup>();
 }

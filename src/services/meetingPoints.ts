@@ -1,6 +1,6 @@
 import i18n from '../i18n';
 import { base64ToArrayBuffer } from '../utils/base64';
-import { LocalizedText, MeetingPoint, ShippedText } from './meetingPointRules';
+import { LocalizedText, MeetingPoint, MeetingPointSummary, ShippedText } from './meetingPointRules';
 import { supabase } from './supabase';
 
 const PHOTO_BUCKET = 'meeting-point-photos';
@@ -26,6 +26,16 @@ export function fetchMeetingPoints() {
     .order('sort_priority', { ascending: false })
     .order('short_code', { ascending: true })
     .returns<MeetingPoint[]>();
+}
+
+// One point as a passenger may see it - for the "Meet at" line of their ride. (Row level security
+// lets any signed-in user read the points; they hold no personal data.)
+export function fetchMeetingPointSummary(id: string) {
+  return supabase
+    .from('meeting_points')
+    .select('id, terminal, short_code, name_key, directions_key, name_i18n, directions_i18n, latitude, longitude, photo_path')
+    .eq('id', id)
+    .maybeSingle<MeetingPointSummary>();
 }
 
 export type MeetingPointPatch = Partial<

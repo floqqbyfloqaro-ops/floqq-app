@@ -1,3 +1,4 @@
+import type { MeetingPointSummary } from './meetingPointRules';
 import { supabase } from './supabase';
 
 export type MeetupMember = {
@@ -9,6 +10,12 @@ export type MeetupMember = {
 
 export type Meetup = {
   groupId: string;
+  // 'T1' / 'T2' - the one terminal everyone in the group arrives at. Null only on old groups.
+  terminal: string | null;
+  // Where the group meets. Null until one is assigned (within a minute of confirmation, provided
+  // the terminal has an active point).
+  meetingPoint: MeetingPointSummary | null;
+  meetingTime: string;
   // Set once the ride has started: the meetup is over.
   rideStartedAt: string | null;
   // The first member's landing time: location sharing is possible from then on.

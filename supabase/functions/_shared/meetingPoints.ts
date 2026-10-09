@@ -13,11 +13,12 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { MEETING_WINDOW_MINUTES, MEETUP_SHARING_TIMEOUT_MINUTES } from './constants.ts';
 import { rideDepartureMs } from './holdMath.ts';
 import { AssignablePoint, ExistingAssignment, pickMeetingPoint } from './meetingPointAssignment.ts';
+import { sendPush } from './push.ts';
 
 const MINUTE_MS = 60_000;
 
 type GroupRow = { id: string; meeting_point_id: string | null; meeting_time: string | null };
-type MemberRow = { group_id: string; arrival_at: string; arrival_terminal: string | null };
+type MemberRow = { group_id: string; user_id: string | null; arrival_at: string; arrival_terminal: string | null };
 
 export type MeetingPointRun = { assigned: number; waitingForPoint: number };
 
@@ -34,7 +35,7 @@ export async function assignMeetingPoints(adminClient: SupabaseClient, now = new
 
   const { data: memberRows } = await adminClient
     .from('passenger_requests')
-    .select('group_id, arrival_at, arrival_terminal')
+    .select('group_id, user_id, arrival_at, arrival_terminal')
     .in(
       'group_id',
       groups.map((g) => g.id)
@@ -101,6 +102,25 @@ export async function assignMeetingPoints(adminClient: SupabaseClient, now = new
 
     taken.push({ meetingPointId: choice.point.id, meetingTimeMs });
     run.assigned += 1;
+
+    // A first assignment needs no announcement (the card simply appears in the app). But a group
+    // that had a point before - the admin handed the choice back - and now gets another one is
+    // being sent somewhere else: tell its passengers.
+    const { data: earlier } = await adminClient
+      .from('group_events')
+      .select('details')
+      .eq('group_id', group.id)
+      .eq('event_type', 'meeting_point_assigned')
+      .order('created_at', { ascending: false })
+      .limit(10);
+    const previousPointId = (earlier ?? [])
+      .map((event) => (event.details as { meeting_point_id?: string | null } | null)?.meeting_point_id)
+      .find((id) => id != null);
+    if (previousPointId && previousPointId !== choice.point.id) {
+      for (const member of membersByGroup.get(group.id) ?? []) {
+        if (member.user_id) await sendPush(adminClient, { userId: member.user_id, key: 'meetingPointChanged' });
+      }
+    }
 
     await adminClient.from('group_events').insert({
       group_id: group.id,

@@ -2,13 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
-import {
-  MeetingPoint,
-  MeetingPointLanguage,
-  MEETING_POINT_LANGUAGES,
-  meetingPointText,
-  missingForActivation,
-} from '../services/meetingPointRules';
+import { MeetingPoint, meetingPointText, missingForActivation, wordingLanguageFor } from '../services/meetingPointRules';
 import { fetchMeetingPoints, shippedText } from '../services/meetingPoints';
 import { baseText, colors, spacing } from '../theme/colors';
 import { formatBarcelonaDateTime } from '../utils/formatDateTime';
@@ -21,10 +15,8 @@ type Props = {
   onOpen: (point: MeetingPoint) => void;
 };
 
-// The language the admin reads the list in: the app's own, if it is one the points are worded in.
-export function adminWordingLanguage(appLanguage: string): MeetingPointLanguage {
-  return (MEETING_POINT_LANGUAGES as readonly string[]).includes(appLanguage) ? (appLanguage as MeetingPointLanguage) : 'en';
-}
+// The language the admin reads the list in.
+export const adminWordingLanguage = wordingLanguageFor;
 
 // Admin dashboard, "Meeting points" tab: every point per terminal, with what it still needs
 // before passengers can be sent to it. Tapping one opens its editor.

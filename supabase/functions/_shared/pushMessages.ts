@@ -25,7 +25,8 @@ export type PushMessageKey =
   | 'offerExpired'
   | 'groupConfirmed'
   | 'memberJoined'
-  | 'terminalChanged';
+  | 'terminalChanged'
+  | 'meetingPointChanged';
 
 export type PushParams = {
   amount?: string;
@@ -124,6 +125,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Your arrival terminal changed',
       body: 'Your flight now arrives at another terminal, so you left your group. We’re looking for a new match there.',
     },
+    meetingPointChanged: {
+      title: 'Your meeting point changed',
+      body: 'Open FLOQQ to see where your group meets now.',
+    },
   },
   es: {
     holdOpen: {
@@ -210,6 +215,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Tu terminal de llegada ha cambiado',
       body: 'Tu vuelo llega ahora a otra terminal, así que has salido de tu grupo. Estamos buscando un nuevo grupo allí.',
     },
+    meetingPointChanged: {
+      title: 'Tu punto de encuentro ha cambiado',
+      body: 'Abre FLOQQ para ver dónde se encuentra ahora tu grupo.',
+    },
   },
   fr: {
     holdOpen: {
@@ -295,6 +304,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
     terminalChanged: {
       title: 'Votre terminal d’arrivée a changé',
       body: 'Votre vol arrive désormais à un autre terminal : vous avez quitté votre groupe. Nous cherchons un nouveau groupe là-bas.',
+    },
+    meetingPointChanged: {
+      title: 'Votre point de rencontre a changé',
+      body: 'Ouvrez FLOQQ pour voir où votre groupe se retrouve maintenant.',
     },
   },
 };

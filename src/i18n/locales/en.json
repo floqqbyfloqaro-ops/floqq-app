@@ -300,7 +300,8 @@
     "cancelConfirmButton": "Yes, cancel my ride",
     "cancelFree": "You’re cancelling more than 24 hours before the ride, so it’s free: your whole reservation of €{{amount}} is released.",
     "findGroupButton": "Find your group",
-    "noFlightNumber": "No flight number"
+    "noFlightNumber": "No flight number",
+    "meetAt": "Meet at: {{name}} · {{terminal}}"
   },
   "findingMatch": {
     "title": "Finding your match...",
@@ -662,5 +663,13 @@
     "confirmedTitle": "Group confirmed",
     "confirmedNote": "Your group is confirmed. Your seat reservation and payment details are on My Ride.",
     "memberJoined": "A traveler joined your group. The route and your share have been updated."
+  },
+  "meetingPointCard": {
+    "title": "Your meeting point",
+    "terminal": "Terminal {{terminal}}",
+    "pending": "Your meeting point will appear here shortly.",
+    "meetingTime": "Meeting time: {{time}} (Barcelona time)",
+    "openInMaps": "Open in Google Maps",
+    "photoLabel": "Photo of the meeting point: {{name}}"
   }
 }

@@ -7,6 +7,7 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import Avatar from '../components/Avatar';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
+import MeetingPointCard from '../components/MeetingPointCard';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
@@ -216,6 +217,8 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
                           })
                         : t('findGroup.subtitle')}
                 </Text>
+
+                <MeetingPointCard terminal={meetup.terminal} point={meetup.meetingPoint} meetingTime={meetup.meetingTime} />
 
                 <Card style={styles.card}>
                   <Text style={styles.cardLabel}>{t('findGroup.membersLabel')}</Text>

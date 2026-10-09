@@ -1,6 +1,7 @@
 // "Find your group": what a passenger needs to meet their confirmed group at the airport. A
 // passenger can only read their own ride (RLS), so this function reads the group for them and
-// hands back who is in it (first names only) and when the meetup runs:
+// hands back who is in it (first names only), where it meets (the terminal and, once assigned, the
+// meeting point) and when the meetup runs:
 //   - windowOpensAt: the first member's landing time - from then on members may share their live
 //     location with each other;
 //   - sharingEndsAt: the safety timeout after the planned departure, when sharing switches itself
@@ -83,7 +84,7 @@ Deno.serve(async (req) => {
 
   const { data: group } = await adminClient
     .from('taxi_groups')
-    .select('id, status, ride_started_at')
+    .select('id, status, ride_started_at, meeting_point_id, meeting_time')
     .eq('id', mine.group_id)
     .maybeSingle();
   if (!group || group.status !== 'confirmed') {
@@ -92,7 +93,7 @@ Deno.serve(async (req) => {
 
   const { data: memberRows } = await adminClient
     .from('passenger_requests')
-    .select('id, passenger_name, arrival_at')
+    .select('id, passenger_name, arrival_at, arrival_terminal')
     .eq('group_id', group.id)
     .order('arrival_at', { ascending: true })
     .order('id', { ascending: true });
@@ -105,9 +106,24 @@ Deno.serve(async (req) => {
   const firstArrivalMs = Math.min(...arrivals.map((a) => new Date(a).getTime()));
   const departureMs = rideDepartureMs(arrivals);
 
+  // Where the group meets: assigned within a minute of confirmation (_shared/meetingPoints.ts),
+  // so it can still be missing - the app then shows the terminal alone. The wording travels as the
+  // app's own i18n keys plus the admin's edits; the app picks the passenger's language.
+  const { data: meetingPoint } = group.meeting_point_id
+    ? await adminClient
+        .from('meeting_points')
+        .select('id, terminal, short_code, name_key, directions_key, name_i18n, directions_i18n, latitude, longitude, photo_path')
+        .eq('id', group.meeting_point_id)
+        .maybeSingle()
+    : { data: null };
+
   return jsonResponse({
     meetup: {
       groupId: group.id,
+      // 'T1' / 'T2': a group only ever holds passengers arriving at one terminal.
+      terminal: members.find((m) => m.arrival_terminal != null)?.arrival_terminal ?? null,
+      meetingPoint: meetingPoint ?? null,
+      meetingTime: group.meeting_time ?? new Date(departureMs).toISOString(),
       rideStartedAt: group.ride_started_at,
       windowOpensAt: new Date(firstArrivalMs).toISOString(),
       departureAt: new Date(departureMs).toISOString(),
