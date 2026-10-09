@@ -7,6 +7,8 @@
 //      again, instead of dissolving the group only for the matching job to form it again.
 //   3. Confirms offers in which everyone has secured their spot (normally done the moment the
 //      last one does - this catches a group that became complete because someone else left).
+//   4. Gives confirmed groups their meeting point (_shared/meetingPoints.ts) - here, under this
+//      job's lock, so two groups are never handed the same point at the same moment.
 // Deployed with --no-verify-jwt: authenticates via the cron secret header or the admin's JWT
 // (see _shared/auth.ts), like match-and-group.
 
@@ -15,6 +17,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { isAuthorized } from '../_shared/auth.ts';
 import { ADMIN_EMAIL } from '../_shared/constants.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
+import { assignMeetingPoints } from '../_shared/meetingPoints.ts';
 import { announceOffer, confirmOfferIfComplete, offerExpiresAt, removeFromOffer, stripeForOffers } from '../_shared/offers.ts';
 import { sendPush } from '../_shared/push.ts';
 
@@ -94,7 +97,10 @@ Deno.serve(async (req) => {
       if (await confirmOfferIfComplete(adminClient, stripe, offer.id, now)) confirmed += 1;
     }
 
-    return jsonResponse({ announced, removed, extended, confirmed });
+    // Confirmed groups - the ones just confirmed above included - get their meeting point.
+    const meetingPoints = await assignMeetingPoints(adminClient, now);
+
+    return jsonResponse({ announced, removed, extended, confirmed, meetingPoints });
   } finally {
     await releaseLock(adminClient, LOCK_ID);
   }

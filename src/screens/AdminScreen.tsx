@@ -75,6 +75,10 @@ type RideDaySection = { dayKey: string; requests: PendingPassengerRequest[] };
 
 type GroupTerminalInfo = { terminal: string | null; conflict: string | null };
 
+// A confirmed group without a meeting point is only flagged while its ride is still ahead (its
+// first landing no more than this long ago).
+const MEETING_POINT_FLAG_GRACE_MS = 2 * 60 * 60 * 1000;
+
 // A ride may have no flight number (and an account no name): a dash rather than an empty title.
 function requestDisplayName(request: PendingPassengerRequest) {
   return request.passenger_name?.trim() || request.flight_number || '—';
@@ -652,6 +656,15 @@ export default function AdminScreen({ session, onBack }: Props) {
               const terminalConflictLabel = terminalInfo?.conflict
                 ? t('admin.terminalConflictFlag', { terminal: terminalInfo.conflict })
                 : null;
+              // A confirmed group whose ride is still ahead should have a meeting point within a
+              // minute; without one, its terminal has no active point (or needs a manual pick).
+              const noMeetingPointLabel =
+                group.status === 'confirmed' &&
+                !group.meeting_point_id &&
+                rideDate &&
+                new Date(rideDate).getTime() > Date.now() - MEETING_POINT_FLAG_GRACE_MS
+                  ? t('admin.noMeetingPointFlag')
+                  : null;
               const summary = paymentSummaries[group.id];
               const paymentsLabel = summary
                 ? [
@@ -675,7 +688,7 @@ export default function AdminScreen({ session, onBack }: Props) {
                     paymentsLabel ? `${paymentsLabel}, ` : ''
                   }${receiptFlags[group.id] ? `${receiptFlags[group.id]}, ` : ''}${
                     terminalConflictLabel ? `${terminalConflictLabel}, ` : ''
-                  }${statusLabel}`}
+                  }${noMeetingPointLabel ? `${noMeetingPointLabel}, ` : ''}${statusLabel}`}
                 >
                   {rideDateLabel ? <Text style={styles.groupTitle}>{rideDateLabel}</Text> : null}
                   <Text style={rideDateLabel ? styles.groupSubtitle : styles.groupTitle}>{createdLabel}</Text>
@@ -683,6 +696,7 @@ export default function AdminScreen({ session, onBack }: Props) {
                     <Text style={styles.groupSubtitle}>{t('admin.terminalLabel', { terminal: terminalInfo.terminal })}</Text>
                   ) : null}
                   {terminalConflictLabel ? <Text style={styles.guaranteeFlag}>{terminalConflictLabel}</Text> : null}
+                  {noMeetingPointLabel ? <Text style={styles.guaranteeFlag}>{noMeetingPointLabel}</Text> : null}
                   <Text style={styles.groupSubtitle}>{fareLabel}</Text>
                   {paymentsLabel ? <Text style={styles.groupSubtitle}>{paymentsLabel}</Text> : null}
                   {receiptFlags[group.id] ? <Text style={styles.guaranteeFlag}>{receiptFlags[group.id]}</Text> : null}

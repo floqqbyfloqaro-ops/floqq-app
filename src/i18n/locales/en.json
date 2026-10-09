@@ -181,7 +181,8 @@
     "terminalMismatchError": "{{name}} arrives at {{terminal}}; your selection is {{groupTerminal}}. Groups can't mix terminals, because T1 and T2 are too far apart to meet.",
     "terminalUnknownError": "{{name}} has no arrival terminal yet, so they can't be put in a group.",
     "createGroupTerminalError": "This group couldn't be created: its passengers don't all arrive at the same terminal.",
-    "terminalConflictFlag": "Terminal conflict: flight data now says {{terminal}}"
+    "terminalConflictFlag": "Terminal conflict: flight data now says {{terminal}}",
+    "noMeetingPointFlag": "No meeting point assigned"
   },
   "groupDetail": {
     "title": "Group fare split",
@@ -263,7 +264,14 @@
     "receiptReject": "Reject receipt",
     "receiptActionError": "Couldn't update the receipt. Try again.",
     "addTerminalError": "{{name}} arrives at {{terminal}}; this group is {{groupTerminal}}. Groups can't mix terminals, because T1 and T2 are too far apart to meet.",
-    "terminalConflictNote": "Flight data now reports {{terminal}} for this passenger. The group is confirmed, so nothing was changed automatically."
+    "terminalConflictNote": "Flight data now reports {{terminal}} for this passenger. The group is confirmed, so nothing was changed automatically.",
+    "meetingPointTitle": "Meeting point",
+    "meetingPointNone": "No meeting point yet. One is assigned automatically within a minute, as soon as this terminal has an active point.",
+    "meetingTimeLabel": "Meeting time: {{time}}",
+    "meetingPointChange": "Change meeting point",
+    "meetingPointAuto": "Back to automatic",
+    "meetingPointPickerEmpty": "There is no active meeting point at this terminal.",
+    "meetingPointError": "The meeting point couldn't be changed. Please try again."
   },
   "myRide": {
     "title": "My ride",

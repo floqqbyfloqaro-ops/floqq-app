@@ -181,7 +181,8 @@
     "terminalMismatchError": "{{name}} arrive au {{terminal}} ; votre sélection est au {{groupTerminal}}. Un groupe ne peut pas mélanger les terminaux : T1 et T2 sont trop éloignés pour se retrouver.",
     "terminalUnknownError": "{{name}} n'a pas encore de terminal d'arrivée et ne peut donc pas être placé dans un groupe.",
     "createGroupTerminalError": "Ce groupe n'a pas pu être créé : ses passagers n'arrivent pas tous au même terminal.",
-    "terminalConflictFlag": "Conflit de terminal : les données de vol indiquent maintenant {{terminal}}"
+    "terminalConflictFlag": "Conflit de terminal : les données de vol indiquent maintenant {{terminal}}",
+    "noMeetingPointFlag": "Aucun point de rencontre attribué"
   },
   "groupDetail": {
     "title": "Répartition du tarif",
@@ -263,7 +264,14 @@
     "receiptReject": "Refuser le reçu",
     "receiptActionError": "Impossible de mettre à jour le reçu. Réessayez.",
     "addTerminalError": "{{name}} arrive au {{terminal}} ; ce groupe est au {{groupTerminal}}. Un groupe ne peut pas mélanger les terminaux : T1 et T2 sont trop éloignés pour se retrouver.",
-    "terminalConflictNote": "Les données de vol indiquent maintenant {{terminal}} pour ce passager. Le groupe est confirmé, donc rien n'a été modifié automatiquement."
+    "terminalConflictNote": "Les données de vol indiquent maintenant {{terminal}} pour ce passager. Le groupe est confirmé, donc rien n'a été modifié automatiquement.",
+    "meetingPointTitle": "Point de rencontre",
+    "meetingPointNone": "Pas encore de point de rencontre. Il est attribué automatiquement en moins d'une minute, dès que ce terminal a un point actif.",
+    "meetingTimeLabel": "Heure de rendez-vous : {{time}}",
+    "meetingPointChange": "Changer de point de rencontre",
+    "meetingPointAuto": "Revenir à l’attribution automatique",
+    "meetingPointPickerEmpty": "Il n'y a aucun point de rencontre actif à ce terminal.",
+    "meetingPointError": "Le point de rencontre n'a pas pu être modifié. Veuillez réessayer."
   },
   "myRide": {
     "title": "Mon trajet",

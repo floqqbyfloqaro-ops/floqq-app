@@ -112,6 +112,8 @@ export type TaxiGroupSummary = {
   created_at: string;
   total_fare: number | null;
   status: TaxiGroupStatus;
+  // Where the group meets at the airport; assigned automatically once it is confirmed.
+  meeting_point_id: string | null;
 };
 
 const ACTIVE_GROUP_STATUSES: TaxiGroupStatus[] = ['unconfirmed', 'confirmed'];
@@ -123,15 +125,31 @@ export const HISTORY_GROUP_STATUSES: TaxiGroupStatus[] = ['dissolved'];
 export function fetchTaxiGroups(statuses: TaxiGroupStatus[] = ACTIVE_GROUP_STATUSES) {
   return supabase
     .from('taxi_groups')
-    .select('id, created_at, total_fare, status')
+    .select('id, created_at, total_fare, status, meeting_point_id')
     .in('status', statuses)
     .order('created_at', { ascending: false });
 }
 
 export function fetchGroupById(groupId: string) {
-  return supabase.from('taxi_groups').select('id, created_at, total_fare, status, payer_request_id, payer_user_id')
+  return supabase
+    .from('taxi_groups')
+    .select('id, created_at, total_fare, status, payer_request_id, payer_user_id, meeting_point_id, meeting_time')
     .eq('id', groupId)
     .single();
+}
+
+export type SetMeetingPointBlockedReason = 'group_not_confirmed' | 'point_not_active' | 'terminal_mismatch';
+
+// The admin's manual override of a confirmed group's meeting point. Null hands the choice back to
+// the automatic assignment, which picks again within a minute.
+export async function setGroupMeetingPoint(groupId: string, meetingPointId: string | null) {
+  const { data, error } = await supabase.rpc('admin_set_group_meeting_point', {
+    p_group_id: groupId,
+    p_meeting_point_id: meetingPointId,
+  });
+  if (error) return { error: error as { message: string } | null, blockedReason: undefined };
+  const result = data as { applied: boolean; reason?: SetMeetingPointBlockedReason };
+  return { error: null, blockedReason: result.applied ? undefined : result.reason };
 }
 
 // Payments prototype, phase 4: the designated payer's payout setup (admin can read every profile).

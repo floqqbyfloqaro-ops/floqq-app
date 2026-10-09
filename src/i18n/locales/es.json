@@ -177,7 +177,8 @@
     "terminalMismatchError": "{{name}} llega a la {{terminal}}; tu selección es de la {{groupTerminal}}. Un grupo no puede mezclar terminales: la T1 y la T2 están demasiado lejos para encontrarse.",
     "terminalUnknownError": "{{name}} aún no tiene terminal de llegada, así que no se puede añadir a un grupo.",
     "createGroupTerminalError": "No se pudo crear este grupo: sus pasajeros no llegan todos a la misma terminal.",
-    "terminalConflictFlag": "Conflicto de terminal: los datos del vuelo indican ahora {{terminal}}"
+    "terminalConflictFlag": "Conflicto de terminal: los datos del vuelo indican ahora {{terminal}}",
+    "noMeetingPointFlag": "Sin punto de encuentro asignado"
   },
   "groupDetail": {
     "title": "Reparto de la tarifa",
@@ -259,7 +260,14 @@
     "receiptReject": "Rechazar recibo",
     "receiptActionError": "No se ha podido actualizar el recibo. Inténtalo de nuevo.",
     "addTerminalError": "{{name}} llega a la {{terminal}}; este grupo es de la {{groupTerminal}}. Un grupo no puede mezclar terminales: la T1 y la T2 están demasiado lejos para encontrarse.",
-    "terminalConflictNote": "Los datos del vuelo indican ahora {{terminal}} para este pasajero. El grupo está confirmado, así que no se ha cambiado nada automáticamente."
+    "terminalConflictNote": "Los datos del vuelo indican ahora {{terminal}} para este pasajero. El grupo está confirmado, así que no se ha cambiado nada automáticamente.",
+    "meetingPointTitle": "Punto de encuentro",
+    "meetingPointNone": "Aún no hay punto de encuentro. Se asigna automáticamente en menos de un minuto, en cuanto esta terminal tenga un punto activo.",
+    "meetingTimeLabel": "Hora de encuentro: {{time}}",
+    "meetingPointChange": "Cambiar punto de encuentro",
+    "meetingPointAuto": "Volver a la asignación automática",
+    "meetingPointPickerEmpty": "No hay ningún punto de encuentro activo en esta terminal.",
+    "meetingPointError": "No se pudo cambiar el punto de encuentro. Inténtalo de nuevo."
   },
   "myRide": {
     "title": "Mi trayecto",

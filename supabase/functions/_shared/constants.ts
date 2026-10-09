@@ -79,6 +79,10 @@ export const FLIGHT_REFRESH_SCHEDULE = {
   giveUpHours: 6,
 } as const;
 
+// Meeting points: two groups whose meeting times are no further apart than this are not sent to
+// the same point (unless every point at the terminal is taken).
+export const MEETING_WINDOW_MINUTES = 20;
+
 // "Find your group": live location sharing switches itself off this long after the ride's planned
 // departure, whatever else happens. Server-side only; the app is given the resulting moment.
 export const MEETUP_SHARING_TIMEOUT_MINUTES = 45;

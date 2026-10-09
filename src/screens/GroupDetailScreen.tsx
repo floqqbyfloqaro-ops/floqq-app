@@ -3,12 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AdminGroupPayments from '../components/AdminGroupPayments';
+import { adminWordingLanguage } from '../components/AdminMeetingPoints';
 import AdminReceiptReview from '../components/AdminReceiptReview';
 import AuthTextInput from '../components/AuthTextInput';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
-import RideDateLine, { rideDateAccessibilityText } from '../components/RideDateLine';
+import RideDateLine, { formatRideDateTime, rideDateAccessibilityText } from '../components/RideDateLine';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
@@ -26,6 +27,7 @@ import {
   PendingPassengerRequest,
   ReceiptShareRow,
   removeGroupMember,
+  setGroupMeetingPoint,
   TaxiGroupMember,
   TaxiGroupStatus,
   updateGroupTotalFare,
@@ -33,7 +35,9 @@ import {
 } from '../services/adminGrouping';
 import { calculateFareSplit, FareSplitResult } from '../services/fareSplit';
 import { fetchRideReceipt, formatCents, RideReceipt, syncGroupHolds } from '../services/payments';
-import { sameTerminal } from '../services/terminalRules';
+import { MeetingPoint, meetingPointText } from '../services/meetingPointRules';
+import { fetchMeetingPoints, shippedText } from '../services/meetingPoints';
+import { sameTerminal, terminalOfMeetingPoint } from '../services/terminalRules';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
@@ -86,6 +90,13 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   const [isActing, setIsActing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Where a confirmed group meets at the airport: assigned automatically, the admin may override.
+  const [meetingPoint, setMeetingPoint] = useState<{ id: string | null; time: string | null }>({ id: null, time: null });
+  const [meetingPoints, setMeetingPoints] = useState<MeetingPoint[]>([]);
+  const [isPickingMeetingPoint, setIsPickingMeetingPoint] = useState(false);
+  const [isSavingMeetingPoint, setIsSavingMeetingPoint] = useState(false);
+  const [meetingPointError, setMeetingPointError] = useState<string | null>(null);
+
   const canCorrect = groupStatus === 'unconfirmed';
 
   const loadData = useCallback(async () => {
@@ -107,7 +118,9 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
 
     if (groupResult.data) {
       setGroupStatus(groupResult.data.status);
+      setMeetingPoint({ id: groupResult.data.meeting_point_id, time: groupResult.data.meeting_time });
     }
+
 
     if (PAYMENTS_ENABLED && groupResult.data?.payer_request_id) {
       const payerUserId = groupResult.data.payer_user_id;
@@ -147,6 +160,16 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // The points to choose from, once the group is confirmed (also when it was confirmed just now,
+  // on this screen).
+  useEffect(() => {
+    if (groupStatus !== 'confirmed') return;
+    fetchMeetingPoints().then(({ data, error }) => {
+      if (error) console.warn('fetchMeetingPoints failed', error);
+      setMeetingPoints(data ?? []);
+    });
+  }, [groupStatus]);
 
   const handleCalculate = async () => {
     setSaveError(null);
@@ -246,6 +269,29 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
           groupTerminal: groupTerminal ?? t('admin.terminalUnknown'),
         })
       : t('admin.terminalUnknownError', { name: candidateDisplayName(candidate) });
+
+  const wordingLanguage = adminWordingLanguage(i18n.language);
+  const meetingPointLabel = (point: MeetingPoint) =>
+    `${point.short_code} · ${meetingPointText(point, 'name', wordingLanguage, shippedText)}`;
+  const currentMeetingPoint = meetingPoints.find((point) => point.id === meetingPoint.id) ?? null;
+  // Only active points at the group's own terminal can be picked (the server checks it too).
+  const pickableMeetingPoints = meetingPoints.filter(
+    (point) => point.is_active && groupTerminal != null && terminalOfMeetingPoint(point.terminal) === groupTerminal
+  );
+
+  const handleSetMeetingPoint = async (meetingPointId: string | null) => {
+    setMeetingPointError(null);
+    setIsSavingMeetingPoint(true);
+    const { error, blockedReason } = await setGroupMeetingPoint(groupId, meetingPointId);
+    setIsSavingMeetingPoint(false);
+    if (error || blockedReason) {
+      console.warn('setGroupMeetingPoint failed', error ?? blockedReason);
+      setMeetingPointError(t('groupDetail.meetingPointError'));
+      return;
+    }
+    setIsPickingMeetingPoint(false);
+    await loadData();
+  };
 
   const handlePickCandidate = (candidate: PendingPassengerRequest) => {
     if (!sameTerminal(candidate.arrival_terminal, groupTerminal)) {
@@ -549,6 +595,57 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                     </Card>
                   );
                 })}
+              </View>
+            ) : null}
+
+            {groupStatus === 'confirmed' ? (
+              <View style={styles.correctionsSection}>
+                <Text style={styles.sectionTitle}>{t('groupDetail.meetingPointTitle')}</Text>
+                <Text style={styles.memberTitle}>
+                  {currentMeetingPoint ? meetingPointLabel(currentMeetingPoint) : t('groupDetail.meetingPointNone')}
+                </Text>
+                {meetingPoint.id && meetingPoint.time ? (
+                  <Text style={styles.memberSubtitle}>
+                    {t('groupDetail.meetingTimeLabel', { time: formatRideDateTime(t, i18n.language, meetingPoint.time) })}
+                  </Text>
+                ) : null}
+                {meetingPointError ? <ErrorNotice message={meetingPointError} /> : null}
+
+                <SecondaryButton
+                  label={t('groupDetail.meetingPointChange')}
+                  onPress={() => setIsPickingMeetingPoint((open) => !open)}
+                  loading={isSavingMeetingPoint}
+                />
+                {isPickingMeetingPoint ? (
+                  <>
+                    {pickableMeetingPoints.length === 0 ? (
+                      <Text style={styles.correctionsNote}>{t('groupDetail.meetingPointPickerEmpty')}</Text>
+                    ) : (
+                      pickableMeetingPoints.map((point) => (
+                        <Card
+                          key={point.id}
+                          onPress={() => handleSetMeetingPoint(point.id)}
+                          style={styles.candidateRow}
+                          highlighted={point.id === meetingPoint.id}
+                          accessibilityLabel={meetingPointLabel(point)}
+                          accessibilityState={{ selected: point.id === meetingPoint.id }}
+                        >
+                          <Text style={styles.memberTitle}>{meetingPointLabel(point)}</Text>
+                          <Text style={styles.memberSubtitle}>
+                            {meetingPointText(point, 'directions', wordingLanguage, shippedText)}
+                          </Text>
+                        </Card>
+                      ))
+                    )}
+                    {meetingPoint.id ? (
+                      <SecondaryButton
+                        label={t('groupDetail.meetingPointAuto')}
+                        onPress={() => handleSetMeetingPoint(null)}
+                        disabled={isSavingMeetingPoint}
+                      />
+                    ) : null}
+                  </>
+                ) : null}
               </View>
             ) : null}
 
