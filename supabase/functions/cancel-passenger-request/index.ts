@@ -60,12 +60,21 @@ Deno.serve(async (req) => {
   // is still being settled nobody can leave; afterwards leaving only closes the ride, with no
   // money or group changes.
   let rideSettled = false;
+  // A group that never met is under review by the admin: cancelling out of it charges no fee.
+  let rideUnderReview = false;
   const { data: request } = await adminClient
     .from('passenger_requests')
     .select('group_id')
     .eq('id', body.requestId)
     .maybeSingle();
   if (request?.group_id) {
+    const { data: group } = await adminClient
+      .from('taxi_groups')
+      .select('meetup_flagged_at')
+      .eq('id', request.group_id)
+      .maybeSingle();
+    rideUnderReview = group?.meetup_flagged_at != null;
+
     const { data: receipt } = await adminClient
       .from('ride_receipts')
       .select('settled_at')
@@ -115,7 +124,7 @@ Deno.serve(async (req) => {
       console.error('Stripe not usable for cancellation', err);
     }
   }
-  if (stripe && result.was_confirmed && result.group_id) {
+  if (stripe && result.was_confirmed && result.group_id && !rideUnderReview) {
     try {
       await settleCancelledSeat(adminClient, stripe, body.requestId as string, result.group_id);
     } catch (err) {

@@ -1,10 +1,15 @@
 import { supabase } from './supabase';
+import type { ArrivalTerminal, ArrivalTerminalSource } from './terminalRules';
 
 // Where arrival_at came from - shown to the admin as a plane indicator (see RideDateLine).
 export type ArrivalTimeSource = 'flight' | 'manual';
 
 export type PassengerRequestInput = {
+  // Empty when the passenger has no flight number (already at the airport, or doesn't know it).
   flightNumber: string;
+  // From the flight lookup when it names one, otherwise chosen by the passenger.
+  arrivalTerminal: ArrivalTerminal;
+  arrivalTerminalSource: ArrivalTerminalSource;
   arrivalAt: Date;
   destinationAddress: string;
   destinationLat: number;
@@ -36,6 +41,8 @@ export async function createPassengerRequest(input: PassengerRequestInput) {
     flight_number: input.flightNumber,
     arrival_at: input.arrivalAt.toISOString(),
     arrival_time_source: input.arrivalTimeSource ?? 'manual',
+    arrival_terminal: input.arrivalTerminal,
+    arrival_terminal_source: input.arrivalTerminalSource,
     destination_address: input.destinationAddress,
     destination_lat: input.destinationLat,
     destination_lng: input.destinationLng,
@@ -58,6 +65,9 @@ export type EditablePassengerRequest = {
   large_luggage_count: number;
   hand_luggage_count: number;
   max_wait_minutes: number;
+  // Null only on rides from before terminals existed.
+  arrival_terminal: ArrivalTerminal | null;
+  arrival_terminal_source: ArrivalTerminalSource | null;
 };
 
 // Used by NewRequestScreen to prefill the form in edit mode. Scoped to the caller's own row by
@@ -74,7 +84,7 @@ export async function fetchPassengerRequestById(requestId: string) {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, status, flight_number, arrival_at, destination_address, destination_lat, destination_lng, large_luggage_count, hand_luggage_count, max_wait_minutes'
+      'id, status, flight_number, arrival_at, destination_address, destination_lat, destination_lng, large_luggage_count, hand_luggage_count, max_wait_minutes, arrival_terminal, arrival_terminal_source'
     )
     .eq('id', requestId)
     .eq('user_id', user.id)
@@ -110,6 +120,8 @@ export async function updatePassengerRequest(
       handLuggageCount: input.handLuggageCount,
       maxWaitMinutes: input.maxWaitMinutes,
       arrivalTimeSource: input.arrivalTimeSource,
+      arrivalTerminal: input.arrivalTerminal,
+      arrivalTerminalSource: input.arrivalTerminalSource,
     },
   });
 
@@ -242,12 +254,14 @@ export type MyTaxiGroup = {
   payer_request_id: string | null;
   // Payments prototype, phase 7: set once the ride has left and the payer owes a receipt.
   receipt_deadline_at: string | null;
+  // Where the confirmed group meets at the airport; null until one is assigned.
+  meeting_point_id: string | null;
 };
 
 export function fetchMyGroupStatus(groupId: string) {
   return supabase
     .from('taxi_groups')
-    .select('id, status, total_fare, payer_request_id, receipt_deadline_at')
+    .select('id, status, total_fare, payer_request_id, receipt_deadline_at, meeting_point_id')
     .eq('id', groupId)
     .single<MyTaxiGroup>();
 }

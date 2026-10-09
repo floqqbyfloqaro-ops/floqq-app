@@ -9,14 +9,18 @@ import PayerCard from '../components/PayerCard';
 import PrimaryButton from '../components/PrimaryButton';
 import RideHoldCard from '../components/RideHoldCard';
 import ScreenBackground from '../components/ScreenBackground';
+import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
 import { PAYMENTS_ENABLED, SERVICE_FEE_EUR } from '../constants';
 import { subscribeToRide } from '../services/matchOffer';
+import { MeetingPointSummary, meetingPointText, wordingLanguageFor } from '../services/meetingPointRules';
+import { fetchMeetingPointSummary, shippedText } from '../services/meetingPoints';
 import { createServiceFeeCheckout } from '../services/payments';
 import { fetchMyGroupStatus, fetchMyLatestRequest, MyPassengerRequest, MyTaxiGroup } from '../services/passengerRequests';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
 import FindingMatchScreen from './FindingMatchScreen';
+import GroupDetailsScreen from './GroupDetailsScreen';
 import MatchFoundScreen from './MatchFoundScreen';
 
 type Props = {
@@ -25,14 +29,14 @@ type Props = {
   onOpenProfile: () => void;
 };
 
-type SubScreen = 'findingMatch' | 'matchFound' | null;
+type SubScreen = 'findingMatch' | 'matchFound' | 'findGroup' | null;
 
 // How often the ride is re-read while the passenger is waiting for (or looking at) a match, on top
 // of the live updates - a safety net for a missed one.
 const LIVE_RECHECK_MS = 15_000;
 
 export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [request, setRequest] = useState<MyPassengerRequest | null>(null);
   const [group, setGroup] = useState<MyTaxiGroup | null>(null);
@@ -42,6 +46,7 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
+  const [meetingPoint, setMeetingPoint] = useState<MeetingPointSummary | null>(null);
 
   const loadData = useCallback(async () => {
     setErrorMessage(null);
@@ -82,6 +87,24 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
     setIsRefreshing(true);
     loadData();
   };
+
+  // Where the confirmed group meets, for the "Meet at" line (the full card is on the meetup screen).
+  const meetingPointId = group?.status === 'confirmed' ? group.meeting_point_id : null;
+  useEffect(() => {
+    if (!meetingPointId) {
+      setMeetingPoint(null);
+      return;
+    }
+    let cancelled = false;
+    fetchMeetingPointSummary(meetingPointId).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) console.warn('fetchMeetingPointSummary failed', error);
+      setMeetingPoint(data ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [meetingPointId]);
 
   // Stripe Checkout opens in the system browser, so the most reliable moment to pick up the
   // webhook's result is when the passenger switches back into the app - not a deep link, which
@@ -177,6 +200,18 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
     );
   }
 
+  if (subScreen === 'findGroup' && request) {
+    return (
+      <GroupDetailsScreen
+        request={request}
+        onBack={() => {
+          setSubScreen(null);
+          loadData();
+        }}
+      />
+    );
+  }
+
   return (
     <ScreenBackground
       source={require('../../assets/bg-airport-arrival.png')}
@@ -218,7 +253,7 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
         ) : request.status === 'cancelled' || request.status === 'expired' ? (
           <View style={styles.emptyState}>
             <Card style={styles.cancelledCard} accessibilityLabel={t('myRide.title')}>
-              <Text style={styles.flightNumber}>{request.flight_number}</Text>
+              <Text style={styles.flightNumber}>{request.flight_number || t('myRide.noFlightNumber')}</Text>
               {/* Expired reuses the neutral Cancelled pill style; only the label tells them apart. */}
               <StatusPill
                 status="Cancelled"
@@ -229,7 +264,7 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
           </View>
         ) : (
           <Card onPress={handleCardPress} accessibilityLabel={t('myRide.title')}>
-            <Text style={styles.flightNumber}>{request.flight_number}</Text>
+            <Text style={styles.flightNumber}>{request.flight_number || t('myRide.noFlightNumber')}</Text>
 
             <Text style={styles.fieldLabel}>{t('myRide.destinationLabel')}</Text>
             <Text style={styles.destinationText}>{request.destination_address}</Text>
@@ -275,6 +310,23 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
                 />
               </>
             )}
+            {group?.status === 'confirmed' && meetingPoint ? (
+              <Text style={styles.meetAt}>
+                {t('myRide.meetAt', {
+                  name: meetingPointText(meetingPoint, 'name', wordingLanguageFor(i18n.language), shippedText),
+                  terminal: meetingPoint.terminal,
+                })}
+              </Text>
+            ) : null}
+            {group?.status === 'confirmed' ? (
+              <View style={styles.findGroupButton}>
+                <SecondaryButton
+                  label={t('myRide.findGroupButton')}
+                  icon="people-outline"
+                  onPress={() => setSubScreen('findGroup')}
+                />
+              </View>
+            ) : null}
             {group?.status === 'confirmed' ? (
               <CancelConfirmedRide
                 requestId={request.id}
@@ -349,5 +401,13 @@ const styles = StyleSheet.create({
   pendingNote: {
     ...baseText.caption,
     marginBottom: spacing.x3,
+  },
+  findGroupButton: {
+    marginTop: spacing.x3,
+  },
+  meetAt: {
+    ...baseText.body,
+    fontWeight: '600',
+    marginTop: spacing.x3,
   },
 });

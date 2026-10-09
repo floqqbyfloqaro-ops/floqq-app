@@ -86,7 +86,7 @@
   "group_member_left": "Un voyageur a quitté votre groupe. Nous mettons à jour votre correspondance.",
   "newRequest": {
     "title": "Nouvelle demande de trajet",
-    "flightNumberLabel": "Numéro de vol",
+    "flightNumberLabel": "Numéro de vol (facultatif)",
     "flightNumberPlaceholder": "ex. AF1234",
     "arrivalDateLabel": "Date d'arrivée",
     "arrivalTimeLabel": "Heure d'arrivée",
@@ -99,7 +99,7 @@
     "submit": "Envoyer la demande",
     "cancel": "Annuler",
     "done": "Valider",
-    "missingFieldsError": "Veuillez renseigner le numéro de vol et l'adresse de destination.",
+    "missingFieldsError": "Veuillez indiquer l'adresse de destination.",
     "invalidNumberError": "Veuillez entrer un nombre valide pour le temps d'attente.",
     "successTitle": "Demande envoyée !",
     "updateSuccessTitle": "Modifications enregistrées !",
@@ -111,7 +111,18 @@
     "flightLookupNotFound": "Statut du vol indisponible en direct — veuillez régler l'heure manuellement.",
     "arrivalTimeAutoNote": "Rempli automatiquement depuis le vol {{flightNumber}}",
     "nowButtonLabel": "Maintenant",
-    "submitError": "Impossible d'envoyer votre demande. Vérifiez votre connexion et réessayez."
+    "submitError": "Impossible d'envoyer votre demande. Vérifiez votre connexion et réessayez.",
+    "flightNumberHelper": "Pas de numéro de vol ? Laissez ce champ vide et indiquez vous-même votre heure d'arrivée.",
+    "barcelonaTimeNote": "Heure locale de Barcelone.",
+    "terminalLabel": "Terminal d'arrivée",
+    "terminal": {
+      "T1": "Terminal 1 (T1)",
+      "T2": "Terminal 2 (T2)"
+    },
+    "terminalHelper": "Vérifiez votre réservation ou votre carte d'embarquement.",
+    "terminalFromFlightNote": "D'après le vol {{flightNumber}}",
+    "terminalFromLocationNote": "Prérempli d'après votre position. Modifiez-le s'il est incorrect.",
+    "terminalRequiredError": "Veuillez choisir votre terminal d'arrivée."
   },
   "admin": {
     "title": "Demandes en attente",
@@ -164,7 +175,16 @@
     "filterEmpty": "Aucune demande en attente pour ce jour.",
     "guaranteeUsedFlag": "⚠ Garantie de paiement du trajet utilisée",
     "receiptNeedsReviewFlag": "⚠ Reçu à vérifier",
-    "receiptEstimatedFlag": "⚠ Pas de reçu - tarif estimé utilisé"
+    "receiptEstimatedFlag": "⚠ Pas de reçu - tarif estimé utilisé",
+    "terminalLabel": "Terminal {{terminal}}",
+    "terminalUnknown": "Terminal inconnu",
+    "terminalMismatchError": "{{name}} arrive au {{terminal}} ; votre sélection est au {{groupTerminal}}. Un groupe ne peut pas mélanger les terminaux : T1 et T2 sont trop éloignés pour se retrouver.",
+    "terminalUnknownError": "{{name}} n'a pas encore de terminal d'arrivée et ne peut donc pas être placé dans un groupe.",
+    "createGroupTerminalError": "Ce groupe n'a pas pu être créé : ses passagers n'arrivent pas tous au même terminal.",
+    "terminalConflictFlag": "Conflit de terminal : les données de vol indiquent maintenant {{terminal}}",
+    "noMeetingPointFlag": "Aucun point de rencontre attribué",
+    "meetupFlaggedFlag": "À vérifier : ce groupe ne s'est jamais retrouvé. Rien n'est débité tant que vous n'avez pas confirmé le trajet.",
+    "noShowFlag": "Absent : son groupe a continué sans cette personne ({{date}})"
   },
   "groupDetail": {
     "title": "Répartition du tarif",
@@ -244,7 +264,24 @@
     "receiptApprove": "Approuver le reçu",
     "receiptSaveCorrection": "Enregistrer la correction",
     "receiptReject": "Refuser le reçu",
-    "receiptActionError": "Impossible de mettre à jour le reçu. Réessayez."
+    "receiptActionError": "Impossible de mettre à jour le reçu. Réessayez.",
+    "addTerminalError": "{{name}} arrive au {{terminal}} ; ce groupe est au {{groupTerminal}}. Un groupe ne peut pas mélanger les terminaux : T1 et T2 sont trop éloignés pour se retrouver.",
+    "terminalConflictNote": "Les données de vol indiquent maintenant {{terminal}} pour ce passager. Le groupe est confirmé, donc rien n'a été modifié automatiquement.",
+    "meetingPointTitle": "Point de rencontre",
+    "meetingPointNone": "Pas encore de point de rencontre. Il est attribué automatiquement en moins d'une minute, dès que ce terminal a un point actif.",
+    "meetingTimeLabel": "Heure de rendez-vous : {{time}}",
+    "meetingPointChange": "Changer de point de rencontre",
+    "meetingPointAuto": "Revenir à l’attribution automatique",
+    "meetingPointPickerEmpty": "Il n'y a aucun point de rencontre actif à ce terminal.",
+    "meetingPointError": "Le point de rencontre n'a pas pu être modifié. Veuillez réessayer.",
+    "badgeLabel": "Badge : {{color}} {{number}}",
+    "badgeNone": "Pas encore de badge",
+    "meetupNotFound": "Groupe pas encore retrouvé",
+    "meetupFound": "Groupe retrouvé",
+    "meetupStarted": "Trajet commencé",
+    "meetupFlaggedNote": "Ce groupe n'a jamais confirmé s'être retrouvé et l'heure de son trajet est largement passée. Aucune étape de paiement n'est lancée tant que vous n'avez pas confirmé que le trajet a eu lieu.",
+    "rideTookPlaceButton": "Le trajet a eu lieu",
+    "rideTookPlaceError": "L'enregistrement a échoué. Veuillez réessayer."
   },
   "myRide": {
     "title": "Mon trajet",
@@ -271,7 +308,10 @@
     "cancelLegacyFee": "Les frais de service de {{fee}} € que vous avez payés ne sont pas remboursés.",
     "cancelOthersNote": "La course des autres passagers sera recalculée sans vous.",
     "cancelConfirmButton": "Oui, annuler ma course",
-    "cancelFree": "Vous annulez plus de 24 heures avant le trajet, c’est donc gratuit : toute votre réservation de {{amount}} € est libérée."
+    "cancelFree": "Vous annulez plus de 24 heures avant le trajet, c’est donc gratuit : toute votre réservation de {{amount}} € est libérée.",
+    "findGroupButton": "Retrouvez votre groupe",
+    "noFlightNumber": "Sans numéro de vol",
+    "meetAt": "Rendez-vous : {{name}} · {{terminal}}"
   },
   "findingMatch": {
     "title": "Recherche de votre correspondance...",
@@ -288,9 +328,138 @@
     "cancelConfirmAction": "Annuler le trajet",
     "cancelError": "Impossible d'annuler votre trajet. Veuillez réessayer."
   },
-  "groupDetailsPlaceholder": {
-    "title": "Détails du groupe",
-    "body": "Cet écran arrive bientôt — votre groupe est confirmé, nous afficherons ici tous les détails."
+  "adminMeetingPoints": {
+    "tab": "Points",
+    "title": "Points de rencontre",
+    "empty": "Il n'y a pas encore de point de rencontre.",
+    "loadError": "Impossible de charger les points de rencontre.",
+    "saveError": "L'enregistrement a échoué. Veuillez réessayer.",
+    "terminal": "Terminal {{terminal}}",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "verifiedOn": "Vérifié sur place : {{date}}",
+    "notVerified": "Pas encore vérifié sur place.",
+    "missing": "Il manque encore : {{items}}",
+    "missingItem": {
+      "coordinates": "les coordonnées",
+      "photo": "la photo",
+      "wording": "le texte dans chaque langue",
+      "verified": "la vérification sur place"
+    },
+    "locationTitle": "Emplacement",
+    "noLocation": "Aucune coordonnée enregistrée.",
+    "coordinates": "{{latitude}}, {{longitude}}",
+    "useCurrentLocation": "Utiliser ma position actuelle",
+    "retake": "Reprendre ma position",
+    "capturing": "Lecture du GPS…",
+    "capturingAccuracy": "Lecture du GPS… précision de {{meters}} m pour l'instant",
+    "accuracy": "Précision du GPS : {{meters}} m.",
+    "accuracyPoor": "Précision du GPS de {{meters}} m seulement (visez {{limit}} m ou mieux). Reprenez la position ou placez le repère sur la carte.",
+    "placedByHand": "Repère placé à la main.",
+    "locationDenied": "FLOQQ n'est pas autorisé à utiliser votre position. Autorisez-la dans les réglages ou placez le repère sur la carte.",
+    "locationUnavailable": "Aucune position GPS reçue. Réessayez ou placez le repère sur la carte.",
+    "mapHint": "Appuyez longuement sur la carte pour placer le repère, ou faites-le glisser pour l'ajuster.",
+    "mapStandard": "Plan",
+    "mapSatellite": "Satellite",
+    "saveLocation": "Enregistrer cet emplacement",
+    "discard": "Annuler",
+    "resetsVerification": "Cette modification efface la vérification et désactive le point.",
+    "webMapNote": "La carte n'est disponible que dans l'application mobile. Saisissez les coordonnées ici.",
+    "latitudeLabel": "Latitude",
+    "longitudeLabel": "Longitude",
+    "setPin": "Définir les coordonnées",
+    "photoTitle": "Photo",
+    "noPhoto": "Pas encore de photo.",
+    "photoHint": "Prenez-la depuis la direction d'où arrivent les passagers, pour qu'ils reconnaissent l'endroit.",
+    "takePhoto": "Prendre une photo",
+    "choosePhoto": "Choisir dans la photothèque",
+    "cameraDenied": "FLOQQ n'est pas autorisé à utiliser l'appareil photo. Autorisez-le dans les réglages ou choisissez une photo dans la photothèque.",
+    "photoError": "La photo n'a pas pu être enregistrée. Veuillez réessayer.",
+    "wordingTitle": "Texte",
+    "language": {
+      "en": "Anglais",
+      "fr": "Français",
+      "es": "Espagnol"
+    },
+    "nameLabel": "Nom",
+    "directionsLabel": "Itinéraire à pied depuis la sortie des bagages",
+    "priorityLabel": "Priorité",
+    "priorityHint": "Les nombres les plus élevés sont choisis en premier.",
+    "saveDetails": "Enregistrer le texte et la priorité",
+    "saved": "Enregistré.",
+    "statusTitle": "Vérification et statut",
+    "verifyHint": "Vérifiez sur place que le repère, la photo et le texte sont corrects, puis marquez le point comme vérifié.",
+    "markVerified": "Marquer comme vérifié sur place",
+    "activate": "Activer",
+    "deactivate": "Désactiver",
+    "tooClose": "À seulement {{meters}} m de {{code}} : la flèche ne peut pas les distinguer de façon fiable."
+  },
+  "meetingPoints": {
+    "T1-A": {
+      "name": "Office de tourisme",
+      "directions": "Niveau 0, juste après l'entrée dans le hall des arrivées."
+    },
+    "T1-B": {
+      "name": "Café à l'extrémité gauche du hall des arrivées",
+      "directions": "Dans le hall des arrivées, allez jusqu'à l'extrémité gauche et attendez devant le café."
+    },
+    "T1-C": {
+      "name": "Café au milieu du hall des arrivées",
+      "directions": "Au milieu du hall des arrivées, devant le café."
+    },
+    "T1-D": {
+      "name": "Consigne à bagages",
+      "directions": "Niveau 0, côté Parking T1."
+    },
+    "T1-E": {
+      "name": "Bureau des objets trouvés",
+      "directions": "Niveau 0, devant le bureau des objets trouvés."
+    },
+    "T2-A": {
+      "name": "Stand d'information touristique",
+      "directions": "T2B : à environ 50 m à gauche de la sortie des bagages, au milieu du hall."
+    },
+    "T2-B": {
+      "name": "Statue du cheval en bronze",
+      "directions": "Hall des arrivées du T2B, à côté de la statue du cheval en bronze."
+    },
+    "T2-C": {
+      "name": "Pharmacie",
+      "directions": "T2B, niveau 0, devant la pharmacie."
+    },
+    "T2-D": {
+      "name": "Consigne à bagages",
+      "directions": "T2B, près du hall des arrivées, devant la consigne à bagages."
+    }
+  },
+  "location_share_explainer": "Partagez votre position en direct avec votre groupe uniquement, pour vous retrouver. Le partage s'arrête automatiquement une fois que vous êtes ensemble.",
+  "findGroup": {
+    "title": "Retrouvez votre groupe",
+    "subtitle": "Suivez la flèche jusqu’à votre point de rencontre. Partager votre position avec votre groupe est facultatif.",
+    "windowClosed": "Le partage de position s'ouvre à l'atterrissage du premier voyageur, vers {{time}}.",
+    "timedOut": "Ce rendez-vous est terminé : le partage de position est désactivé.",
+    "ended": "Votre trajet a commencé. Le partage de position est désactivé.",
+    "noGroup": "Vous ne faites plus partie d'un groupe confirmé.",
+    "loadError": "Impossible de charger votre groupe.",
+    "membersLabel": "Votre groupe",
+    "statusSharing": "Partage sa position en direct",
+    "statusLastSeen": "Vu pour la dernière fois il y a {{count}} min",
+    "statusLastSeenNow": "Vu pour la dernière fois à l'instant",
+    "statusNotSharing": "{{name}} ne partage pas sa position",
+    "youSharing": "Vous partagez votre position",
+    "youSharingAccuracy": "Vous partagez votre position · précision de {{meters}} m",
+    "youNotSharing": "Vous ne partagez pas votre position",
+    "explainerTitle": "Partager votre position ?",
+    "shareButton": "Partager ma position avec mon groupe",
+    "stopButton": "Arrêter le partage",
+    "notNow": "Pas maintenant",
+    "shareFootnote": "Facultatif. Seul votre groupe peut la voir, et uniquement tant que cet écran est ouvert.",
+    "openSettings": "Ouvrir les réglages",
+    "accessDenied": "FLOQQ n'est pas autorisé à utiliser votre position. Vous pouvez retrouver votre groupe sans elle, ou l'autoriser dans les réglages.",
+    "accessReduced": "Votre téléphone ne partage qu'une position approximative avec FLOQQ, trop imprécise pour vous retrouver. Activez la position exacte dans les réglages pour la partager.",
+    "accessUnavailable": "La localisation est désactivée sur ce téléphone. Activez-la pour partager votre position.",
+    "channelError": "Impossible de vous connecter aux positions en direct de votre groupe. Vérifiez votre connexion et rouvrez cet écran.",
+    "groupFound": "Tout le monde est là. Ouvrez votre badge pour indiquer que le trajet a commencé."
   },
   "active_ride_exists": "Vous avez déjà un trajet actif. Vous ne pouvez avoir qu’un seul trajet à la fois.",
   "profile": {
@@ -506,5 +675,75 @@
     "confirmedTitle": "Groupe confirmé",
     "confirmedNote": "Votre groupe est confirmé. La réservation de votre place et les détails du paiement sont dans Mon trajet.",
     "memberJoined": "Un voyageur a rejoint votre groupe. L’itinéraire et votre part ont été mis à jour."
+  },
+  "meetingPointCard": {
+    "title": "Votre point de rencontre",
+    "terminal": "Terminal {{terminal}}",
+    "pending": "Votre point de rencontre apparaîtra ici dans un instant.",
+    "meetingTime": "Heure de rendez-vous : {{time}} (heure de Barcelone)",
+    "openInMaps": "Ouvrir dans Google Maps",
+    "photoLabel": "Photo du point de rencontre : {{name}}"
+  },
+  "badge_hold_up": "Levez votre téléphone et cherchez le même badge.",
+  "found_my_group": "J'ai trouvé mon groupe",
+  "badge": {
+    "title": "Le badge de votre groupe",
+    "showButton": "Afficher notre badge",
+    "pending": "Votre badge apparaîtra ici dans un instant.",
+    "accessibilityLabel": "{{shape}} {{color}}, numéro {{number}}",
+    "color": {
+      "purple": "violet",
+      "teal": "turquoise",
+      "orange": "orange",
+      "pink": "rose",
+      "yellow": "jaune",
+      "blue": "bleu"
+    },
+    "shape": {
+      "circle": "Cercle",
+      "square": "Carré",
+      "triangle": "Triangle",
+      "diamond": "Losange",
+      "star": "Étoile",
+      "hexagon": "Hexagone"
+    },
+    "membersLabel": "Qui a trouvé le groupe",
+    "memberFound": "Trouvé ✓",
+    "memberNotYet": "Pas encore",
+    "waitingForOthers": "En attente de la confirmation des autres.",
+    "foundError": "Cela n'a pas fonctionné. Veuillez réessayer.",
+    "noShowTitle": "{{names}} n'a pas encore confirmé",
+    "noShowBody": "Vous pouvez continuer à attendre, ou continuer sans cette personne.",
+    "keepWaiting": "Continuer à attendre",
+    "continueWithout": "Continuer sans {{names}}",
+    "continueConfirmQuestion": "{{names}} sera signalé(e) comme absent(e) et retiré(e) de votre groupe, et le tarif sera recalculé pour ceux qui restent. Continuer ?",
+    "continueConfirmYes": "Oui, continuer sans {{names}}",
+    "continueError": "Impossible de mettre à jour votre groupe. Veuillez réessayer.",
+    "continueTooFew": "Au moins deux passagers doivent rester : vous ne pouvez pas continuer sans cette personne. Continuez à attendre ou annulez votre trajet.",
+    "groupFoundTitle": "Tout le monde est là",
+    "groupFoundBody": "Rendez-vous ensemble à la station de taxis.",
+    "inTheTaxi": "Nous sommes dans le taxi",
+    "taxiConfirmQuestion": "Êtes-vous tous dans le taxi ?",
+    "taxiConfirmYes": "Oui, nous sommes dans le taxi",
+    "taxiConfirmNo": "Pas encore",
+    "taxiError": "Impossible d'indiquer que le trajet a commencé. Veuillez réessayer."
+  },
+  "guidance": {
+    "targetLine": "Vers : {{name}}",
+    "distanceAway": "À {{meters}} m",
+    "distanceApprox": "Environ {{meters}} m",
+    "closeHeading": "Vous êtes tout près - regardez autour de vous",
+    "almostThere": "Vous y êtes presque",
+    "arrivedTitle": "Vous êtes arrivé",
+    "locating": "Recherche de votre position…",
+    "calibrate": "La boussole de votre téléphone doit être calibrée. Faites un mouvement en forme de huit.",
+    "arrowLabel": "Flèche indiquant votre point de rencontre",
+    "useLocation": "Utiliser ma position pour me guider",
+    "locationStaysLocal": "Une flèche peut vous guider jusqu'au point de rencontre. Votre position reste sur votre téléphone : elle n'est partagée avec votre groupe que si vous le choisissez séparément.",
+    "atMeetingPoint": "Je suis au point de rencontre",
+    "atMeetingPointDone": "Vous êtes au point de rencontre ✓",
+    "undo": "Annuler",
+    "arrivalError": "Cela n'a pas fonctionné. Veuillez réessayer.",
+    "memberArrived": "Au point de rencontre"
   }
 }

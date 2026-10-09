@@ -12,6 +12,7 @@ import { exceedsDetourLimit } from './detourLimit';
 import { calculateBarcelonaTaxiFare, calculateFareSplit } from './fareSplit';
 import { computeRouteMatrix, LatLng, RouteMatrixCell } from './googleRoutes';
 import { supabase } from './supabase';
+import { sameTerminal } from './terminalRules';
 
 type GeoRequest = PendingPassengerRequest & { destination_lat: number; destination_lng: number };
 
@@ -45,11 +46,17 @@ function isArrivalWindowCompatible(a: PendingPassengerRequest, b: PendingPasseng
   return diffMinutes <= Math.min(a.max_wait_minutes, b.max_wait_minutes);
 }
 
-// Layer 1 (per-candidate part): same airport (single-airport MVP, always true today) and a
-// compatible arrival window. The remaining hard constraints (group size cap, luggage cap) are
-// checked once actual candidate groups are assembled below.
+// Layer 1 (per-candidate part): same airport (single-airport MVP, always true today), same
+// terminal (a hard rule - T1 and T2 passengers never share a group) and a compatible arrival
+// window. The remaining hard constraints (group size cap, luggage cap) are checked once actual
+// candidate groups are assembled below.
 function filterHardConstraints(anchor: PendingPassengerRequest, pool: GeoRequest[]): GeoRequest[] {
-  return pool.filter((candidate) => candidate.id !== anchor.id && isArrivalWindowCompatible(anchor, candidate));
+  return pool.filter(
+    (candidate) =>
+      candidate.id !== anchor.id &&
+      sameTerminal(anchor.arrival_terminal, candidate.arrival_terminal) &&
+      isArrivalWindowCompatible(anchor, candidate)
+  );
 }
 
 // Layer 2: PostGIS corridor filter - keeps only destinations near the straight line from the

@@ -24,7 +24,10 @@ export type PushMessageKey =
   | 'matchFound'
   | 'offerExpired'
   | 'groupConfirmed'
-  | 'memberJoined';
+  | 'memberJoined'
+  | 'terminalChanged'
+  | 'meetingPointChanged'
+  | 'removedNoShow';
 
 export type PushParams = {
   amount?: string;
@@ -119,6 +122,18 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'A traveler joined your group',
       body: 'Your estimated share is now €{{amount}}.',
     },
+    terminalChanged: {
+      title: 'Your arrival terminal changed',
+      body: 'Your flight now arrives at another terminal, so you left your group. We’re looking for a new match there.',
+    },
+    meetingPointChanged: {
+      title: 'Your meeting point changed',
+      body: 'Open FLOQQ to see where your group meets now.',
+    },
+    removedNoShow: {
+      title: 'Your group left without you',
+      body: 'You weren’t at the meeting point, so your group continued. Any reservation on your card was released.',
+    },
   },
   es: {
     holdOpen: {
@@ -201,6 +216,18 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Un viajero se ha unido a tu grupo',
       body: 'Tu parte estimada es ahora de {{amount}} €.',
     },
+    terminalChanged: {
+      title: 'Tu terminal de llegada ha cambiado',
+      body: 'Tu vuelo llega ahora a otra terminal, así que has salido de tu grupo. Estamos buscando un nuevo grupo allí.',
+    },
+    meetingPointChanged: {
+      title: 'Tu punto de encuentro ha cambiado',
+      body: 'Abre FLOQQ para ver dónde se encuentra ahora tu grupo.',
+    },
+    removedNoShow: {
+      title: 'Tu grupo se ha ido sin ti',
+      body: 'No estabas en el punto de encuentro, así que tu grupo ha continuado. Cualquier reserva en tu tarjeta se ha liberado.',
+    },
   },
   fr: {
     holdOpen: {
@@ -282,6 +309,18 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
     memberJoined: {
       title: 'Un voyageur a rejoint votre groupe',
       body: 'Votre part estimée est maintenant de {{amount}} €.',
+    },
+    terminalChanged: {
+      title: 'Votre terminal d’arrivée a changé',
+      body: 'Votre vol arrive désormais à un autre terminal : vous avez quitté votre groupe. Nous cherchons un nouveau groupe là-bas.',
+    },
+    meetingPointChanged: {
+      title: 'Votre point de rencontre a changé',
+      body: 'Ouvrez FLOQQ pour voir où votre groupe se retrouve maintenant.',
+    },
+    removedNoShow: {
+      title: 'Votre groupe est parti sans vous',
+      body: 'Vous n’étiez pas au point de rencontre, votre groupe a donc continué. Toute réservation sur votre carte a été libérée.',
     },
   },
 };

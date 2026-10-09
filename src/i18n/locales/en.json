@@ -86,7 +86,7 @@
   "group_member_left": "A traveler left your group. We're updating your match.",
   "newRequest": {
     "title": "New ride request",
-    "flightNumberLabel": "Flight number",
+    "flightNumberLabel": "Flight number (optional)",
     "flightNumberPlaceholder": "e.g. AF1234",
     "arrivalDateLabel": "Arrival date",
     "arrivalTimeLabel": "Arrival time",
@@ -99,7 +99,7 @@
     "submit": "Submit request",
     "cancel": "Cancel",
     "done": "Done",
-    "missingFieldsError": "Please fill in the flight number and destination address.",
+    "missingFieldsError": "Please fill in the destination address.",
     "invalidNumberError": "Please enter a valid number for waiting time.",
     "successTitle": "Request submitted!",
     "updateSuccessTitle": "Changes saved!",
@@ -111,7 +111,18 @@
     "flightLookupNotFound": "Couldn't find live flight status — please set the arrival time manually.",
     "arrivalTimeAutoNote": "Auto-filled from flight {{flightNumber}}",
     "nowButtonLabel": "Now",
-    "submitError": "We couldn't submit your request. Check your connection and try again."
+    "submitError": "We couldn't submit your request. Check your connection and try again.",
+    "flightNumberHelper": "No flight number? Leave it empty and set your arrival time yourself.",
+    "barcelonaTimeNote": "Barcelona local time.",
+    "terminalLabel": "Arrival terminal",
+    "terminal": {
+      "T1": "Terminal 1 (T1)",
+      "T2": "Terminal 2 (T2)"
+    },
+    "terminalHelper": "Check your booking or boarding pass.",
+    "terminalFromFlightNote": "From flight {{flightNumber}}",
+    "terminalFromLocationNote": "Prefilled from your location. Change it if it's wrong.",
+    "terminalRequiredError": "Please choose your arrival terminal."
   },
   "admin": {
     "title": "Pending requests",
@@ -164,7 +175,16 @@
     "filterEmpty": "No pending requests for this day.",
     "guaranteeUsedFlag": "⚠ Ride Payment Guarantee used",
     "receiptNeedsReviewFlag": "⚠ Receipt needs review",
-    "receiptEstimatedFlag": "⚠ No receipt - estimated fare used"
+    "receiptEstimatedFlag": "⚠ No receipt - estimated fare used",
+    "terminalLabel": "Terminal {{terminal}}",
+    "terminalUnknown": "Terminal unknown",
+    "terminalMismatchError": "{{name}} arrives at {{terminal}}; your selection is {{groupTerminal}}. Groups can't mix terminals, because T1 and T2 are too far apart to meet.",
+    "terminalUnknownError": "{{name}} has no arrival terminal yet, so they can't be put in a group.",
+    "createGroupTerminalError": "This group couldn't be created: its passengers don't all arrive at the same terminal.",
+    "terminalConflictFlag": "Terminal conflict: flight data now says {{terminal}}",
+    "noMeetingPointFlag": "No meeting point assigned",
+    "meetupFlaggedFlag": "Needs review: this group never met. Nothing is charged until you confirm the ride.",
+    "noShowFlag": "No-show: their group continued without them ({{date}})"
   },
   "groupDetail": {
     "title": "Group fare split",
@@ -244,7 +264,24 @@
     "receiptApprove": "Approve receipt",
     "receiptSaveCorrection": "Save correction",
     "receiptReject": "Reject receipt",
-    "receiptActionError": "Couldn't update the receipt. Try again."
+    "receiptActionError": "Couldn't update the receipt. Try again.",
+    "addTerminalError": "{{name}} arrives at {{terminal}}; this group is {{groupTerminal}}. Groups can't mix terminals, because T1 and T2 are too far apart to meet.",
+    "terminalConflictNote": "Flight data now reports {{terminal}} for this passenger. The group is confirmed, so nothing was changed automatically.",
+    "meetingPointTitle": "Meeting point",
+    "meetingPointNone": "No meeting point yet. One is assigned automatically within a minute, as soon as this terminal has an active point.",
+    "meetingTimeLabel": "Meeting time: {{time}}",
+    "meetingPointChange": "Change meeting point",
+    "meetingPointAuto": "Back to automatic",
+    "meetingPointPickerEmpty": "There is no active meeting point at this terminal.",
+    "meetingPointError": "The meeting point couldn't be changed. Please try again.",
+    "badgeLabel": "Badge: {{color}} {{number}}",
+    "badgeNone": "No badge yet",
+    "meetupNotFound": "Group not found yet",
+    "meetupFound": "Group found",
+    "meetupStarted": "Ride started",
+    "meetupFlaggedNote": "This group never confirmed it met, and its ride time is long past. No payment step runs for it until you confirm that the ride took place.",
+    "rideTookPlaceButton": "The ride took place",
+    "rideTookPlaceError": "That couldn't be saved. Please try again."
   },
   "myRide": {
     "title": "My ride",
@@ -271,7 +308,10 @@
     "cancelLegacyFee": "The €{{fee}} service fee you paid isn't refunded.",
     "cancelOthersNote": "The other passengers' ride will be recalculated without you.",
     "cancelConfirmButton": "Yes, cancel my ride",
-    "cancelFree": "You’re cancelling more than 24 hours before the ride, so it’s free: your whole reservation of €{{amount}} is released."
+    "cancelFree": "You’re cancelling more than 24 hours before the ride, so it’s free: your whole reservation of €{{amount}} is released.",
+    "findGroupButton": "Find your group",
+    "noFlightNumber": "No flight number",
+    "meetAt": "Meet at: {{name}} · {{terminal}}"
   },
   "findingMatch": {
     "title": "Finding your match...",
@@ -288,9 +328,138 @@
     "cancelConfirmAction": "Cancel ride",
     "cancelError": "We couldn't cancel your ride. Please try again."
   },
-  "groupDetailsPlaceholder": {
-    "title": "Group details",
-    "body": "This screen is coming soon — your group is confirmed, and we'll show the full details here."
+  "adminMeetingPoints": {
+    "tab": "Points",
+    "title": "Meeting points",
+    "empty": "There are no meeting points yet.",
+    "loadError": "We couldn't load the meeting points.",
+    "saveError": "That couldn't be saved. Please try again.",
+    "terminal": "Terminal {{terminal}}",
+    "active": "Active",
+    "inactive": "Inactive",
+    "verifiedOn": "Verified on site: {{date}}",
+    "notVerified": "Not verified on site yet.",
+    "missing": "Still missing: {{items}}",
+    "missingItem": {
+      "coordinates": "coordinates",
+      "photo": "photo",
+      "wording": "wording in every language",
+      "verified": "on-site verification"
+    },
+    "locationTitle": "Location",
+    "noLocation": "No coordinates saved yet.",
+    "coordinates": "{{latitude}}, {{longitude}}",
+    "useCurrentLocation": "Use my current location",
+    "retake": "Retake my location",
+    "capturing": "Reading your GPS…",
+    "capturingAccuracy": "Reading your GPS… accurate to {{meters}} m so far",
+    "accuracy": "GPS accurate to {{meters}} m.",
+    "accuracyPoor": "GPS only accurate to {{meters}} m (aim for {{limit}} m or better). Retake it, or place the pin on the map.",
+    "placedByHand": "Pin placed by hand.",
+    "locationDenied": "FLOQQ isn't allowed to use your location. Allow it in settings, or place the pin on the map.",
+    "locationUnavailable": "No GPS reading came in. Try again, or place the pin on the map.",
+    "mapHint": "Long-press the map to place the pin, or drag the pin to adjust it.",
+    "mapStandard": "Map",
+    "mapSatellite": "Satellite",
+    "saveLocation": "Save this location",
+    "discard": "Discard",
+    "resetsVerification": "Changing this clears the verification and deactivates the point.",
+    "webMapNote": "The map is only available in the phone app. Type the coordinates here instead.",
+    "latitudeLabel": "Latitude",
+    "longitudeLabel": "Longitude",
+    "setPin": "Set coordinates",
+    "photoTitle": "Photo",
+    "noPhoto": "No photo yet.",
+    "photoHint": "Take it from the direction passengers arrive from, so they recognise the spot.",
+    "takePhoto": "Take a photo",
+    "choosePhoto": "Choose from library",
+    "cameraDenied": "FLOQQ isn't allowed to use the camera. Allow it in settings, or choose a photo from the library.",
+    "photoError": "The photo couldn't be saved. Please try again.",
+    "wordingTitle": "Wording",
+    "language": {
+      "en": "English",
+      "fr": "French",
+      "es": "Spanish"
+    },
+    "nameLabel": "Name",
+    "directionsLabel": "Walking directions from the baggage claim exit",
+    "priorityLabel": "Priority",
+    "priorityHint": "Higher numbers are picked first.",
+    "saveDetails": "Save wording and priority",
+    "saved": "Saved.",
+    "statusTitle": "Verification and status",
+    "verifyHint": "Check on site that the pin, the photo and the wording are right, then mark it verified.",
+    "markVerified": "Mark as verified on site",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "tooClose": "Only {{meters}} m from {{code}}: the arrow can't reliably tell them apart."
+  },
+  "meetingPoints": {
+    "T1-A": {
+      "name": "Tourist Information office",
+      "directions": "Level 0, right after you enter the arrivals hall."
+    },
+    "T1-B": {
+      "name": "Café at the left end of the arrivals hall",
+      "directions": "In the arrivals hall, go to the left end and wait in front of the café."
+    },
+    "T1-C": {
+      "name": "Café in the middle of the arrivals hall",
+      "directions": "In the middle of the arrivals hall, in front of the café."
+    },
+    "T1-D": {
+      "name": "Luggage storage point",
+      "directions": "Level 0, on the Parking T1 side."
+    },
+    "T1-E": {
+      "name": "Lost & Found office",
+      "directions": "Level 0, in front of the Lost & Found office."
+    },
+    "T2-A": {
+      "name": "Tourist Information stand",
+      "directions": "T2B: about 50 m to the left of the baggage claim exit, in the middle of the hall."
+    },
+    "T2-B": {
+      "name": "Bronze horse statue",
+      "directions": "T2B arrivals hall, next to the bronze horse statue."
+    },
+    "T2-C": {
+      "name": "Pharmacy",
+      "directions": "T2B, floor 0, in front of the pharmacy."
+    },
+    "T2-D": {
+      "name": "Luggage storage",
+      "directions": "T2B, near the arrivals hall, in front of the luggage storage."
+    }
+  },
+  "location_share_explainer": "Share your live location with your group only, so you can find each other. It turns off automatically once you're together.",
+  "findGroup": {
+    "title": "Find your group",
+    "subtitle": "Follow the arrow to your meeting point. Sharing your location with your group is optional.",
+    "windowClosed": "Location sharing opens when the first traveler lands, around {{time}}.",
+    "timedOut": "This meetup has ended, so location sharing is off.",
+    "ended": "Your ride has started. Location sharing is off.",
+    "noGroup": "You're no longer in a confirmed group.",
+    "loadError": "We couldn't load your group.",
+    "membersLabel": "Your group",
+    "statusSharing": "Sharing live location",
+    "statusLastSeen": "Last seen {{count}} min ago",
+    "statusLastSeenNow": "Last seen just now",
+    "statusNotSharing": "{{name}} isn't sharing their location",
+    "youSharing": "You're sharing your location",
+    "youSharingAccuracy": "You're sharing your location · accurate to {{meters}} m",
+    "youNotSharing": "You're not sharing your location",
+    "explainerTitle": "Share your location?",
+    "shareButton": "Share my location with my group",
+    "stopButton": "Stop sharing",
+    "notNow": "Not now",
+    "shareFootnote": "Optional. Only your group can see it, and only while this screen is open.",
+    "openSettings": "Open settings",
+    "accessDenied": "FLOQQ isn't allowed to use your location. You can still meet your group without it, or allow it in settings.",
+    "accessReduced": "Your phone only shares an approximate location with FLOQQ, which is too rough to find each other. Turn on Precise Location in settings to share.",
+    "accessUnavailable": "Location is turned off on this phone. Turn it on to share your location.",
+    "channelError": "We couldn't connect you to your group's live locations. Check your connection and reopen this screen.",
+    "groupFound": "Everyone's together. Open your badge to mark the ride as started."
   },
   "active_ride_exists": "You already have an active ride. You can only have one ride at a time.",
   "profile": {
@@ -506,5 +675,75 @@
     "confirmedTitle": "Group confirmed",
     "confirmedNote": "Your group is confirmed. Your seat reservation and payment details are on My Ride.",
     "memberJoined": "A traveler joined your group. The route and your share have been updated."
+  },
+  "meetingPointCard": {
+    "title": "Your meeting point",
+    "terminal": "Terminal {{terminal}}",
+    "pending": "Your meeting point will appear here shortly.",
+    "meetingTime": "Meeting time: {{time}} (Barcelona time)",
+    "openInMaps": "Open in Google Maps",
+    "photoLabel": "Photo of the meeting point: {{name}}"
+  },
+  "badge_hold_up": "Hold up your phone - look for the same badge.",
+  "found_my_group": "I've found my group",
+  "badge": {
+    "title": "Your group's badge",
+    "showButton": "Show our badge",
+    "pending": "Your badge will appear here in a moment.",
+    "accessibilityLabel": "{{color}} {{shape}}, number {{number}}",
+    "color": {
+      "purple": "Purple",
+      "teal": "Teal",
+      "orange": "Orange",
+      "pink": "Pink",
+      "yellow": "Yellow",
+      "blue": "Blue"
+    },
+    "shape": {
+      "circle": "circle",
+      "square": "square",
+      "triangle": "triangle",
+      "diamond": "diamond",
+      "star": "star",
+      "hexagon": "hexagon"
+    },
+    "membersLabel": "Who has found the group",
+    "memberFound": "Found ✓",
+    "memberNotYet": "Not yet",
+    "waitingForOthers": "Waiting for the others to confirm.",
+    "foundError": "That didn't go through. Please try again.",
+    "noShowTitle": "{{names}} hasn't confirmed yet",
+    "noShowBody": "You can keep waiting, or continue without them.",
+    "keepWaiting": "Keep waiting",
+    "continueWithout": "Continue without {{names}}",
+    "continueConfirmQuestion": "{{names}} will be marked as a no-show and removed from your group, and the fare is recalculated for those who remain. Continue?",
+    "continueConfirmYes": "Yes, continue without {{names}}",
+    "continueError": "We couldn't update your group. Please try again.",
+    "continueTooFew": "At least two passengers have to remain, so you can't continue without them. Keep waiting, or cancel your ride.",
+    "groupFoundTitle": "Everyone's together",
+    "groupFoundBody": "Head to the taxi rank together.",
+    "inTheTaxi": "We're in the taxi",
+    "taxiConfirmQuestion": "Are you all in the taxi?",
+    "taxiConfirmYes": "Yes, we're in the taxi",
+    "taxiConfirmNo": "Not yet",
+    "taxiError": "We couldn't mark the ride as started. Please try again."
+  },
+  "guidance": {
+    "targetLine": "To: {{name}}",
+    "distanceAway": "{{meters}} m away",
+    "distanceApprox": "Approx. {{meters}} m",
+    "closeHeading": "You're close - look around",
+    "almostThere": "You're almost there",
+    "arrivedTitle": "You've arrived",
+    "locating": "Finding your position…",
+    "calibrate": "Your phone's compass needs calibrating. Move the phone in a figure of eight.",
+    "arrowLabel": "Arrow pointing to your meeting point",
+    "useLocation": "Use my location for directions",
+    "locationStaysLocal": "An arrow can guide you to the meeting point. Your location stays on your phone - it is only shared with your group if you choose that separately.",
+    "atMeetingPoint": "I'm at the meeting point",
+    "atMeetingPointDone": "You're at the meeting point ✓",
+    "undo": "Undo",
+    "arrivalError": "That didn't go through. Please try again.",
+    "memberArrived": "At the meeting point"
   }
 }

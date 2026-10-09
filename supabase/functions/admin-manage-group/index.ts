@@ -17,7 +17,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { ADMIN_EMAIL, DETOUR_LIMITS, MAX_LARGE_LUGGAGE_PER_TAXI, MAX_PASSENGERS_PER_TAXI } from '../_shared/constants.ts';
 import { buildGroupTotalsPayload, buildMemberScoresPayload, isGroupStillValid } from '../_shared/groupRebalance.ts';
 import { computeGroupScore, PendingPassengerRequest } from '../_shared/matchingEngine.ts';
+import { sendPush } from '../_shared/push.ts';
 import { rescoreGroup } from '../_shared/rescoreGroup.ts';
+import { sameTerminal } from '../_shared/terminalRule.ts';
 
 function jsonResponse(body: unknown, status: number) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -26,18 +28,24 @@ function jsonResponse(body: unknown, status: number) {
 type Body =
   | { action: 'remove'; groupId: string; requestId: string }
   | { action: 'add'; groupId: string; requestId: string; force?: boolean }
-  | { action: 'dissolve'; groupId: string };
+  | { action: 'dissolve'; groupId: string }
+  // A confirmed group's meeting point, picked by hand; null hands it back to the automatic choice.
+  | { action: 'set_meeting_point'; groupId: string; meetingPointId: string | null };
 
 function isBody(value: unknown): value is Body {
   const b = value as Partial<Body> | null;
   if (!b || typeof b.groupId !== 'string') return false;
   if (b.action === 'dissolve') return true;
+  if (b.action === 'set_meeting_point') {
+    const id = (b as { meetingPointId?: unknown }).meetingPointId;
+    return id === null || typeof id === 'string';
+  }
   if (b.action === 'remove' || b.action === 'add') return typeof (b as { requestId?: unknown }).requestId === 'string';
   return false;
 }
 
 const GROUP_COLUMNS =
-  'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng';
+  'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, arrival_terminal';
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
@@ -84,6 +92,38 @@ Deno.serve(async (req) => {
     const result = data as { blocked: boolean; reason?: string };
     if (result.blocked) {
       return jsonResponse({ error: result.reason }, 409);
+    }
+    return jsonResponse({ ok: true }, 200);
+  }
+
+  if (body.action === 'set_meeting_point') {
+    const { data: before } = await adminClient
+      .from('taxi_groups')
+      .select('meeting_point_id')
+      .eq('id', body.groupId)
+      .maybeSingle();
+
+    const { data, error } = await userClient.rpc('admin_set_group_meeting_point', {
+      p_group_id: body.groupId,
+      p_meeting_point_id: body.meetingPointId,
+    });
+    if (error) {
+      console.warn('admin_set_group_meeting_point failed', error);
+      return jsonResponse({ error: 'set_meeting_point_failed' }, 500);
+    }
+    const result = data as { applied: boolean; reason?: string };
+    if (!result.applied) {
+      return jsonResponse({ error: result.reason }, 409);
+    }
+
+    // The passengers are told when they are sent somewhere else than they were. (Clearing the
+    // point tells nobody anything: the automatic choice follows within a minute and tells them
+    // itself if it lands on another point.)
+    if (body.meetingPointId && body.meetingPointId !== (before?.meeting_point_id ?? null)) {
+      const { data: members } = await adminClient.from('passenger_requests').select('user_id').eq('group_id', body.groupId);
+      for (const member of members ?? []) {
+        if (member.user_id) await sendPush(adminClient, { userId: member.user_id, key: 'meetingPointChanged' });
+      }
     }
     return jsonResponse({ ok: true }, 200);
   }
@@ -150,6 +190,16 @@ Deno.serve(async (req) => {
   }
   if (candidate.status !== 'pending' || candidate.group_id != null) {
     return jsonResponse({ error: 'request_not_available' }, 409);
+  }
+
+  // Hard rule, never overridable with force: a group only holds passengers arriving at the same
+  // terminal. (The database refuses it too - this just answers before any route is computed.)
+  const groupTerminal = (members[0] as PendingPassengerRequest | undefined)?.arrival_terminal ?? null;
+  if ((members as PendingPassengerRequest[]).some((m) => !sameTerminal(m.arrival_terminal, candidate.arrival_terminal))) {
+    return jsonResponse(
+      { error: 'terminal_mismatch', groupTerminal, candidateTerminal: candidate.arrival_terminal ?? null },
+      409
+    );
   }
 
   const combined = [...members, candidate] as PendingPassengerRequest[];

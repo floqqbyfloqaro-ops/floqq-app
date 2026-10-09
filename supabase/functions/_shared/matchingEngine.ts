@@ -19,6 +19,7 @@ import {
 import { exceedsDetourLimit } from './detourLimit.ts';
 import { calculateBarcelonaTaxiFare, calculateFareSplit } from './fareSplit.ts';
 import { computeRouteMatrix, LatLng, RouteMatrixCell } from './googleRoutes.ts';
+import { sameTerminal } from './terminalRule.ts';
 
 export type PendingPassengerRequest = {
   id: string;
@@ -31,6 +32,9 @@ export type PendingPassengerRequest = {
   max_wait_minutes: number;
   destination_lat: number | null;
   destination_lng: number | null;
+  // 'T1' / 'T2'. Wherever groups are formed it must be read: a ride whose terminal is missing or
+  // unknown is matched with nobody (see terminalRule.ts).
+  arrival_terminal?: string | null;
 };
 
 type GeoRequest = PendingPassengerRequest & { destination_lat: number; destination_lng: number };
@@ -64,8 +68,15 @@ function isArrivalWindowCompatible(a: PendingPassengerRequest, b: PendingPasseng
   return diffMinutes <= Math.min(a.max_wait_minutes, b.max_wait_minutes);
 }
 
+// Layer 1: same terminal (a hard rule - T1 and T2 passengers never share a group) and a
+// compatible arrival window.
 function filterHardConstraints(anchor: PendingPassengerRequest, pool: GeoRequest[]): GeoRequest[] {
-  return pool.filter((candidate) => candidate.id !== anchor.id && isArrivalWindowCompatible(anchor, candidate));
+  return pool.filter(
+    (candidate) =>
+      candidate.id !== anchor.id &&
+      sameTerminal(anchor.arrival_terminal, candidate.arrival_terminal) &&
+      isArrivalWindowCompatible(anchor, candidate)
+  );
 }
 
 async function filterByCorridor(

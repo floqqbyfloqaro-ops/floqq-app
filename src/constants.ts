@@ -109,3 +109,51 @@ export const BARCELONA_TIME_ZONE = 'Europe/Madrid';
 // EXPO_PUBLIC_PAYMENTS_ENABLED=true in .env - with it off the app behaves exactly as before. The
 // server enforces its own PAYMENTS_ENABLED secret independently; this flag only hides the UI.
 export const PAYMENTS_ENABLED = process.env.EXPO_PUBLIC_PAYMENTS_ENABLED === 'true';
+
+// "Find your group": a member's position is sent to the group when this much time has passed or
+// they moved this far since the last one sent, whichever comes first.
+// Request form: the arrival terminal is prefilled from the phone's location when the passenger is
+// within this distance of a verified meeting point, and only for a ride landing within this many
+// hours of now (someone booking next week's trip from inside T1 isn't arriving at T1).
+export const TERMINAL_GEOFENCE_METERS = 500;
+export const TERMINAL_PREFILL_WINDOW_HOURS = 3;
+
+// "Find your group" guidance to the meeting point - see src/services/guidanceRules.ts for the
+// rules these feed. Meeting points are precise spots inside an arrivals hall, so the distances
+// are small and every rule weighs the distance against how accurate the GPS fix claims to be.
+export const GUIDANCE = {
+  // The distance is shown as a plain number ("40 m away") only with a fix at least this accurate.
+  exactAccuracyMeters: 15,
+  // With a rougher fix: arrow and "Approx. N m" while the distance is more than this many times
+  // the fix's accuracy; closer than that, the photo and written directions replace the arrow.
+  approxDistanceFactor: 2,
+  // "You're almost there": entered within this distance...
+  zoneEnterMeters: 25,
+  // ...left only beyond this one...
+  zoneExitMeters: 35,
+  // ...and both only count with a fix at least this accurate.
+  zoneMaxAccuracyMeters: 25,
+  // Automatic "arrived": this close, with a fix at least this accurate, this many readings in a
+  // row. Expected to trigger rarely indoors - the "I'm at the meeting point" button is the
+  // primary signal.
+  arrivedRadiusMeters: 10,
+  arrivedMaxAccuracyMeters: 10,
+  arrivedReadings: 2,
+} as const;
+
+// The compass: how much of each new reading the arrow takes (lower is calmer), and the lowest
+// accuracy level (0-3, as the phone reports it) at which the arrow is shown at all - below it, a
+// calibration hint is shown instead of an arrow that may point the wrong way.
+export const HEADING_SMOOTHING = 0.25;
+export const HEADING_MIN_ACCURACY = 1;
+
+// Admin: two active meeting points in the same terminal closer together than this get a warning -
+// the arrow can't reliably tell them apart.
+export const MEETING_POINT_MIN_SEPARATION_METERS = 30;
+
+// Admin "capture on site": a GPS reading with a larger accuracy radius than this is flagged as
+// poor when saving a meeting point's coordinates (the admin may retake it or place the pin by hand).
+export const MEETING_POINT_CAPTURE_MAX_ACCURACY_METERS = 15;
+
+export const LOCATION_SEND_INTERVAL_MS = 5000;
+export const LOCATION_SEND_DISTANCE_METERS = 5;

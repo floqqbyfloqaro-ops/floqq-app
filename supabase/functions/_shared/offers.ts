@@ -106,7 +106,8 @@ export async function confirmOfferIfComplete(
 export type OfferRemoval = { removed: boolean; dissolved: boolean };
 
 // Takes one passenger out of an offer and puts their ride back to searching: "Not for me"
-// ('match_declined') or no answer in time ('offer_expired'). What's left is rescored - or
+// ('match_declined'), no answer in time ('offer_expired'), or their flight now lands at another
+// terminal than the group's ('terminal_changed'). What's left is rescored - or
 // dissolved, below two passengers or when it no longer fits - and with payments on the leaver's
 // hold is released and the others' adjusted.
 export async function removeFromOffer(
@@ -114,7 +115,7 @@ export async function removeFromOffer(
   stripe: Stripe | null,
   groupId: string,
   requestId: string,
-  event: 'match_declined' | 'offer_expired'
+  event: 'match_declined' | 'offer_expired' | 'terminal_changed'
 ): Promise<OfferRemoval> {
   const { data, error } = await adminClient.rpc('system_remove_offer_member', {
     p_group_id: groupId,

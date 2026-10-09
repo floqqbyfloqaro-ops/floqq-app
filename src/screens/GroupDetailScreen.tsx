@@ -3,12 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AdminGroupPayments from '../components/AdminGroupPayments';
+import { adminWordingLanguage } from '../components/AdminMeetingPoints';
 import AdminReceiptReview from '../components/AdminReceiptReview';
 import AuthTextInput from '../components/AuthTextInput';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
-import RideDateLine, { rideDateAccessibilityText } from '../components/RideDateLine';
+import RideDateLine, { formatRideDateTime, rideDateAccessibilityText } from '../components/RideDateLine';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
@@ -16,6 +17,7 @@ import StatusPill from '../components/StatusPill';
 import { MAX_PASSENGERS_PER_TAXI, PAYMENTS_ENABLED } from '../constants';
 import {
   addGroupMember,
+  confirmRideTookPlace,
   confirmTaxiGroup,
   dissolveGroup,
   fetchGroupById,
@@ -26,6 +28,7 @@ import {
   PendingPassengerRequest,
   ReceiptShareRow,
   removeGroupMember,
+  setGroupMeetingPoint,
   TaxiGroupMember,
   TaxiGroupStatus,
   updateGroupTotalFare,
@@ -33,7 +36,10 @@ import {
 } from '../services/adminGrouping';
 import { calculateFareSplit, FareSplitResult } from '../services/fareSplit';
 import { fetchRideReceipt, formatCents, RideReceipt, syncGroupHolds } from '../services/payments';
-import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
+import { MeetingPoint, meetingPointText } from '../services/meetingPointRules';
+import { fetchMeetingPoints, shippedText } from '../services/meetingPoints';
+import { sameTerminal, terminalOfMeetingPoint } from '../services/terminalRules';
+import { BadgeColor, baseText, colors, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
   groupId: string;
@@ -49,12 +55,13 @@ type PendingGroupAction =
   | { type: 'add'; candidate: PendingPassengerRequest; step: 'confirm' | 'warning' }
   | { type: 'dissolve' };
 
+// A ride may have no flight number (and an account no name): a dash rather than an empty title.
 function memberDisplayName(member: TaxiGroupMember) {
-  return member.passenger_name?.trim() || member.flight_number;
+  return member.passenger_name?.trim() || member.flight_number || '—';
 }
 
 function candidateDisplayName(candidate: PendingPassengerRequest) {
-  return candidate.passenger_name?.trim() || candidate.flight_number;
+  return candidate.passenger_name?.trim() || candidate.flight_number || '—';
 }
 
 export default function GroupDetailScreen({ groupId, onBack }: Props) {
@@ -84,6 +91,22 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   const [isActing, setIsActing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Where a confirmed group meets at the airport: assigned automatically, the admin may override.
+  const [meetingPoint, setMeetingPoint] = useState<{ id: string | null; time: string | null }>({ id: null, time: null });
+  const [meetingPoints, setMeetingPoints] = useState<MeetingPoint[]>([]);
+  const [isPickingMeetingPoint, setIsPickingMeetingPoint] = useState(false);
+  const [isSavingMeetingPoint, setIsSavingMeetingPoint] = useState(false);
+  const [meetingPointError, setMeetingPointError] = useState<string | null>(null);
+  // The group's badge and how far its meetup got. `flagged`: it never met and its ride time is
+  // long past - no payment step runs until the admin confirms the ride took place.
+  const [meetupState, setMeetupState] = useState<{
+    badge: { color: BadgeColor; number: number } | null;
+    found: boolean;
+    started: boolean;
+    flagged: boolean;
+  }>({ badge: null, found: false, started: false, flagged: false });
+  const [isConfirmingRide, setIsConfirmingRide] = useState(false);
+
   const canCorrect = groupStatus === 'unconfirmed';
 
   const loadData = useCallback(async () => {
@@ -105,7 +128,18 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
 
     if (groupResult.data) {
       setGroupStatus(groupResult.data.status);
+      setMeetingPoint({ id: groupResult.data.meeting_point_id, time: groupResult.data.meeting_time });
+      setMeetupState({
+        badge:
+          groupResult.data.badge_color && groupResult.data.badge_number != null
+            ? { color: groupResult.data.badge_color as BadgeColor, number: groupResult.data.badge_number }
+            : null,
+        found: groupResult.data.meetup_completed_at != null,
+        started: groupResult.data.ride_started_at != null,
+        flagged: groupResult.data.meetup_flagged_at != null,
+      });
     }
+
 
     if (PAYMENTS_ENABLED && groupResult.data?.payer_request_id) {
       const payerUserId = groupResult.data.payer_user_id;
@@ -145,6 +179,16 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // The points to choose from, once the group is confirmed (also when it was confirmed just now,
+  // on this screen).
+  useEffect(() => {
+    if (groupStatus !== 'confirmed') return;
+    fetchMeetingPoints().then(({ data, error }) => {
+      if (error) console.warn('fetchMeetingPoints failed', error);
+      setMeetingPoints(data ?? []);
+    });
+  }, [groupStatus]);
 
   const handleCalculate = async () => {
     setSaveError(null);
@@ -233,6 +277,63 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
     setActionError(null);
   };
 
+  // A group only holds passengers arriving at the same terminal (also enforced by the server and
+  // the database): why this candidate can't join, or null when they can.
+  const groupTerminal = members[0]?.arrival_terminal ?? null;
+  const terminalBlockMessage = (candidate: PendingPassengerRequest) =>
+    candidate.arrival_terminal
+      ? t('groupDetail.addTerminalError', {
+          name: candidateDisplayName(candidate),
+          terminal: candidate.arrival_terminal,
+          groupTerminal: groupTerminal ?? t('admin.terminalUnknown'),
+        })
+      : t('admin.terminalUnknownError', { name: candidateDisplayName(candidate) });
+
+  const wordingLanguage = adminWordingLanguage(i18n.language);
+  const meetingPointLabel = (point: MeetingPoint) =>
+    `${point.short_code} · ${meetingPointText(point, 'name', wordingLanguage, shippedText)}`;
+  const currentMeetingPoint = meetingPoints.find((point) => point.id === meetingPoint.id) ?? null;
+  // Only active points at the group's own terminal can be picked (the server checks it too).
+  const pickableMeetingPoints = meetingPoints.filter(
+    (point) => point.is_active && groupTerminal != null && terminalOfMeetingPoint(point.terminal) === groupTerminal
+  );
+
+  const handleConfirmRideTookPlace = async () => {
+    setMeetingPointError(null);
+    setIsConfirmingRide(true);
+    const { error } = await confirmRideTookPlace(groupId);
+    setIsConfirmingRide(false);
+    if (error) {
+      console.warn('confirmRideTookPlace failed', error);
+      setMeetingPointError(t('groupDetail.rideTookPlaceError'));
+      return;
+    }
+    await loadData();
+  };
+
+  const handleSetMeetingPoint = async (meetingPointId: string | null) => {
+    setMeetingPointError(null);
+    setIsSavingMeetingPoint(true);
+    const { error, blockedReason } = await setGroupMeetingPoint(groupId, meetingPointId);
+    setIsSavingMeetingPoint(false);
+    if (error || blockedReason) {
+      console.warn('setGroupMeetingPoint failed', error ?? blockedReason);
+      setMeetingPointError(t('groupDetail.meetingPointError'));
+      return;
+    }
+    setIsPickingMeetingPoint(false);
+    await loadData();
+  };
+
+  const handlePickCandidate = (candidate: PendingPassengerRequest) => {
+    if (!sameTerminal(candidate.arrival_terminal, groupTerminal)) {
+      setActionError(terminalBlockMessage(candidate));
+      return;
+    }
+    setActionError(null);
+    setPendingAction({ type: 'add', candidate, step: 'confirm' });
+  };
+
   const handleRunAction = async () => {
     if (!pendingAction) return;
     setActionError(null);
@@ -295,6 +396,11 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
     if (result.blockedReason === 'group_full') {
       setPendingAction(null);
       setActionError(t('groupDetail.addFullError'));
+      return;
+    }
+    if (result.blockedReason === 'terminal_mismatch') {
+      setPendingAction(null);
+      setActionError(terminalBlockMessage(pendingAction.candidate));
       return;
     }
     if (result.blockedReason === 'request_not_available' || result.blockedReason === 'stale') {
@@ -445,6 +551,16 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 />
                 <Text style={styles.memberTitle}>{memberDisplayName(member)}</Text>
                 <Text style={styles.memberSubtitle}>{member.destination_address}</Text>
+                <Text style={styles.memberScoreNote}>
+                  {member.arrival_terminal
+                    ? t('admin.terminalLabel', { terminal: member.arrival_terminal })
+                    : t('admin.terminalUnknown')}
+                </Text>
+                {member.terminal_conflict ? (
+                  <Text style={styles.guaranteeNote}>
+                    {t('groupDetail.terminalConflictNote', { terminal: member.terminal_conflict })}
+                  </Text>
+                ) : null}
                 {payer?.requestId === member.id ? (
                   <Text style={styles.memberScoreNote}>
                     {t('groupDetail.payerLabel', { payout: t(`groupDetail.payout.${payer.payout}`) })}
@@ -498,7 +614,7 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 <Text style={styles.sectionTitle}>{t('groupDetail.resultsTitle')}</Text>
                 {results.map((r) => {
                   const member = memberById(r.id);
-                  const displayName = member?.passenger_name?.trim() || member?.flight_number;
+                  const displayName = member ? memberDisplayName(member) : '—';
                   return (
                     <Card
                       key={r.id}
@@ -511,6 +627,83 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                     </Card>
                   );
                 })}
+              </View>
+            ) : null}
+
+            {groupStatus === 'confirmed' ? (
+              <View style={styles.correctionsSection}>
+                <Text style={styles.sectionTitle}>{t('groupDetail.meetingPointTitle')}</Text>
+                <Text style={styles.memberTitle}>
+                  {currentMeetingPoint ? meetingPointLabel(currentMeetingPoint) : t('groupDetail.meetingPointNone')}
+                </Text>
+                {meetingPoint.id && meetingPoint.time ? (
+                  <Text style={styles.memberSubtitle}>
+                    {t('groupDetail.meetingTimeLabel', { time: formatRideDateTime(t, i18n.language, meetingPoint.time) })}
+                  </Text>
+                ) : null}
+                <Text style={styles.memberSubtitle}>
+                  {meetupState.badge
+                    ? t('groupDetail.badgeLabel', {
+                        color: t(`badge.color.${meetupState.badge.color}`),
+                        number: meetupState.badge.number,
+                      })
+                    : t('groupDetail.badgeNone')}
+                  {'  ·  '}
+                  {t(
+                    meetupState.started
+                      ? 'groupDetail.meetupStarted'
+                      : meetupState.found
+                        ? 'groupDetail.meetupFound'
+                        : 'groupDetail.meetupNotFound'
+                  )}
+                </Text>
+                {meetupState.flagged ? (
+                  <>
+                    <Text style={styles.guaranteeNote}>{t('groupDetail.meetupFlaggedNote')}</Text>
+                    <SecondaryButton
+                      label={t('groupDetail.rideTookPlaceButton')}
+                      onPress={handleConfirmRideTookPlace}
+                      loading={isConfirmingRide}
+                    />
+                  </>
+                ) : null}
+                {meetingPointError ? <ErrorNotice message={meetingPointError} /> : null}
+
+                <SecondaryButton
+                  label={t('groupDetail.meetingPointChange')}
+                  onPress={() => setIsPickingMeetingPoint((open) => !open)}
+                  loading={isSavingMeetingPoint}
+                />
+                {isPickingMeetingPoint ? (
+                  <>
+                    {pickableMeetingPoints.length === 0 ? (
+                      <Text style={styles.correctionsNote}>{t('groupDetail.meetingPointPickerEmpty')}</Text>
+                    ) : (
+                      pickableMeetingPoints.map((point) => (
+                        <Card
+                          key={point.id}
+                          onPress={() => handleSetMeetingPoint(point.id)}
+                          style={styles.candidateRow}
+                          highlighted={point.id === meetingPoint.id}
+                          accessibilityLabel={meetingPointLabel(point)}
+                          accessibilityState={{ selected: point.id === meetingPoint.id }}
+                        >
+                          <Text style={styles.memberTitle}>{meetingPointLabel(point)}</Text>
+                          <Text style={styles.memberSubtitle}>
+                            {meetingPointText(point, 'directions', wordingLanguage, shippedText)}
+                          </Text>
+                        </Card>
+                      ))
+                    )}
+                    {meetingPoint.id ? (
+                      <SecondaryButton
+                        label={t('groupDetail.meetingPointAuto')}
+                        onPress={() => handleSetMeetingPoint(null)}
+                        disabled={isSavingMeetingPoint}
+                      />
+                    ) : null}
+                  </>
+                ) : null}
               </View>
             ) : null}
 
@@ -535,7 +728,7 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                   candidates.map((candidate) => (
                     <Card
                       key={candidate.id}
-                      onPress={() => setPendingAction({ type: 'add', candidate, step: 'confirm' })}
+                      onPress={() => handlePickCandidate(candidate)}
                       style={styles.candidateRow}
                       accessibilityLabel={`${candidateDisplayName(candidate)}, ${rideDateAccessibilityText(t, i18n.language, {
                         arrivalAt: candidate.arrival_at,
@@ -552,6 +745,11 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                       />
                       <Text style={styles.memberTitle}>{candidateDisplayName(candidate)}</Text>
                       <Text style={styles.memberSubtitle}>{candidate.destination_address}</Text>
+                      <Text style={styles.memberScoreNote}>
+                        {candidate.arrival_terminal
+                          ? t('admin.terminalLabel', { terminal: candidate.arrival_terminal })
+                          : t('admin.terminalUnknown')}
+                      </Text>
                     </Card>
                   ))
                 )

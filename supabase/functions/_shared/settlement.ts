@@ -183,6 +183,11 @@ async function recordOutstanding(adminClient: SupabaseClient, row: SettlementRow
 
 // Captures what's due for one group, then reimburses the payer. Returns what happened.
 export async function settleGroup(adminClient: SupabaseClient, stripe: Stripe, groupId: string): Promise<SettleResult> {
+  // A group that never met is under review by the admin (meetup_flagged_at): nothing is captured
+  // and nothing is paid out for it until the admin has confirmed that the ride took place.
+  const { data: group } = await adminClient.from('taxi_groups').select('meetup_flagged_at').eq('id', groupId).maybeSingle();
+  if (group?.meetup_flagged_at) return { groupId, outcome: 'under_review' };
+
   const { data: begin, error: beginError } = await adminClient.rpc('system_begin_ride_settlement', { p_group_id: groupId });
   if (beginError) {
     console.error('system_begin_ride_settlement failed', beginError);

@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import AdminMeetingPoints from '../components/AdminMeetingPoints';
 import AdminPaymentIssues from '../components/AdminPaymentIssues';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
@@ -38,10 +39,13 @@ import {
   updatePassengerDistance,
 } from '../services/adminGrouping';
 import { computeGroupScore, MatchSuggestion, suggestTaxiGroups } from '../services/matchingEngine';
+import { MeetingPoint } from '../services/meetingPointRules';
+import { sameTerminal } from '../services/terminalRules';
 import { fetchGroupPaymentSummaries, GroupPaymentSummary } from '../services/payments';
 import { baseText, colors, motion, overlays, spacing } from '../theme/colors';
 import { addDaysToDayKey, barcelonaDayKey, formatBarcelonaDateTime, weekdayForDayKey } from '../utils/formatDateTime';
 import GroupDetailScreen from './GroupDetailScreen';
+import MeetingPointEditorScreen from './MeetingPointEditorScreen';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -68,6 +72,17 @@ const RIDE_DATE_FILTERS: { value: RideDateFilter; labelKey: string }[] = [
 ];
 
 type RideDaySection = { dayKey: string; requests: PendingPassengerRequest[] };
+
+type GroupTerminalInfo = { terminal: string | null; conflict: string | null };
+
+// A confirmed group without a meeting point is only flagged while its ride is still ahead (its
+// first landing no more than this long ago).
+const MEETING_POINT_FLAG_GRACE_MS = 2 * 60 * 60 * 1000;
+
+// A ride may have no flight number (and an account no name): a dash rather than an empty title.
+function requestDisplayName(request: PendingPassengerRequest) {
+  return request.passenger_name?.trim() || request.flight_number || '—';
+}
 
 // Soonest ride first, bucketed by the Barcelona calendar day of each ride so the admin can see at
 // a glance which passengers land on the same day and could share a taxi.
@@ -97,6 +112,9 @@ export default function AdminScreen({ session, onBack }: Props) {
   // groupId -> earliest member arrival_at, for the Active tab's "ride date" line. Dissolved
   // groups have no attached members left, so this is only ever populated for active groups.
   const [groupRideDates, setGroupRideDates] = useState<Record<string, string>>({});
+  // groupId -> the group's terminal, and the other terminal flight data now reports for one of
+  // its members (a confirmed group is never changed automatically - the admin decides).
+  const [groupTerminals, setGroupTerminals] = useState<Record<string, GroupTerminalInfo>>({});
   // Payments prototype, phase 5: groupId -> what the admin needs to know about its taxi receipt.
   const [receiptFlags, setReceiptFlags] = useState<Record<string, string>>({});
   // Phase 8: groupId -> how far its reservations, charges and payout are.
@@ -110,7 +128,8 @@ export default function AdminScreen({ session, onBack }: Props) {
   const [suggestions, setSuggestions] = useState<MatchSuggestion[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [creatingSuggestionKey, setCreatingSuggestionKey] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'history' | 'meetingPoints'>('active');
+  const [openMeetingPoint, setOpenMeetingPoint] = useState<MeetingPoint | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [rideDateFilter, setRideDateFilter] = useState<RideDateFilter>('all');
   const hasLoadedOnce = useRef(false);
@@ -153,13 +172,17 @@ export default function AdminScreen({ session, onBack }: Props) {
         console.warn('fetchGroupMemberArrivals failed', arrivalsError);
       } else {
         const earliestByGroup: Record<string, string> = {};
+        const terminalByGroup: Record<string, GroupTerminalInfo> = {};
         for (const row of arrivals ?? []) {
           const current = earliestByGroup[row.group_id];
           if (!current || new Date(row.arrival_at).getTime() < new Date(current).getTime()) {
             earliestByGroup[row.group_id] = row.arrival_at;
           }
+          const info = terminalByGroup[row.group_id] ?? { terminal: row.arrival_terminal, conflict: null };
+          terminalByGroup[row.group_id] = { ...info, conflict: info.conflict ?? row.terminal_conflict };
         }
         setGroupRideDates(earliestByGroup);
+        setGroupTerminals(terminalByGroup);
       }
 
       if (PAYMENTS_ENABLED && activeGroups.length > 0) {
@@ -235,6 +258,10 @@ export default function AdminScreen({ session, onBack }: Props) {
     );
   }
 
+  if (openMeetingPoint) {
+    return <MeetingPointEditorScreen point={openMeetingPoint} onBack={() => setOpenMeetingPoint(null)} />;
+  }
+
   const handleRefresh = () => {
     setIsRefreshing(true);
     loadData();
@@ -249,6 +276,24 @@ export default function AdminScreen({ session, onBack }: Props) {
         setErrorMessage(t('admin.maxSelectedError', { max: MAX_PASSENGERS_PER_TAXI }));
         return prev;
       }
+      // A group only holds passengers arriving at the same terminal (the database refuses
+      // anything else): don't let a mixed selection be built in the first place.
+      const picked = requests.find((r) => r.id === id);
+      const first = requests.find((r) => r.id === prev[0]);
+      if (picked && !picked.arrival_terminal) {
+        setErrorMessage(t('admin.terminalUnknownError', { name: requestDisplayName(picked) }));
+        return prev;
+      }
+      if (picked && first && !sameTerminal(picked.arrival_terminal, first.arrival_terminal)) {
+        setErrorMessage(
+          t('admin.terminalMismatchError', {
+            name: requestDisplayName(picked),
+            terminal: picked.arrival_terminal,
+            groupTerminal: first.arrival_terminal,
+          })
+        );
+        return prev;
+      }
       setErrorMessage(null);
       return [...prev, id];
     });
@@ -258,12 +303,12 @@ export default function AdminScreen({ session, onBack }: Props) {
     if (selectedIds.length < 2) return;
     setErrorMessage(null);
     setIsCreating(true);
-    const { data, error } = await createTaxiGroup(selectedIds);
+    const { data, error, blockedReason } = await createTaxiGroup(selectedIds);
 
     if (error || !data) {
       setIsCreating(false);
       console.warn('createTaxiGroup failed', error);
-      setErrorMessage(t('admin.createGroupError'));
+      setErrorMessage(t(blockedReason ? 'admin.createGroupTerminalError' : 'admin.createGroupError'));
       return;
     }
 
@@ -312,11 +357,11 @@ export default function AdminScreen({ session, onBack }: Props) {
     setErrorMessage(null);
     setCreatingSuggestionKey(key);
 
-    const { data, error } = await createTaxiGroup(suggestion.requestIds);
+    const { data, error, blockedReason } = await createTaxiGroup(suggestion.requestIds);
     if (error || !data) {
       console.warn('createTaxiGroup (suggestion) failed', error);
       setCreatingSuggestionKey(null);
-      setErrorMessage(t('admin.createGroupError'));
+      setErrorMessage(t(blockedReason ? 'admin.createGroupTerminalError' : 'admin.createGroupError'));
       return;
     }
 
@@ -403,6 +448,17 @@ export default function AdminScreen({ session, onBack }: Props) {
           >
             <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>{t('admin.tabHistory')}</Text>
           </Pressable>
+          <Pressable
+            onPress={() => setActiveTab('meetingPoints')}
+            style={[styles.tab, activeTab === 'meetingPoints' && styles.tabActive]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'meetingPoints' }}
+            accessibilityLabel={t('adminMeetingPoints.title')}
+          >
+            <Text style={[styles.tabText, activeTab === 'meetingPoints' && styles.tabTextActive]}>
+              {t('adminMeetingPoints.tab')}
+            </Text>
+          </Pressable>
         </View>
 
         {errorMessage ? <ErrorNotice message={errorMessage} onRetry={loadData} retryLabel={t('common.retry')} /> : null}
@@ -431,7 +487,10 @@ export default function AdminScreen({ session, onBack }: Props) {
                       const request = requestById.get(member.id);
                       return (
                         <View key={member.id} style={styles.suggestionMemberRow}>
-                          <Text style={styles.rowTitle}>{member.passengerName?.trim() || member.flightNumber}</Text>
+                          <Text style={styles.rowTitle}>
+                            {member.passengerName?.trim() || member.flightNumber || '—'}
+                            {request?.arrival_terminal ? `  ·  ${request.arrival_terminal}` : ''}
+                          </Text>
                           {request ? (
                             <RideDateLine
                               arrivalAt={request.arrival_at}
@@ -510,14 +569,17 @@ export default function AdminScreen({ session, onBack }: Props) {
                 </Text>
                 {section.requests.map((item) => {
                   const isSelected = selectedIds.includes(item.id);
-                  const displayName = item.passenger_name?.trim() || item.flight_number;
+                  const displayName = requestDisplayName(item);
+                  const terminalLabel = item.arrival_terminal
+                    ? t('admin.terminalLabel', { terminal: item.arrival_terminal })
+                    : t('admin.terminalUnknown');
                   const rideDateText = rideDateAccessibilityText(t, i18n.language, {
                     arrivalAt: item.arrival_at,
                     flightNumber: item.flight_number,
                     arrivalTimeSource: item.arrival_time_source,
                     createdAt: item.created_at,
                   });
-                  const rowLabel = `${displayName}, ${rideDateText}, ${item.destination_address}, ${t('admin.bagsAndWait', {
+                  const rowLabel = `${displayName}, ${terminalLabel}, ${rideDateText}, ${item.destination_address}, ${t('admin.bagsAndWait', {
                     bags: item.bags_count,
                     wait: item.max_wait_minutes,
                   })}`;
@@ -548,8 +610,15 @@ export default function AdminScreen({ session, onBack }: Props) {
                           <Text style={styles.rowTitle}>{displayName}</Text>
                           <Text style={styles.rowSubtitle}>{item.destination_address}</Text>
                           <Text style={styles.rowMeta}>
+                            {terminalLabel}
+                            {'  ·  '}
                             {t('admin.bagsAndWait', { bags: item.bags_count, wait: item.max_wait_minutes })}
                           </Text>
+                          {item.no_show_at ? (
+                            <Text style={styles.guaranteeFlag}>
+                              {t('admin.noShowFlag', { date: formatBarcelonaDateTime(item.no_show_at) })}
+                            </Text>
+                          ) : null}
                         </View>
                       </View>
                     </Card>
@@ -588,6 +657,19 @@ export default function AdminScreen({ session, onBack }: Props) {
                 ? t('admin.groupRideDateLabel', { date: formatRideDateTime(t, i18n.language, rideDate) })
                 : null;
               const createdLabel = t('admin.groupCreatedLabel', { date: formatBarcelonaDateTime(group.created_at) });
+              const terminalInfo = groupTerminals[group.id];
+              const terminalConflictLabel = terminalInfo?.conflict
+                ? t('admin.terminalConflictFlag', { terminal: terminalInfo.conflict })
+                : null;
+              // A confirmed group whose ride is still ahead should have a meeting point within a
+              // minute; without one, its terminal has no active point (or needs a manual pick).
+              const noMeetingPointLabel =
+                group.status === 'confirmed' &&
+                !group.meeting_point_id &&
+                rideDate &&
+                new Date(rideDate).getTime() > Date.now() - MEETING_POINT_FLAG_GRACE_MS
+                  ? t('admin.noMeetingPointFlag')
+                  : null;
               const summary = paymentSummaries[group.id];
               const paymentsLabel = summary
                 ? [
@@ -609,10 +691,20 @@ export default function AdminScreen({ session, onBack }: Props) {
                   style={styles.groupRow}
                   accessibilityLabel={`${rideDateLabel ? `${rideDateLabel}, ` : ''}${createdLabel}, ${fareLabel}, ${
                     paymentsLabel ? `${paymentsLabel}, ` : ''
-                  }${receiptFlags[group.id] ? `${receiptFlags[group.id]}, ` : ''}${statusLabel}`}
+                  }${receiptFlags[group.id] ? `${receiptFlags[group.id]}, ` : ''}${
+                    terminalConflictLabel ? `${terminalConflictLabel}, ` : ''
+                  }${noMeetingPointLabel ? `${noMeetingPointLabel}, ` : ''}${statusLabel}`}
                 >
                   {rideDateLabel ? <Text style={styles.groupTitle}>{rideDateLabel}</Text> : null}
                   <Text style={rideDateLabel ? styles.groupSubtitle : styles.groupTitle}>{createdLabel}</Text>
+                  {terminalInfo?.terminal ? (
+                    <Text style={styles.groupSubtitle}>{t('admin.terminalLabel', { terminal: terminalInfo.terminal })}</Text>
+                  ) : null}
+                  {terminalConflictLabel ? <Text style={styles.guaranteeFlag}>{terminalConflictLabel}</Text> : null}
+                  {noMeetingPointLabel ? <Text style={styles.guaranteeFlag}>{noMeetingPointLabel}</Text> : null}
+                  {group.meetup_flagged_at ? (
+                    <Text style={styles.guaranteeFlag}>{t('admin.meetupFlaggedFlag')}</Text>
+                  ) : null}
                   <Text style={styles.groupSubtitle}>{fareLabel}</Text>
                   {paymentsLabel ? <Text style={styles.groupSubtitle}>{paymentsLabel}</Text> : null}
                   {receiptFlags[group.id] ? <Text style={styles.guaranteeFlag}>{receiptFlags[group.id]}</Text> : null}
@@ -626,6 +718,8 @@ export default function AdminScreen({ session, onBack }: Props) {
           )}
         </View>
           </>
+        ) : activeTab === 'meetingPoints' ? (
+          <AdminMeetingPoints onOpen={setOpenMeetingPoint} />
         ) : (
           <>
             <View style={styles.groupsSection}>
@@ -645,7 +739,7 @@ export default function AdminScreen({ session, onBack }: Props) {
                 <Text style={styles.emptyText}>{t('admin.historyEmpty')}</Text>
               ) : (
                 visibleHistoryRequests.map((item) => {
-                  const displayName = item.passenger_name?.trim() || item.flight_number;
+                  const displayName = item.passenger_name?.trim() || item.flight_number || '—';
                   const statusLabel =
                     item.status === 'cancelled' ? t('admin.historyStatusCancelled') : t('admin.historyStatusExpired');
                   const rideDateText = rideDateAccessibilityText(t, i18n.language, {

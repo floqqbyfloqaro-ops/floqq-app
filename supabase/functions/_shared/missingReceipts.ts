@@ -70,6 +70,9 @@ export async function handleMissingReceipts(adminClient: SupabaseClient, now = n
       .select('id, total_fare, payer_request_id, payer_user_id, receipt_deadline_at, receipt_reminder_sent_at, receipt_final_reminder_sent_at')
       .in('id', groupIds)
       .eq('status', 'confirmed')
+      // A group that never met is under review by the admin: no reminders and, above all, no
+      // estimated-fare charge for a ride that may not have taken place.
+      .is('meetup_flagged_at', null)
       .not('payer_request_id', 'is', null),
     adminClient.from('ride_receipts').select('group_id, status').in('group_id', groupIds),
     adminClient.from('passenger_requests').select('group_id, arrival_at').in('group_id', groupIds),

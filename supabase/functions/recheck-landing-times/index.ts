@@ -1,51 +1,62 @@
-// Watches for FlightAware landing-time changes on passengers already placed into a taxi
-// group, and refreshes that group's scoring when one is detected - the automatic follow-up
-// to the initial flight lookup done at request-submission time (src/services/flightStatus.ts).
+// Follows the flights of active rides after the passenger entered them - the automatic follow-up
+// to the lookup done in the request form (src/services/flightStatus.ts). Runs every 5 minutes, but
+// only looks a flight up when it is due (_shared/flightRefresh.ts): nothing earlier than 48 hours
+// before landing, a few checkpoints after that, then about every 10 minutes from the scheduled
+// departure until the flight has landed. Each lookup is a paid FlightAware call, so rides on the
+// same flight share one.
 //
-// Only groups with taxi_groups.status = 'unconfirmed' are touched; once an admin confirms a
-// group (src/screens/GroupDetailScreen.tsx), it's locked in and this job leaves it alone.
+// What a lookup changes depends on where the ride is:
+//   - Still waiting (no group): its landing time and its terminal follow the flight data.
+//   - In an offer (unconfirmed group): the landing time follows the flight and the group is
+//     rescored. If the flight now lands at another terminal than the group's, the passenger is
+//     taken out of the group and goes back to searching at the new terminal ('terminal_changed').
+//   - In a confirmed group: nothing is changed automatically. A different terminal is recorded on
+//     the ride (terminal_conflict) and in the audit trail for the admin to act on.
+//
 // Invoked the same two ways as match-and-group (cron secret or admin JWT); deployed with
 // --no-verify-jwt since this file does its own auth check via the shared helper.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { isAuthorized } from '../_shared/auth.ts';
-import { ADMIN_EMAIL } from '../_shared/constants.ts';
-import { AEROAPI_BASE_URL, pickBestFlight } from '../_shared/flightLookup.ts';
+import { ADMIN_EMAIL, FLIGHT_REFRESH_SCHEDULE } from '../_shared/constants.ts';
+import { FlightSnapshot, lookupFlight } from '../_shared/flightLookup.ts';
+import { isFlightCheckDue } from '../_shared/flightRefresh.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { computeGroupScore, PendingPassengerRequest } from '../_shared/matchingEngine.ts';
+import { removeFromOffer, stripeForOffers } from '../_shared/offers.ts';
+import { sendPush } from '../_shared/push.ts';
 
 const LOCK_ID = 2;
+
+const HOUR_MS = 3_600_000;
 
 // Ignores sub-minute differences (formatting noise between polls) so a real schedule change
 // is what actually triggers a rescore.
 const LANDING_TIME_CHANGE_THRESHOLD_SECONDS = 60;
 
-type GroupedRow = PendingPassengerRequest & { group_id: string; scheduled_arrival_at: string | null };
+type RideRow = PendingPassengerRequest & {
+  user_id: string | null;
+  group_id: string | null;
+  scheduled_arrival_at: string | null;
+  arrival_terminal: string | null;
+  arrival_terminal_source: string | null;
+  flight_checked_at: string | null;
+  flight_scheduled_departure_at: string | null;
+  terminal_conflict: string | null;
+};
 
-// The flight's current landing time and the one it was scheduled for ("Match found" shows the
-// difference as "On time" / "Delayed").
-type LandingTimes = { estimate: string | null; scheduled: string | null };
+const RIDE_COLUMNS =
+  'id, user_id, group_id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, scheduled_arrival_at, arrival_terminal, arrival_terminal_source, flight_checked_at, flight_scheduled_departure_at, terminal_conflict';
 
-// anchorMs is the member's own current arrival_at, not "now" - a reused flight number/ident
-// (e.g. a daily route) would otherwise resolve to whichever occurrence is nearest to whenever
-// this job happens to run, which can silently overwrite arrival_at with the wrong day's landing
-// time. See _shared/flightLookup.ts.
-async function fetchLandingTimes(flightNumber: string, anchorMs: number, apiKey: string): Promise<LandingTimes | null> {
-  const response = await fetch(`${AEROAPI_BASE_URL}/flights/${encodeURIComponent(flightNumber)}`, {
-    headers: { 'x-apikey': apiKey },
-  });
-  if (!response.ok) return null;
+const MEMBER_COLUMNS =
+  'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng';
 
-  const data = await response.json();
-  const flight = pickBestFlight(data?.flights, anchorMs);
-  if (!flight) return null;
-
-  return {
-    estimate: flight.actual_in ?? flight.estimated_in ?? flight.scheduled_in ?? null,
-    scheduled: flight.scheduled_in ?? null,
-  };
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
+
+const ms = (iso: string | null) => (iso ? new Date(iso).getTime() : null);
 
 Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -53,99 +64,167 @@ Deno.serve(async (req) => {
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
   if (!(await isAuthorized(req, adminClient, ADMIN_EMAIL))) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
   if (!(await acquireLock(adminClient, LOCK_ID))) {
-    return new Response(JSON.stringify({ skipped: true, reason: 'a run is already in progress' }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ skipped: true, reason: 'a run is already in progress' });
   }
 
   try {
     const apiKey = Deno.env.get('FLIGHTAWARE_API_KEY');
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'Flight lookup is not configured.' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: 'Flight lookup is not configured.' }, 500);
     }
 
+    const now = new Date();
+    const nowMs = now.getTime();
+    const firstCheckpointHours = Math.max(...FLIGHT_REFRESH_SCHEDULE.checkpointHours);
+
+    // Active rides with a flight that hasn't landed, inside the window in which flights are followed.
     const { data: rows, error: rowsError } = await adminClient
       .from('passenger_requests')
-      .select(
-        'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, group_id, scheduled_arrival_at, taxi_groups!inner(status)'
-      )
-      .eq('taxi_groups.status', 'unconfirmed');
-
+      .select(RIDE_COLUMNS)
+      .in('status', ['pending', 'matched'])
+      .neq('flight_number', '')
+      .is('flight_landed_at', null)
+      .gte('arrival_at', new Date(nowMs - FLIGHT_REFRESH_SCHEDULE.giveUpHours * HOUR_MS).toISOString())
+      .lte('arrival_at', new Date(nowMs + firstCheckpointHours * HOUR_MS).toISOString());
     if (rowsError) {
-      return new Response(JSON.stringify({ error: rowsError.message }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: rowsError.message }, 500);
     }
 
-    const groups = new Map<string, GroupedRow[]>();
-    for (const row of (rows ?? []) as GroupedRow[]) {
-      if (row.destination_lat == null || row.destination_lng == null || !row.group_id) continue;
-      const members = groups.get(row.group_id) ?? [];
-      members.push(row);
-      groups.set(row.group_id, members);
-    }
-
-    let groupsRescored = 0;
-
-    for (const [groupId, members] of groups) {
-      const landings = await Promise.all(
-        members.map((m) => fetchLandingTimes(m.flight_number, new Date(m.arrival_at).getTime(), apiKey))
-      );
-      const estimates = landings.map((landing) => landing?.estimate ?? null);
-
-      // Remember each flight's scheduled landing; it changes nothing about the group's scoring.
-      await Promise.all(
-        members.map((member, index) => {
-          const scheduled = landings[index]?.scheduled;
-          const known = member.scheduled_arrival_at ? new Date(member.scheduled_arrival_at).getTime() : null;
-          return scheduled && new Date(scheduled).getTime() !== known
-            ? adminClient.from('passenger_requests').update({ scheduled_arrival_at: scheduled }).eq('id', member.id)
-            : Promise.resolve();
-        })
-      );
-
-      let changed = false;
-      const updatedMembers = members.map((member, index) => {
-        const newEstimate = estimates[index];
-        if (!newEstimate) return member;
-
-        const diffSeconds = Math.abs(new Date(newEstimate).getTime() - new Date(member.arrival_at).getTime()) / 1000;
-        if (diffSeconds <= LANDING_TIME_CHANGE_THRESHOLD_SECONDS) {
-          return member;
-        }
-
-        changed = true;
-        return { ...member, arrival_at: newEstimate };
-      });
-
-      if (!changed) continue;
-
-      await Promise.all(
-        updatedMembers.map((member, index) =>
-          member.arrival_at !== members[index].arrival_at
-            ? adminClient
-                .from('passenger_requests')
-                .update({ arrival_at: member.arrival_at, arrival_time_source: 'flight' })
-                .eq('id', member.id)
-            : Promise.resolve()
+    const due = ((rows ?? []) as RideRow[]).filter(
+      (ride) =>
+        ride.flight_number.trim() !== '' &&
+        isFlightCheckDue(
+          {
+            arrivalAtMs: new Date(ride.arrival_at).getTime(),
+            lastCheckedAtMs: ms(ride.flight_checked_at),
+            scheduledDepartureMs: ms(ride.flight_scheduled_departure_at),
+            landed: false,
+          },
+          nowMs,
+          FLIGHT_REFRESH_SCHEDULE
         )
-      );
+    );
+    if (due.length === 0) {
+      return jsonResponse({ ridesChecked: 0, flightsLookedUp: 0 });
+    }
 
-      const suggestion = await computeGroupScore(
-        updatedMembers as (PendingPassengerRequest & { destination_lat: number; destination_lng: number })[]
+    const groupIds = [...new Set(due.map((ride) => ride.group_id).filter((id): id is string => id != null))];
+    const { data: groupRows } = groupIds.length
+      ? await adminClient.from('taxi_groups').select('id, status').in('id', groupIds)
+      : { data: [] };
+    const groupStatus = new Map((groupRows ?? []).map((g) => [g.id as string, g.status as string]));
+
+    // One lookup per flight and day, shared by every ride on it.
+    const lookups = new Map<string, Promise<FlightSnapshot | null>>();
+    const lookupFor = (ride: RideRow) => {
+      const flight = ride.flight_number.trim().toUpperCase();
+      const key = `${flight}|${ride.arrival_at.slice(0, 10)}`;
+      let pending = lookups.get(key);
+      if (!pending) {
+        pending = lookupFlight(flight, new Date(ride.arrival_at).getTime(), apiKey).catch((err) => {
+          console.error('flight lookup failed', err);
+          return null;
+        });
+        lookups.set(key, pending);
+      }
+      return pending;
+    };
+
+    const stripe = stripeForOffers();
+    const groupsToRescore = new Set<string>();
+    let terminalsUpdated = 0;
+    let removedForTerminal = 0;
+    let conflictsFlagged = 0;
+
+    for (const ride of due) {
+      const snapshot = await lookupFor(ride);
+      const status = ride.group_id ? (groupStatus.get(ride.group_id) ?? null) : null;
+
+      // Remember that this flight was looked up now, whatever it said - also when it said nothing,
+      // so an unknown flight number isn't asked about again on every run.
+      const update: Record<string, unknown> = { flight_checked_at: now.toISOString() };
+
+      if (snapshot) {
+        if (snapshot.scheduledDeparture) update.flight_scheduled_departure_at = snapshot.scheduledDeparture;
+        if (snapshot.scheduledLanding && ms(snapshot.scheduledLanding) !== ms(ride.scheduled_arrival_at)) {
+          update.scheduled_arrival_at = snapshot.scheduledLanding;
+        }
+        // Landed - or cancelled, which ends the following of this flight just the same.
+        if (snapshot.landed || snapshot.cancelled) update.flight_landed_at = now.toISOString();
+
+        // The landing time: a waiting ride and a ride in an offer follow the flight; a confirmed
+        // group's times are left alone.
+        if (snapshot.estimatedLanding && status !== 'confirmed') {
+          const diffSeconds = Math.abs(ms(snapshot.estimatedLanding)! - new Date(ride.arrival_at).getTime()) / 1000;
+          if (diffSeconds > LANDING_TIME_CHANGE_THRESHOLD_SECONDS) {
+            update.arrival_at = snapshot.estimatedLanding;
+            update.arrival_time_source = 'flight';
+            if (status === 'unconfirmed' && ride.group_id) groupsToRescore.add(ride.group_id);
+          }
+        }
+      }
+
+      const terminal = snapshot?.terminal ?? null;
+      let removed = false;
+      if (terminal) {
+        if (terminal === ride.arrival_terminal || ride.arrival_terminal == null || !ride.group_id) {
+          // Flight data confirms the terminal, or replaces the passenger's own choice while the
+          // ride is still waiting.
+          if (terminal !== ride.arrival_terminal) terminalsUpdated += 1;
+          update.arrival_terminal = terminal;
+          update.arrival_terminal_source = 'flight';
+          if (ride.terminal_conflict) update.terminal_conflict = null;
+        } else if (status === 'unconfirmed') {
+          // Another terminal than the offer's: out of the group, back to searching at the new one.
+          const result = await removeFromOffer(adminClient, stripe, ride.group_id, ride.id, 'terminal_changed');
+          if (result.removed) {
+            removed = true;
+            removedForTerminal += 1;
+            update.arrival_terminal = terminal;
+            update.arrival_terminal_source = 'flight';
+            groupsToRescore.delete(ride.group_id);
+            if (ride.user_id) await sendPush(adminClient, { userId: ride.user_id, key: 'terminalChanged' });
+          }
+        }
+        if (!removed && ride.group_id && ride.arrival_terminal != null && terminal !== ride.arrival_terminal) {
+          // A confirmed group (or an offer the passenger couldn't be taken out of): flag it for
+          // the admin, once per reported terminal.
+          if (ride.terminal_conflict !== terminal) {
+            update.terminal_conflict = terminal;
+            conflictsFlagged += 1;
+            await adminClient.from('group_events').insert({
+              group_id: ride.group_id,
+              request_id: ride.id,
+              event_type: 'terminal_conflict',
+              details: { group_terminal: ride.arrival_terminal, flight_terminal: terminal },
+              actor_type: 'system',
+            });
+          }
+        }
+      }
+
+      const { error: updateError } = await adminClient.from('passenger_requests').update(update).eq('id', ride.id);
+      if (updateError) console.error('updating a ride after its flight lookup failed', updateError.message);
+    }
+
+    // Offers whose landing times moved: same rescore as before, on the group as it is now.
+    let groupsRescored = 0;
+    for (const groupId of groupsToRescore) {
+      const { data: group } = await adminClient.from('taxi_groups').select('status').eq('id', groupId).maybeSingle();
+      if (group?.status !== 'unconfirmed') continue;
+
+      const { data: memberRows } = await adminClient.from('passenger_requests').select(MEMBER_COLUMNS).eq('group_id', groupId);
+      const members = ((memberRows ?? []) as PendingPassengerRequest[]).filter(
+        (r): r is PendingPassengerRequest & { destination_lat: number; destination_lng: number } =>
+          r.destination_lat != null && r.destination_lng != null
       );
+      if (members.length < 2 || members.length !== (memberRows ?? []).length) continue;
+
+      const suggestion = await computeGroupScore(members);
       if (!suggestion) continue;
 
       await Promise.all(
@@ -176,9 +255,13 @@ Deno.serve(async (req) => {
       groupsRescored++;
     }
 
-    return new Response(JSON.stringify({ groupsChecked: groups.size, groupsRescored }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
+    return jsonResponse({
+      ridesChecked: due.length,
+      flightsLookedUp: lookups.size,
+      groupsRescored,
+      terminalsUpdated,
+      removedForTerminal,
+      conflictsFlagged,
     });
   } finally {
     await releaseLock(adminClient, LOCK_ID);

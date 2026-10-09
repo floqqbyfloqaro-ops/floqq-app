@@ -17,6 +17,10 @@
 begin;
 select plan(32);
 
+-- Every ride needs an arrival terminal since 20261010000000_same_terminal_matching.sql, and a
+-- group only holds one terminal. These cases aren't about terminals: everyone lands at T1.
+alter table public.passenger_requests alter column arrival_terminal set default 'T1';
+
 -- Minimal auth.users rows so passenger_requests.user_id's FK is satisfiable.
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-000000000001', 'p1@test.floqq'),

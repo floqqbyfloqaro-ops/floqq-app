@@ -9,8 +9,11 @@
     "@stripe/stripe-react-native": "0.64.0",
     "@supabase/supabase-js": "^2.116.0",
     "expo": "~57.0.21",
+    "expo-brightness": "~57.0.2",
     "expo-dev-client": "~57.0.19",
+    "expo-haptics": "~57.0.3",
     "expo-image-picker": "~57.0.20",
+    "expo-keep-awake": "~57.0.2",
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.10",
     "expo-localization": "~57.0.1",
@@ -24,6 +27,8 @@
     "react-i18next": "^17.0.13",
     "react-native": "0.86.3",
     "react-native-maps": "1.27.2",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-web": "^0.21.2"
   },
@@ -36,7 +41,8 @@
     "start": "expo start --go",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "node --experimental-strip-types --test \"supabase/functions/_shared/*.test.ts\" \"src/**/*.test.mjs\""
   },
   "private": true
 }

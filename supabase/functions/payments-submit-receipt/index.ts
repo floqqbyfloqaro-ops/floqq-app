@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
 
   const { data: group } = await adminClient
     .from('taxi_groups')
-    .select('id, status, total_fare, payer_request_id, payer_user_id')
+    .select('id, status, total_fare, payer_request_id, payer_user_id, meetup_flagged_at')
     .eq('id', groupId)
     .single();
   if (!group || group.payer_user_id !== user.id || !group.payer_request_id) {
@@ -96,6 +96,11 @@ Deno.serve(async (req) => {
   }
   if (group.status !== 'confirmed') {
     return jsonResponse({ error: 'group_not_confirmed' }, 409);
+  }
+  // The group never met and its ride was never marked as started: the admin is reviewing it, and
+  // until that is settled no payment step runs for this ride - a receipt included.
+  if (group.meetup_flagged_at) {
+    return jsonResponse({ error: 'ride_under_review' }, 409);
   }
 
   const { data: members } = await adminClient

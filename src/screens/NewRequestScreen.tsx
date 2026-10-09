@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -11,6 +11,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SelectField from '../components/SelectField';
 import Skeleton from '../components/Skeleton';
+import { TERMINAL_PREFILL_WINDOW_HOURS } from '../constants';
 import { fetchEstimatedLandingTime } from '../services/flightStatus';
 import { geocodeAddress } from '../services/geocoding';
 import { PlaceDetails } from '../services/placesAutocomplete';
@@ -21,7 +22,10 @@ import {
   isEmailNotVerifiedError,
   updatePassengerRequest,
 } from '../services/passengerRequests';
+import { detectTerminalFromLocation } from '../services/terminalGeofence';
+import { ARRIVAL_TERMINALS, ArrivalTerminal } from '../services/terminalRules';
 import { baseText, borders, colors, components, elevation, overlays, radii, spacing } from '../theme/colors';
+import { fromBarcelonaWallClock, toBarcelonaWallClock } from '../utils/formatDateTime';
 
 type Props = {
   requestId?: string;
@@ -48,8 +52,18 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [flightNumber, setFlightNumber] = useState('');
-  const [arrivalDate, setArrivalDate] = useState(new Date());
-  const [arrivalTime, setArrivalTime] = useState(new Date());
+  // Both are Barcelona wall-clock dates (see formatDateTime.ts): what the pickers show is the
+  // time at the airport, whatever zone the phone is in.
+  const [arrivalDate, setArrivalDate] = useState(() => toBarcelonaWallClock(new Date()));
+  const [arrivalTime, setArrivalTime] = useState(() => toBarcelonaWallClock(new Date()));
+  // The ride's terminal: from the flight data when it names one (not editable), otherwise the
+  // passenger's own choice.
+  const [flightTerminal, setFlightTerminal] = useState<ArrivalTerminal | null>(null);
+  const [chosenTerminal, setChosenTerminal] = useState<ArrivalTerminal | null>(null);
+  // The choice was prefilled from where the phone is, and the passenger hasn't changed it.
+  const [isTerminalFromLocation, setIsTerminalFromLocation] = useState(false);
+  const chosenTerminalRef = useRef(chosenTerminal);
+  chosenTerminalRef.current = chosenTerminal;
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [destinationAddress, setDestinationAddress] = useState('');
@@ -82,9 +96,14 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
     }
 
     setFlightNumber(data.flight_number);
-    const arrival = new Date(data.arrival_at);
+    const arrival = toBarcelonaWallClock(new Date(data.arrival_at));
     setArrivalDate(arrival);
     setArrivalTime(arrival);
+    if (data.arrival_terminal_source === 'flight' && data.flight_number.trim()) {
+      setFlightTerminal(data.arrival_terminal);
+    } else {
+      setChosenTerminal(data.arrival_terminal);
+    }
     // Same rule as a fresh flight lookup: a flight number present on the stored ride means the
     // arrival time came from (or should stay pinned to) that flight, so it loads read-only.
     setHasFlightEstimate(Boolean(data.flight_number.trim()));
@@ -105,6 +124,41 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
     loadExistingRequest();
   }, [loadExistingRequest]);
 
+  // The form's date and time as one Barcelona wall-clock date.
+  const arrivalWallClock = () => {
+    const wallClock = new Date(arrivalDate);
+    wallClock.setHours(arrivalTime.getHours(), arrivalTime.getMinutes(), 0, 0);
+    return wallClock;
+  };
+
+  // A new ride for a passenger who is standing in a terminal right now: prefill it (still theirs
+  // to change). Never asks for the location permission - see terminalGeofence.ts.
+  useEffect(() => {
+    if (isEditMode) return;
+    let cancelled = false;
+    detectTerminalFromLocation().then((terminal) => {
+      // The passenger may have chosen one themselves while the position was being read.
+      if (cancelled || !terminal || chosenTerminalRef.current) return;
+      setChosenTerminal(terminal);
+      setIsTerminalFromLocation(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditMode]);
+
+  // Being in a terminal now says nothing about a ride that lands another day: the prefill is
+  // dropped again once the arrival moves out of the window around now.
+  const arrivalWallMs = arrivalWallClock().getTime();
+  useEffect(() => {
+    if (!isTerminalFromLocation) return;
+    const hoursFromNow = Math.abs(arrivalWallMs - toBarcelonaWallClock(new Date()).getTime()) / 3_600_000;
+    if (hoursFromNow > TERMINAL_PREFILL_WINDOW_HOURS) {
+      setChosenTerminal(null);
+      setIsTerminalFromLocation(false);
+    }
+  }, [arrivalWallMs, isTerminalFromLocation]);
+
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
@@ -122,23 +176,28 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
     setIsLookingUpFlight(true);
     setFlightLookupNote(null);
 
-    const estimate = await fetchEstimatedLandingTime(flightNumber, arrivalDate);
+    const estimate = await fetchEstimatedLandingTime(flightNumber, fromBarcelonaWallClock(arrivalWallClock()));
     setIsLookingUpFlight(false);
 
     if (!estimate) {
       setHasFlightEstimate(false);
       setIsArrivalFromLookup(false);
+      setFlightTerminal(null);
       setFlightLookupNote(t('newRequest.flightLookupNotFound'));
       return;
     }
 
-    setArrivalDate(estimate.estimatedLandingAt);
-    setArrivalTime(estimate.estimatedLandingAt);
+    const landing = toBarcelonaWallClock(estimate.estimatedLandingAt);
+    setArrivalDate(landing);
+    setArrivalTime(landing);
     setHasFlightEstimate(true);
     setIsArrivalFromLookup(true);
+    // Null when the flight data names no terminal yet: the passenger chooses below, and the
+    // flight's own terminal replaces that choice once it is known.
+    setFlightTerminal(estimate.arrivalTerminal);
     setFlightLookupNote(
       t('newRequest.flightLookupFound', {
-        time: estimate.estimatedLandingAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: landing.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       })
     );
   };
@@ -157,8 +216,14 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
 
     const maxWait = Number.parseInt(maxWaitMinutes, 10);
 
-    if (!flightNumber.trim() || !destinationAddress.trim()) {
+    // The flight number is optional (a passenger already at the airport, or who doesn't know it).
+    if (!destinationAddress.trim()) {
       setErrorMessage(t('newRequest.missingFieldsError'));
+      return;
+    }
+    const arrivalTerminal = flightTerminal ?? chosenTerminal;
+    if (!arrivalTerminal) {
+      setErrorMessage(t('newRequest.terminalRequiredError'));
       return;
     }
     if (Number.isNaN(maxWait) || maxWait < 0) {
@@ -166,8 +231,7 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
       return;
     }
 
-    const arrivalAt = new Date(arrivalDate);
-    arrivalAt.setHours(arrivalTime.getHours(), arrivalTime.getMinutes(), 0, 0);
+    const arrivalAt = fromBarcelonaWallClock(arrivalWallClock());
 
     setIsSubmitting(true);
 
@@ -186,6 +250,8 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
 
     const payload = {
       flightNumber: flightNumber.trim(),
+      arrivalTerminal,
+      arrivalTerminalSource: flightTerminal ? ('flight' as const) : ('passenger' as const),
       arrivalAt,
       destinationAddress: destinationAddress.trim(),
       destinationLat: resolvedDestination.lat,
@@ -316,9 +382,11 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
           setFlightLookupNote(null);
           setHasFlightEstimate(false);
           setIsArrivalFromLookup(false);
+          setFlightTerminal(null);
         }}
         onBlur={handleFlightNumberBlur}
         autoCapitalize="characters"
+        helperText={t('newRequest.flightNumberHelper')}
       />
       {isLookingUpFlight ? (
         <Text style={styles.flightLookupNote}>{t('newRequest.flightLookupChecking')}</Text>
@@ -343,7 +411,11 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
         {!hasFlightEstimate ? (
           <Pressable
             style={styles.nowButton}
-            onPress={() => setArrivalTime(new Date())}
+            onPress={() => {
+              const now = toBarcelonaWallClock(new Date());
+              setArrivalDate(now);
+              setArrivalTime(now);
+            }}
             accessibilityRole="button"
             accessibilityLabel={t('newRequest.nowButtonLabel')}
           >
@@ -351,11 +423,11 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
           </Pressable>
         ) : null}
       </View>
-      {hasFlightEstimate ? (
-        <Text style={styles.flightLookupNote}>
-          {t('newRequest.arrivalTimeAutoNote', { flightNumber: flightNumber.trim() })}
-        </Text>
-      ) : null}
+      <Text style={styles.flightLookupNote}>
+        {hasFlightEstimate
+          ? t('newRequest.arrivalTimeAutoNote', { flightNumber: flightNumber.trim() })
+          : t('newRequest.barcelonaTimeNote')}
+      </Text>
       {!hasFlightEstimate && showTimePicker ? (
         <>
           <DateTimePicker
@@ -376,6 +448,49 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
           ) : null}
         </>
       ) : null}
+
+      <Text style={styles.label}>{t('newRequest.terminalLabel')}</Text>
+      {flightTerminal ? (
+        <>
+          <View style={[styles.pickerField, styles.pickerFieldDisabled]}>
+            <Ionicons name="business-outline" size={20} color={colors.textDisabled} />
+            <Text style={[styles.pickerValue, styles.pickerValueDisabled]}>
+              {t(`newRequest.terminal.${flightTerminal}`)}
+            </Text>
+          </View>
+          <Text style={styles.flightLookupNote}>
+            {t('newRequest.terminalFromFlightNote', { flightNumber: flightNumber.trim() })}
+          </Text>
+        </>
+      ) : (
+        <>
+          <View style={styles.terminalRow} accessibilityRole="radiogroup" accessibilityLabel={t('newRequest.terminalLabel')}>
+            {ARRIVAL_TERMINALS.map((terminal) => {
+              const isSelected = chosenTerminal === terminal;
+              return (
+                <Pressable
+                  key={terminal}
+                  style={[styles.terminalOption, isSelected && styles.terminalOptionSelected]}
+                  onPress={() => {
+                    setChosenTerminal(terminal);
+                    setIsTerminalFromLocation(false);
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={t(`newRequest.terminal.${terminal}`)}
+                >
+                  <Text style={[styles.terminalOptionLabel, isSelected && styles.terminalOptionLabelSelected]}>
+                    {t(`newRequest.terminal.${terminal}`)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.flightLookupNote}>
+            {t(isTerminalFromLocation ? 'newRequest.terminalFromLocationNote' : 'newRequest.terminalHelper')}
+          </Text>
+        </>
+      )}
 
       <Text style={styles.label}>{t('newRequest.destinationLabel')}</Text>
       <PlaceAutocompleteInput
@@ -518,6 +633,34 @@ const styles = StyleSheet.create({
     ...baseText.bodySmall,
     color: colors.accentPrimary,
     fontWeight: '700',
+  },
+  terminalRow: {
+    flexDirection: 'row',
+    gap: spacing.x3,
+    marginBottom: spacing.x4,
+  },
+  terminalOption: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: radii.lg,
+    borderWidth: borders.regular,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceCard,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.resting,
+  },
+  terminalOptionSelected: {
+    borderColor: colors.accentPrimary,
+    backgroundColor: colors.accentPrimarySoft,
+  },
+  terminalOptionLabel: {
+    ...baseText.body,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  terminalOptionLabelSelected: {
+    color: colors.textPrimary,
   },
   doneText: {
     color: colors.textPrimary,
