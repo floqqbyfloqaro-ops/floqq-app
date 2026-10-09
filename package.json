@@ -39,7 +39,8 @@
     "start": "expo start --go",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "node --experimental-strip-types --test \"supabase/functions/_shared/*.test.ts\" \"src/**/*.test.mjs\""
   },
   "private": true
 }
