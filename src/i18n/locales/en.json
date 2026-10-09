@@ -391,7 +391,8 @@
     "verifyHint": "Check on site that the pin, the photo and the wording are right, then mark it verified.",
     "markVerified": "Mark as verified on site",
     "activate": "Activate",
-    "deactivate": "Deactivate"
+    "deactivate": "Deactivate",
+    "tooClose": "Only {{meters}} m from {{code}}: the arrow can't reliably tell them apart."
   },
   "meetingPoints": {
     "T1-A": {
@@ -434,7 +435,7 @@
   "location_share_explainer": "Share your live location with your group only, so you can find each other. It turns off automatically once you're together.",
   "findGroup": {
     "title": "Find your group",
-    "subtitle": "Share your live location so you and your group can find each other at the airport.",
+    "subtitle": "Follow the arrow to your meeting point. Sharing your location with your group is optional.",
     "windowClosed": "Location sharing opens when the first traveler lands, around {{time}}.",
     "timedOut": "This meetup has ended, so location sharing is off.",
     "ended": "Your ride has started. Location sharing is off.",
@@ -449,10 +450,10 @@
     "youSharingAccuracy": "You're sharing your location · accurate to {{meters}} m",
     "youNotSharing": "You're not sharing your location",
     "explainerTitle": "Share your location?",
-    "shareButton": "Share my location",
+    "shareButton": "Share my location with my group",
     "stopButton": "Stop sharing",
     "notNow": "Not now",
-    "shareFootnote": "Only your group can see it, and only while this screen is open.",
+    "shareFootnote": "Optional. Only your group can see it, and only while this screen is open.",
     "openSettings": "Open settings",
     "accessDenied": "FLOQQ isn't allowed to use your location. You can still meet your group without it, or allow it in settings.",
     "accessReduced": "Your phone only shares an approximate location with FLOQQ, which is too rough to find each other. Turn on Precise Location in settings to share.",
@@ -726,5 +727,23 @@
     "taxiConfirmYes": "Yes, we're in the taxi",
     "taxiConfirmNo": "Not yet",
     "taxiError": "We couldn't mark the ride as started. Please try again."
+  },
+  "guidance": {
+    "targetLine": "To: {{name}}",
+    "distanceAway": "{{meters}} m away",
+    "distanceApprox": "Approx. {{meters}} m",
+    "closeHeading": "You're close - look around",
+    "almostThere": "You're almost there",
+    "arrivedTitle": "You've arrived",
+    "locating": "Finding your position…",
+    "calibrate": "Your phone's compass needs calibrating. Move the phone in a figure of eight.",
+    "arrowLabel": "Arrow pointing to your meeting point",
+    "useLocation": "Use my location for directions",
+    "locationStaysLocal": "An arrow can guide you to the meeting point. Your location stays on your phone - it is only shared with your group if you choose that separately.",
+    "atMeetingPoint": "I'm at the meeting point",
+    "atMeetingPointDone": "You're at the meeting point ✓",
+    "undo": "Undo",
+    "arrivalError": "That didn't go through. Please try again.",
+    "memberArrived": "At the meeting point"
   }
 }

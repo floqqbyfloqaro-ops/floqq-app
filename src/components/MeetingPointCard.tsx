@@ -15,6 +15,9 @@ type Props = {
   // Null until the group has been given its meeting point.
   point: MeetingPointSummary | null;
   meetingTime: string | null;
+  // The photo is already on screen above this card (the guidance shows it when the passenger is
+  // close): don't show it twice.
+  hidePhoto?: boolean;
 };
 
 // "T1" -> "1", "T2B" -> "2B": the part that follows the word "Terminal".
@@ -23,7 +26,7 @@ const terminalNumber = (terminal: string) => terminal.replace(/^T/, '');
 // Where a confirmed group meets at the airport: the terminal, the landmark with its photo, how to
 // walk there from the baggage claim exit, and when. The wording is the passenger's own language
 // (the admin's edits where there are any, otherwise what ships with the app).
-export default function MeetingPointCard({ terminal, point, meetingTime }: Props) {
+export default function MeetingPointCard({ terminal, point, meetingTime, hidePhoto = false }: Props) {
   const { t, i18n } = useTranslation();
   const language = wordingLanguageFor(i18n.language);
 
@@ -54,7 +57,7 @@ export default function MeetingPointCard({ terminal, point, meetingTime }: Props
 
       {point ? (
         <>
-          {point.photo_path ? (
+          {point.photo_path && !hidePhoto ? (
             <Image
               source={{ uri: meetingPointPhotoUrl(point.photo_path) }}
               style={styles.photo}

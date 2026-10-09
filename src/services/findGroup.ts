@@ -9,6 +9,8 @@ export type MeetupMember = {
   firstName: string | null;
   // When this member confirmed "I've found my group"; null: not yet.
   foundAt: string | null;
+  // When this member said (or their phone detected) they are at the meeting point; null: not there.
+  arrivedAt: string | null;
 };
 
 export type MeetupBadge = { color: BadgeColor; number: number };
@@ -45,6 +47,23 @@ export async function fetchMeetup(requestId: string) {
   const { data, error } = await supabase.functions.invoke('find-group', { body: { requestId } });
   if (error) return { meetup: null as Meetup | null, error };
   return { meetup: (data?.meetup ?? null) as Meetup | null, error: null };
+}
+
+// "I'm at the meeting point" (MANUAL - the primary signal, whatever the GPS says) or the phone's
+// own detection (AUTO). Records when and how, never where.
+export async function markArrived(requestId: string, source: 'MANUAL' | 'AUTO') {
+  const { data, error } = await supabase.rpc('member_mark_arrived', { p_request_id: requestId, p_source: source });
+  if (error) return { ok: false, error: error.message };
+  const result = data as { arrived: boolean; reason?: string };
+  return { ok: result.arrived, error: result.arrived ? null : (result.reason ?? 'not_arrived') };
+}
+
+// "Undo": takes the arrival back, until the ride starts.
+export async function undoArrival(requestId: string) {
+  const { data, error } = await supabase.rpc('member_undo_arrival', { p_request_id: requestId });
+  if (error) return { ok: false, error: error.message };
+  const result = data as { undone: boolean; reason?: string };
+  return { ok: result.undone, error: result.undone ? null : (result.reason ?? 'not_undone') };
 }
 
 // "I've found my group": each member confirms for themselves. The group is found once all have.

@@ -391,7 +391,8 @@
     "verifyHint": "Vérifiez sur place que le repère, la photo et le texte sont corrects, puis marquez le point comme vérifié.",
     "markVerified": "Marquer comme vérifié sur place",
     "activate": "Activer",
-    "deactivate": "Désactiver"
+    "deactivate": "Désactiver",
+    "tooClose": "À seulement {{meters}} m de {{code}} : la flèche ne peut pas les distinguer de façon fiable."
   },
   "meetingPoints": {
     "T1-A": {
@@ -434,7 +435,7 @@
   "location_share_explainer": "Partagez votre position en direct avec votre groupe uniquement, pour vous retrouver. Le partage s'arrête automatiquement une fois que vous êtes ensemble.",
   "findGroup": {
     "title": "Retrouvez votre groupe",
-    "subtitle": "Partagez votre position en direct pour que votre groupe et vous puissiez vous retrouver à l'aéroport.",
+    "subtitle": "Suivez la flèche jusqu’à votre point de rencontre. Partager votre position avec votre groupe est facultatif.",
     "windowClosed": "Le partage de position s'ouvre à l'atterrissage du premier voyageur, vers {{time}}.",
     "timedOut": "Ce rendez-vous est terminé : le partage de position est désactivé.",
     "ended": "Votre trajet a commencé. Le partage de position est désactivé.",
@@ -449,10 +450,10 @@
     "youSharingAccuracy": "Vous partagez votre position · précision de {{meters}} m",
     "youNotSharing": "Vous ne partagez pas votre position",
     "explainerTitle": "Partager votre position ?",
-    "shareButton": "Partager ma position",
+    "shareButton": "Partager ma position avec mon groupe",
     "stopButton": "Arrêter le partage",
     "notNow": "Pas maintenant",
-    "shareFootnote": "Seul votre groupe peut la voir, et uniquement tant que cet écran est ouvert.",
+    "shareFootnote": "Facultatif. Seul votre groupe peut la voir, et uniquement tant que cet écran est ouvert.",
     "openSettings": "Ouvrir les réglages",
     "accessDenied": "FLOQQ n'est pas autorisé à utiliser votre position. Vous pouvez retrouver votre groupe sans elle, ou l'autoriser dans les réglages.",
     "accessReduced": "Votre téléphone ne partage qu'une position approximative avec FLOQQ, trop imprécise pour vous retrouver. Activez la position exacte dans les réglages pour la partager.",
@@ -726,5 +727,23 @@
     "taxiConfirmYes": "Oui, nous sommes dans le taxi",
     "taxiConfirmNo": "Pas encore",
     "taxiError": "Impossible d'indiquer que le trajet a commencé. Veuillez réessayer."
+  },
+  "guidance": {
+    "targetLine": "Vers : {{name}}",
+    "distanceAway": "À {{meters}} m",
+    "distanceApprox": "Environ {{meters}} m",
+    "closeHeading": "Vous êtes tout près - regardez autour de vous",
+    "almostThere": "Vous y êtes presque",
+    "arrivedTitle": "Vous êtes arrivé",
+    "locating": "Recherche de votre position…",
+    "calibrate": "La boussole de votre téléphone doit être calibrée. Faites un mouvement en forme de huit.",
+    "arrowLabel": "Flèche indiquant votre point de rencontre",
+    "useLocation": "Utiliser ma position pour me guider",
+    "locationStaysLocal": "Une flèche peut vous guider jusqu'au point de rencontre. Votre position reste sur votre téléphone : elle n'est partagée avec votre groupe que si vous le choisissez séparément.",
+    "atMeetingPoint": "Je suis au point de rencontre",
+    "atMeetingPointDone": "Vous êtes au point de rencontre ✓",
+    "undo": "Annuler",
+    "arrivalError": "Cela n'a pas fonctionné. Veuillez réessayer.",
+    "memberArrived": "Au point de rencontre"
   }
 }

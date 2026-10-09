@@ -1,6 +1,8 @@
 // The pure rules behind "Find your group" location sharing - no React Native imports, so they can
 // be unit tested with plain Node.
 
+import { distanceMeters } from './guidanceRules';
+
 export type Fix = {
   lat: number;
   lng: number;
@@ -10,17 +12,7 @@ export type Fix = {
   at: number;
 };
 
-const EARTH_RADIUS_METERS = 6_371_000;
-const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
-
-// Great-circle (haversine) distance.
-export function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const dLat = toRadians(b.lat - a.lat);
-  const dLng = toRadians(b.lng - a.lng);
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(toRadians(a.lat)) * Math.cos(toRadians(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1, Math.sqrt(h)));
-}
+export { distanceMeters };
 
 export type SendRule = { intervalMs: number; distanceMeters: number };
 

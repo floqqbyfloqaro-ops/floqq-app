@@ -4,15 +4,21 @@ import { LOCATION_SEND_DISTANCE_METERS, LOCATION_SEND_INTERVAL_MS } from '../con
 import { Fix, shouldSendPosition } from './locationSharingRules';
 import { supabase } from './supabase';
 
-// "Find your group": live positions go from phone to phone over the group's private Supabase
-// Realtime channel (broadcast - not stored anywhere), and presence tells who is sharing right now.
-// Only members of the confirmed group can join it (see 20261009010000_find_your_group_sharing.sql).
+// "Find your group" uses the passenger's location for two separate things:
+//   - Guidance (the arrow to the meeting point): their own position, read and used on the phone
+//     only. Never sent anywhere. See hooks/useOwnLocation.ts.
+//   - Sharing with the group, a separate opt-in: the same positions also go from phone to phone
+//     over the group's private Supabase Realtime channel (broadcast - not stored anywhere), and
+//     presence tells who is sharing right now. Only members of the confirmed group can join it
+//     (see 20261009010000_find_your_group_sharing.sql).
 // Positions must never be logged: no console output in this file may include a payload.
 
-// 'reduced': iOS "approximate location" - off by kilometers, so it counts as not usable here.
-export type LocationAccess = 'granted' | 'reduced' | 'denied' | 'unavailable';
+// 'undetermined': the system prompt was never answered. 'reduced': iOS "approximate location" -
+// off by kilometers, so it counts as not usable here.
+export type LocationAccess = 'granted' | 'reduced' | 'denied' | 'unavailable' | 'undetermined';
 
 function toAccess(permission: Location.LocationPermissionResponse): LocationAccess {
+  if (permission.status === 'undetermined') return 'undetermined';
   if (permission.status !== 'granted') return 'denied';
   return permission.ios?.accuracy === 'reduced' ? 'reduced' : 'granted';
 }
@@ -37,6 +43,21 @@ export async function requestLocationAccess(): Promise<LocationAccess> {
   return toAccess(await Location.requestForegroundPermissionsAsync());
 }
 
+// Reads the phone's position about once a second, for as long as the returned subscription lives.
+// Foreground only: it stops by itself when the app goes to the background.
+export function watchOwnPosition(onFix: (fix: Fix) => void): Promise<Location.LocationSubscription> {
+  return Location.watchPositionAsync(
+    { accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 0 },
+    (location) =>
+      onFix({
+        lat: location.coords.latitude,
+        lng: location.coords.longitude,
+        accuracy: location.coords.accuracy,
+        at: location.timestamp,
+      })
+  );
+}
+
 export type PeerPosition = Fix & {
   // When it reached this phone - what "last seen" counts from.
   receivedAt: number;
@@ -49,12 +70,14 @@ type Handlers = {
   onPosition: (requestId: string, position: PeerPosition) => void;
   // The ride ids of the members sharing right now.
   onSharing: (requestIds: string[]) => void;
-  onOwnFix: (fix: Fix) => void;
 };
 
 export type MeetupChannel = {
-  startSending: () => Promise<void>;
+  // From here on the positions handed to pushFix go out to the group.
+  startSending: () => void;
   stopSending: () => void;
+  // The phone's latest position. Ignored unless sending.
+  pushFix: (fix: Fix) => void;
   leave: () => void;
 };
 
@@ -64,7 +87,6 @@ const isCoordinate = (value: unknown): value is number => typeof value === 'numb
 export function joinMeetupChannel(groupId: string, myRequestId: string, handlers: Handlers): MeetupChannel {
   let joined = false;
   let sending = false;
-  let watch: Location.LocationSubscription | null = null;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
   let latest: Fix | null = null;
   let lastSent: Fix | null = null;
@@ -74,6 +96,9 @@ export function joinMeetupChannel(groupId: string, myRequestId: string, handlers
     config: { private: true, presence: { key: myRequestId } },
   });
 
+  // Which of the fixes go out: when enough time has passed or the member moved far enough,
+  // whichever comes first (the "time or distance" options of the location API behave differently
+  // on iOS and Android, so it is decided here).
   const sendIfDue = () => {
     if (!joined || !sending || !latest) return;
     const now = Date.now();
@@ -124,8 +149,6 @@ export function joinMeetupChannel(groupId: string, myRequestId: string, handlers
   const stopSending = () => {
     if (!sending) return;
     sending = false;
-    watch?.remove();
-    watch = null;
     if (heartbeat) clearInterval(heartbeat);
     heartbeat = null;
     latest = null;
@@ -134,35 +157,19 @@ export function joinMeetupChannel(groupId: string, myRequestId: string, handlers
   };
 
   return {
-    startSending: async () => {
+    startSending: () => {
       if (sending) return;
       sending = true;
-      // The device is asked for a fix about every second; which of them go out is decided by
-      // sendIfDue (the "time or distance" options behave differently on iOS and Android). The
-      // heartbeat re-sends the last fix of a member who is standing still.
-      const subscription = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 0 },
-        (location) => {
-          latest = {
-            lat: location.coords.latitude,
-            lng: location.coords.longitude,
-            accuracy: location.coords.accuracy,
-            at: location.timestamp,
-          };
-          handlers.onOwnFix(latest);
-          sendIfDue();
-        }
-      );
-      if (!sending) {
-        // Stopped while the watch was still starting.
-        subscription.remove();
-        return;
-      }
-      watch = subscription;
+      // Re-sends the last fix of a member who is standing still.
       heartbeat = setInterval(sendIfDue, LOCATION_SEND_INTERVAL_MS);
       if (joined) channel.track({ since: Date.now() }).catch(() => {});
     },
     stopSending,
+    pushFix: (fix) => {
+      if (!sending) return;
+      latest = fix;
+      sendIfDue();
+    },
     leave: () => {
       stopSending();
       joined = false;

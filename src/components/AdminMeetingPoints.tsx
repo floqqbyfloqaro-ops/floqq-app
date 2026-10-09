@@ -1,7 +1,10 @@
+import type { TFunction } from 'i18next';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { MEETING_POINT_MIN_SEPARATION_METERS } from '../constants';
+import { ClosePair, pointsTooClose } from '../services/guidanceRules';
 import { MeetingPoint, meetingPointText, missingForActivation, wordingLanguageFor } from '../services/meetingPointRules';
 import { fetchMeetingPoints, shippedText } from '../services/meetingPoints';
 import { baseText, colors, spacing } from '../theme/colors';
@@ -17,6 +20,19 @@ type Props = {
 
 // The language the admin reads the list in.
 export const adminWordingLanguage = wordingLanguageFor;
+
+// For one point: a warning per other active point in its terminal that lies too close to it - the
+// arrow can't reliably tell two such points apart. A warning only; it blocks nothing.
+export function closePointWarnings(pointId: string, pairs: ClosePair[], t: TFunction): string[] {
+  return pairs
+    .filter((pair) => pair.a.id === pointId || pair.b.id === pointId)
+    .map((pair) =>
+      t('adminMeetingPoints.tooClose', {
+        meters: Math.round(pair.meters),
+        code: (pair.a.id === pointId ? pair.b : pair.a).short_code,
+      })
+    );
+}
 
 // Admin dashboard, "Meeting points" tab: every point per terminal, with what it still needs
 // before passengers can be sent to it. Tapping one opens its editor.
@@ -61,6 +77,7 @@ export default function AdminMeetingPoints({ onOpen }: Props) {
 
   const language = adminWordingLanguage(i18n.language);
   const terminals = [...new Set(points.map((point) => point.terminal))];
+  const closePairs = pointsTooClose(points, MEETING_POINT_MIN_SEPARATION_METERS);
 
   return (
     <View>
@@ -97,6 +114,11 @@ export default function AdminMeetingPoints({ onOpen }: Props) {
                   <Text style={styles.name}>{name}</Text>
                   {verifiedLabel ? <Text style={styles.meta}>{verifiedLabel}</Text> : null}
                   {missingLabel ? <Text style={styles.missing}>{missingLabel}</Text> : null}
+                  {closePointWarnings(point.id, closePairs, t).map((warning) => (
+                    <Text key={warning} style={styles.missing}>
+                      {warning}
+                    </Text>
+                  ))}
                   <StatusPill status={point.is_active ? 'Group Confirmed' : 'Searching'} label={statusLabel} />
                 </Card>
               );

@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
 
   const { data: memberRows } = await adminClient
     .from('passenger_requests')
-    .select('id, passenger_name, arrival_at, arrival_terminal, found_group_at')
+    .select('id, passenger_name, arrival_at, arrival_terminal, found_group_at, meeting_point_arrived_at')
     .eq('group_id', group.id)
     .order('arrival_at', { ascending: true })
     .order('id', { ascending: true });
@@ -147,6 +147,9 @@ Deno.serve(async (req) => {
         firstName: firstName(member.passenger_name),
         // When this member confirmed "I've found my group"; null: not yet.
         foundAt: member.found_group_at,
+        // When this member said (or their phone detected) they are at the meeting point; null:
+        // not there. A time only - where a member is never passes through here.
+        arrivedAt: member.meeting_point_arrived_at,
       })),
     },
   });

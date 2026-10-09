@@ -1,10 +1,10 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { adminWordingLanguage } from '../components/AdminMeetingPoints';
+import { adminWordingLanguage, closePointWarnings } from '../components/AdminMeetingPoints';
 import AuthTextInput from '../components/AuthTextInput';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
@@ -13,7 +13,8 @@ import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import StatusPill from '../components/StatusPill';
-import { MEETING_POINT_CAPTURE_MAX_ACCURACY_METERS } from '../constants';
+import { MEETING_POINT_CAPTURE_MAX_ACCURACY_METERS, MEETING_POINT_MIN_SEPARATION_METERS } from '../constants';
+import { pointsTooClose } from '../services/guidanceRules';
 import {
   LocalizedText,
   MeetingPoint,
@@ -25,6 +26,7 @@ import {
   WordingField,
 } from '../services/meetingPointRules';
 import {
+  fetchMeetingPoints,
   meetingPointPhotoUrl,
   MeetingPointPatch,
   removeMeetingPointPhoto,
@@ -223,6 +225,18 @@ export default function MeetingPointEditorScreen({ point: initialPoint, onBack }
     setWording((current) => ({ ...current, [language]: { ...current[language], [field]: text } }));
   };
 
+  // Other active points in this terminal that lie too close to this one for the arrow to tell
+  // them apart - checked against the point as it is stored now. A warning only.
+  const [otherPoints, setOtherPoints] = useState<MeetingPoint[]>([]);
+  useEffect(() => {
+    fetchMeetingPoints().then(({ data }) => setOtherPoints((data ?? []).filter((other) => other.id !== initialPoint.id)));
+  }, [initialPoint.id]);
+  const closeWarnings = closePointWarnings(
+    point.id,
+    pointsTooClose([point, ...otherPoints], MEETING_POINT_MIN_SEPARATION_METERS),
+    t
+  );
+
   const missingToVerify = missingForVerification(point, shippedText);
   const missingToActivate = missingForActivation(point, shippedText);
   const missingLabel = (items: string[]) =>
@@ -395,6 +409,11 @@ export default function MeetingPointEditorScreen({ point: initialPoint, onBack }
             status={point.is_active ? 'Group Confirmed' : 'Searching'}
             label={t(point.is_active ? 'adminMeetingPoints.active' : 'adminMeetingPoints.inactive')}
           />
+          {closeWarnings.map((warning) => (
+            <Text key={warning} style={styles.warning}>
+              {warning}
+            </Text>
+          ))}
           <Text style={[styles.body, styles.statusLine]}>
             {point.verified_at
               ? t('adminMeetingPoints.verifiedOn', { date: formatBarcelonaDateTime(point.verified_at) })

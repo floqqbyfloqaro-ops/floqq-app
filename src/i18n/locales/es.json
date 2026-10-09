@@ -387,7 +387,8 @@
     "verifyHint": "Comprueba in situ que el marcador, la foto y el texto son correctos y márcalo como verificado.",
     "markVerified": "Marcar como verificado in situ",
     "activate": "Activar",
-    "deactivate": "Desactivar"
+    "deactivate": "Desactivar",
+    "tooClose": "A solo {{meters}} m de {{code}}: la flecha no puede distinguirlos con fiabilidad."
   },
   "meetingPoints": {
     "T1-A": {
@@ -430,7 +431,7 @@
   "location_share_explainer": "Comparte tu ubicación en directo solo con tu grupo para que podáis encontraros. Se desactiva automáticamente cuando estéis juntos.",
   "findGroup": {
     "title": "Encuentra a tu grupo",
-    "subtitle": "Comparte tu ubicación en directo para que tú y tu grupo podáis encontraros en el aeropuerto.",
+    "subtitle": "Sigue la flecha hasta tu punto de encuentro. Compartir tu ubicación con tu grupo es opcional.",
     "windowClosed": "Podrás compartir tu ubicación cuando aterrice el primer viajero, hacia las {{time}}.",
     "timedOut": "Este encuentro ha terminado, así que la ubicación ya no se comparte.",
     "ended": "Tu trayecto ha empezado. La ubicación ya no se comparte.",
@@ -445,10 +446,10 @@
     "youSharingAccuracy": "Estás compartiendo tu ubicación · precisión de {{meters}} m",
     "youNotSharing": "No estás compartiendo tu ubicación",
     "explainerTitle": "¿Compartir tu ubicación?",
-    "shareButton": "Compartir mi ubicación",
+    "shareButton": "Compartir mi ubicación con mi grupo",
     "stopButton": "Dejar de compartir",
     "notNow": "Ahora no",
-    "shareFootnote": "Solo tu grupo puede verla, y solo mientras esta pantalla esté abierta.",
+    "shareFootnote": "Opcional. Solo tu grupo puede verla, y solo mientras esta pantalla esté abierta.",
     "openSettings": "Abrir ajustes",
     "accessDenied": "FLOQQ no tiene permiso para usar tu ubicación. Puedes encontrarte con tu grupo sin ella o permitirla en los ajustes.",
     "accessReduced": "Tu teléfono solo comparte una ubicación aproximada con FLOQQ, demasiado imprecisa para encontraros. Activa la ubicación precisa en los ajustes para compartirla.",
@@ -722,5 +723,23 @@
     "taxiConfirmYes": "Sí, estamos en el taxi",
     "taxiConfirmNo": "Todavía no",
     "taxiError": "No pudimos indicar que el trayecto ha empezado. Inténtalo de nuevo."
+  },
+  "guidance": {
+    "targetLine": "Hacia: {{name}}",
+    "distanceAway": "A {{meters}} m",
+    "distanceApprox": "Aprox. {{meters}} m",
+    "closeHeading": "Estás cerca - mira a tu alrededor",
+    "almostThere": "Ya casi estás",
+    "arrivedTitle": "Has llegado",
+    "locating": "Buscando tu posición…",
+    "calibrate": "La brújula de tu teléfono necesita calibrarse. Mueve el teléfono dibujando un ocho.",
+    "arrowLabel": "Flecha que señala tu punto de encuentro",
+    "useLocation": "Usar mi ubicación para guiarme",
+    "locationStaysLocal": "Una flecha puede guiarte hasta el punto de encuentro. Tu ubicación se queda en tu teléfono: solo se comparte con tu grupo si lo eliges aparte.",
+    "atMeetingPoint": "Estoy en el punto de encuentro",
+    "atMeetingPointDone": "Estás en el punto de encuentro ✓",
+    "undo": "Deshacer",
+    "arrivalError": "No se ha podido enviar. Inténtalo de nuevo.",
+    "memberArrived": "En el punto de encuentro"
   }
 }
