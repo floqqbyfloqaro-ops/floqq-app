@@ -42,6 +42,36 @@ export function barcelonaDateParts(date: Date | string): BarcelonaDateParts {
   return { year: parts.year, month: parts.month, day: parts.day, hour: parts.hour, minute: parts.minute };
 }
 
+const wallClockUtcMs = (date: Date) => {
+  const { year, month, day, hour, minute } = barcelonaDateParts(date);
+  return Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+};
+
+// The request form's date and time pickers work on the phone's own clock, but a ride's arrival is
+// a time at Barcelona airport. So the form keeps "Barcelona wall-clock" dates: a Date whose local
+// fields (the ones the pickers show and edit) read what a clock in Barcelona shows. These two
+// convert between that and the real instant, so a passenger still abroad who types "14:35" means
+// 14:35 in Barcelona, not 14:35 wherever their phone is.
+export function toBarcelonaWallClock(instant: Date): Date {
+  const { year, month, day, hour, minute } = barcelonaDateParts(instant);
+  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+}
+
+export function fromBarcelonaWallClock(wallClock: Date): Date {
+  const wallMs = Date.UTC(
+    wallClock.getFullYear(),
+    wallClock.getMonth(),
+    wallClock.getDate(),
+    wallClock.getHours(),
+    wallClock.getMinutes()
+  );
+  // Barcelona's offset at a first guess, then again at the result: the second pass settles the
+  // hours around a daylight-saving change.
+  const offsetAt = (ms: number) => wallClockUtcMs(new Date(ms)) - ms;
+  const firstGuess = wallMs - offsetAt(wallMs);
+  return new Date(wallMs - offsetAt(firstGuess));
+}
+
 // "YYYY-MM-DD" of the Barcelona calendar day an instant falls on - used to bucket rides by day.
 export function barcelonaDayKey(date: Date | string): string {
   const { year, month, day } = barcelonaDateParts(date);

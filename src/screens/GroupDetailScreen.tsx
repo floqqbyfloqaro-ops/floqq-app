@@ -33,6 +33,7 @@ import {
 } from '../services/adminGrouping';
 import { calculateFareSplit, FareSplitResult } from '../services/fareSplit';
 import { fetchRideReceipt, formatCents, RideReceipt, syncGroupHolds } from '../services/payments';
+import { sameTerminal } from '../services/terminalRules';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
@@ -49,12 +50,13 @@ type PendingGroupAction =
   | { type: 'add'; candidate: PendingPassengerRequest; step: 'confirm' | 'warning' }
   | { type: 'dissolve' };
 
+// A ride may have no flight number (and an account no name): a dash rather than an empty title.
 function memberDisplayName(member: TaxiGroupMember) {
-  return member.passenger_name?.trim() || member.flight_number;
+  return member.passenger_name?.trim() || member.flight_number || '—';
 }
 
 function candidateDisplayName(candidate: PendingPassengerRequest) {
-  return candidate.passenger_name?.trim() || candidate.flight_number;
+  return candidate.passenger_name?.trim() || candidate.flight_number || '—';
 }
 
 export default function GroupDetailScreen({ groupId, onBack }: Props) {
@@ -233,6 +235,27 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
     setActionError(null);
   };
 
+  // A group only holds passengers arriving at the same terminal (also enforced by the server and
+  // the database): why this candidate can't join, or null when they can.
+  const groupTerminal = members[0]?.arrival_terminal ?? null;
+  const terminalBlockMessage = (candidate: PendingPassengerRequest) =>
+    candidate.arrival_terminal
+      ? t('groupDetail.addTerminalError', {
+          name: candidateDisplayName(candidate),
+          terminal: candidate.arrival_terminal,
+          groupTerminal: groupTerminal ?? t('admin.terminalUnknown'),
+        })
+      : t('admin.terminalUnknownError', { name: candidateDisplayName(candidate) });
+
+  const handlePickCandidate = (candidate: PendingPassengerRequest) => {
+    if (!sameTerminal(candidate.arrival_terminal, groupTerminal)) {
+      setActionError(terminalBlockMessage(candidate));
+      return;
+    }
+    setActionError(null);
+    setPendingAction({ type: 'add', candidate, step: 'confirm' });
+  };
+
   const handleRunAction = async () => {
     if (!pendingAction) return;
     setActionError(null);
@@ -295,6 +318,11 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
     if (result.blockedReason === 'group_full') {
       setPendingAction(null);
       setActionError(t('groupDetail.addFullError'));
+      return;
+    }
+    if (result.blockedReason === 'terminal_mismatch') {
+      setPendingAction(null);
+      setActionError(terminalBlockMessage(pendingAction.candidate));
       return;
     }
     if (result.blockedReason === 'request_not_available' || result.blockedReason === 'stale') {
@@ -445,6 +473,16 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 />
                 <Text style={styles.memberTitle}>{memberDisplayName(member)}</Text>
                 <Text style={styles.memberSubtitle}>{member.destination_address}</Text>
+                <Text style={styles.memberScoreNote}>
+                  {member.arrival_terminal
+                    ? t('admin.terminalLabel', { terminal: member.arrival_terminal })
+                    : t('admin.terminalUnknown')}
+                </Text>
+                {member.terminal_conflict ? (
+                  <Text style={styles.guaranteeNote}>
+                    {t('groupDetail.terminalConflictNote', { terminal: member.terminal_conflict })}
+                  </Text>
+                ) : null}
                 {payer?.requestId === member.id ? (
                   <Text style={styles.memberScoreNote}>
                     {t('groupDetail.payerLabel', { payout: t(`groupDetail.payout.${payer.payout}`) })}
@@ -498,7 +536,7 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 <Text style={styles.sectionTitle}>{t('groupDetail.resultsTitle')}</Text>
                 {results.map((r) => {
                   const member = memberById(r.id);
-                  const displayName = member?.passenger_name?.trim() || member?.flight_number;
+                  const displayName = member ? memberDisplayName(member) : '—';
                   return (
                     <Card
                       key={r.id}
@@ -535,7 +573,7 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                   candidates.map((candidate) => (
                     <Card
                       key={candidate.id}
-                      onPress={() => setPendingAction({ type: 'add', candidate, step: 'confirm' })}
+                      onPress={() => handlePickCandidate(candidate)}
                       style={styles.candidateRow}
                       accessibilityLabel={`${candidateDisplayName(candidate)}, ${rideDateAccessibilityText(t, i18n.language, {
                         arrivalAt: candidate.arrival_at,
@@ -552,6 +590,11 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                       />
                       <Text style={styles.memberTitle}>{candidateDisplayName(candidate)}</Text>
                       <Text style={styles.memberSubtitle}>{candidate.destination_address}</Text>
+                      <Text style={styles.memberScoreNote}>
+                        {candidate.arrival_terminal
+                          ? t('admin.terminalLabel', { terminal: candidate.arrival_terminal })
+                          : t('admin.terminalUnknown')}
+                      </Text>
                     </Card>
                   ))
                 )

@@ -24,7 +24,8 @@ export type PushMessageKey =
   | 'matchFound'
   | 'offerExpired'
   | 'groupConfirmed'
-  | 'memberJoined';
+  | 'memberJoined'
+  | 'terminalChanged';
 
 export type PushParams = {
   amount?: string;
@@ -119,6 +120,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'A traveler joined your group',
       body: 'Your estimated share is now €{{amount}}.',
     },
+    terminalChanged: {
+      title: 'Your arrival terminal changed',
+      body: 'Your flight now arrives at another terminal, so you left your group. We’re looking for a new match there.',
+    },
   },
   es: {
     holdOpen: {
@@ -201,6 +206,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Un viajero se ha unido a tu grupo',
       body: 'Tu parte estimada es ahora de {{amount}} €.',
     },
+    terminalChanged: {
+      title: 'Tu terminal de llegada ha cambiado',
+      body: 'Tu vuelo llega ahora a otra terminal, así que has salido de tu grupo. Estamos buscando un nuevo grupo allí.',
+    },
   },
   fr: {
     holdOpen: {
@@ -282,6 +291,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
     memberJoined: {
       title: 'Un voyageur a rejoint votre groupe',
       body: 'Votre part estimée est maintenant de {{amount}} €.',
+    },
+    terminalChanged: {
+      title: 'Votre terminal d’arrivée a changé',
+      body: 'Votre vol arrive désormais à un autre terminal : vous avez quitté votre groupe. Nous cherchons un nouveau groupe là-bas.',
     },
   },
 };

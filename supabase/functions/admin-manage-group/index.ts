@@ -18,6 +18,7 @@ import { ADMIN_EMAIL, DETOUR_LIMITS, MAX_LARGE_LUGGAGE_PER_TAXI, MAX_PASSENGERS_
 import { buildGroupTotalsPayload, buildMemberScoresPayload, isGroupStillValid } from '../_shared/groupRebalance.ts';
 import { computeGroupScore, PendingPassengerRequest } from '../_shared/matchingEngine.ts';
 import { rescoreGroup } from '../_shared/rescoreGroup.ts';
+import { sameTerminal } from '../_shared/terminalRule.ts';
 
 function jsonResponse(body: unknown, status: number) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -37,7 +38,7 @@ function isBody(value: unknown): value is Body {
 }
 
 const GROUP_COLUMNS =
-  'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng';
+  'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, arrival_terminal';
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
@@ -150,6 +151,16 @@ Deno.serve(async (req) => {
   }
   if (candidate.status !== 'pending' || candidate.group_id != null) {
     return jsonResponse({ error: 'request_not_available' }, 409);
+  }
+
+  // Hard rule, never overridable with force: a group only holds passengers arriving at the same
+  // terminal. (The database refuses it too - this just answers before any route is computed.)
+  const groupTerminal = (members[0] as PendingPassengerRequest | undefined)?.arrival_terminal ?? null;
+  if ((members as PendingPassengerRequest[]).some((m) => !sameTerminal(m.arrival_terminal, candidate.arrival_terminal))) {
+    return jsonResponse(
+      { error: 'terminal_mismatch', groupTerminal, candidateTerminal: candidate.arrival_terminal ?? null },
+      409
+    );
   }
 
   const combined = [...members, candidate] as PendingPassengerRequest[];

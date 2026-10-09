@@ -35,6 +35,9 @@ type EditBody = {
   // Omitted when the passenger didn't touch the arrival time (it stayed pinned to the stored
   // flight estimate), so the stored source is kept as-is.
   arrivalTimeSource?: 'flight' | 'manual';
+  // The ride's terminal as the form has it now: from the flight lookup, or chosen by the passenger.
+  arrivalTerminal: 'T1' | 'T2';
+  arrivalTerminalSource: 'flight' | 'passenger';
 };
 
 function jsonResponse(body: unknown, status: number) {
@@ -54,7 +57,9 @@ function isEditBody(value: unknown): value is EditBody {
     typeof b.largeLuggageCount === 'number' &&
     typeof b.handLuggageCount === 'number' &&
     typeof b.maxWaitMinutes === 'number' &&
-    (b.arrivalTimeSource === undefined || b.arrivalTimeSource === 'flight' || b.arrivalTimeSource === 'manual')
+    (b.arrivalTimeSource === undefined || b.arrivalTimeSource === 'flight' || b.arrivalTimeSource === 'manual') &&
+    (b.arrivalTerminal === 'T1' || b.arrivalTerminal === 'T2') &&
+    (b.arrivalTerminalSource === 'flight' || b.arrivalTerminalSource === 'passenger')
   );
 }
 
@@ -112,17 +117,21 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'group_confirmed' }, 409);
   }
 
-  // Display-only metadata for the admin dashboard, so it's written separately rather than
-  // widening begin_passenger_request_edit's signature. The RPC above already authorized the
-  // caller against this row.
-  if (body.arrivalTimeSource) {
-    const { error: sourceError } = await adminClient
-      .from('passenger_requests')
-      .update({ arrival_time_source: body.arrivalTimeSource })
-      .eq('id', body.requestId);
-    if (sourceError) {
-      console.warn('arrival_time_source update failed', sourceError);
-    }
+  // Written separately rather than widening begin_passenger_request_edit's signature: where the
+  // arrival time came from (display-only, for the admin dashboard) and the ride's terminal. The RPC
+  // above already authorized the caller against this row and took the ride out of any group, so
+  // the terminal is free to change - the next match is made at the new one.
+  const { error: detailsError } = await adminClient
+    .from('passenger_requests')
+    .update({
+      ...(body.arrivalTimeSource ? { arrival_time_source: body.arrivalTimeSource } : {}),
+      arrival_terminal: body.arrivalTerminal,
+      arrival_terminal_source: body.arrivalTerminalSource,
+    })
+    .eq('id', body.requestId);
+  if (detailsError) {
+    console.warn('arrival source/terminal update failed', detailsError);
+    return jsonResponse({ error: 'update_failed' }, 500);
   }
 
   if (result.needs_recalc && result.group_id != null && result.group_version != null) {

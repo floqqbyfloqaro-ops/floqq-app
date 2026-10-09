@@ -82,7 +82,7 @@
   "group_member_left": "Un viajero abandonó tu grupo. Estamos actualizando tu coincidencia.",
   "newRequest": {
     "title": "Nueva solicitud de trayecto",
-    "flightNumberLabel": "Número de vuelo",
+    "flightNumberLabel": "Número de vuelo (opcional)",
     "flightNumberPlaceholder": "ej. AF1234",
     "arrivalDateLabel": "Fecha de llegada",
     "arrivalTimeLabel": "Hora de llegada",
@@ -95,7 +95,7 @@
     "submit": "Enviar solicitud",
     "cancel": "Cancelar",
     "done": "Listo",
-    "missingFieldsError": "Por favor completa el número de vuelo y la dirección de destino.",
+    "missingFieldsError": "Indica la dirección de destino.",
     "invalidNumberError": "Por favor introduce un número válido para el tiempo de espera.",
     "successTitle": "¡Solicitud enviada!",
     "updateSuccessTitle": "¡Cambios guardados!",
@@ -107,7 +107,18 @@
     "flightLookupNotFound": "No encontramos el estado del vuelo en vivo. Por favor, ajusta la hora manualmente.",
     "arrivalTimeAutoNote": "Rellenado automáticamente desde el vuelo {{flightNumber}}",
     "nowButtonLabel": "Ahora",
-    "submitError": "No pudimos enviar tu solicitud. Comprueba tu conexión e inténtalo de nuevo."
+    "submitError": "No pudimos enviar tu solicitud. Comprueba tu conexión e inténtalo de nuevo.",
+    "flightNumberHelper": "¿No tienes número de vuelo? Déjalo vacío e indica tú la hora de llegada.",
+    "barcelonaTimeNote": "Hora local de Barcelona.",
+    "terminalLabel": "Terminal de llegada",
+    "terminal": {
+      "T1": "Terminal 1 (T1)",
+      "T2": "Terminal 2 (T2)"
+    },
+    "terminalHelper": "Consulta tu reserva o tu tarjeta de embarque.",
+    "terminalFromFlightNote": "Según el vuelo {{flightNumber}}",
+    "terminalFromLocationNote": "Rellenado según tu ubicación. Cámbialo si no es correcto.",
+    "terminalRequiredError": "Elige tu terminal de llegada."
   },
   "admin": {
     "title": "Solicitudes pendientes",
@@ -160,7 +171,13 @@
     "filterEmpty": "No hay solicitudes pendientes para este día.",
     "guaranteeUsedFlag": "⚠ Garantía de Pago del Viaje usada",
     "receiptNeedsReviewFlag": "⚠ Recibo pendiente de revisión",
-    "receiptEstimatedFlag": "⚠ Sin recibo - se usó la tarifa estimada"
+    "receiptEstimatedFlag": "⚠ Sin recibo - se usó la tarifa estimada",
+    "terminalLabel": "Terminal {{terminal}}",
+    "terminalUnknown": "Terminal desconocida",
+    "terminalMismatchError": "{{name}} llega a la {{terminal}}; tu selección es de la {{groupTerminal}}. Un grupo no puede mezclar terminales: la T1 y la T2 están demasiado lejos para encontrarse.",
+    "terminalUnknownError": "{{name}} aún no tiene terminal de llegada, así que no se puede añadir a un grupo.",
+    "createGroupTerminalError": "No se pudo crear este grupo: sus pasajeros no llegan todos a la misma terminal.",
+    "terminalConflictFlag": "Conflicto de terminal: los datos del vuelo indican ahora {{terminal}}"
   },
   "groupDetail": {
     "title": "Reparto de la tarifa",
@@ -240,7 +257,9 @@
     "receiptApprove": "Aprobar recibo",
     "receiptSaveCorrection": "Guardar corrección",
     "receiptReject": "Rechazar recibo",
-    "receiptActionError": "No se ha podido actualizar el recibo. Inténtalo de nuevo."
+    "receiptActionError": "No se ha podido actualizar el recibo. Inténtalo de nuevo.",
+    "addTerminalError": "{{name}} llega a la {{terminal}}; este grupo es de la {{groupTerminal}}. Un grupo no puede mezclar terminales: la T1 y la T2 están demasiado lejos para encontrarse.",
+    "terminalConflictNote": "Los datos del vuelo indican ahora {{terminal}} para este pasajero. El grupo está confirmado, así que no se ha cambiado nada automáticamente."
   },
   "myRide": {
     "title": "Mi trayecto",
@@ -268,7 +287,8 @@
     "cancelOthersNote": "El viaje de los demás pasajeros se recalculará sin ti.",
     "cancelConfirmButton": "Sí, cancelar mi viaje",
     "cancelFree": "Cancelas con más de 24 horas de antelación, así que es gratis: se libera toda tu reserva de {{amount}} €.",
-    "findGroupButton": "Encuentra a tu grupo"
+    "findGroupButton": "Encuentra a tu grupo",
+    "noFlightNumber": "Sin número de vuelo"
   },
   "findingMatch": {
     "title": "Buscando tu coincidencia...",

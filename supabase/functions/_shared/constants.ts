@@ -68,6 +68,17 @@ export const MATCH_OFFER_TIMEOUT_MINUTES = 60;
 // this far in the future, so they still have time to answer (and reserve) before it does.
 export const LATE_JOIN_MIN_MINUTES_BEFORE_RIDE = 45;
 
+// When a ride's flight is looked up again after the passenger entered it - each lookup is a paid
+// FlightAware call. See _shared/flightRefresh.ts for the rule these feed.
+export const FLIGHT_REFRESH_SCHEDULE = {
+  // Once at each of these many hours before the expected landing; nothing earlier than the first.
+  checkpointHours: [48, 24, 6, 2],
+  // From the scheduled departure until the flight has landed.
+  inFlightMinutes: 10,
+  // A flight that never reports landing is dropped this long after its expected landing.
+  giveUpHours: 6,
+} as const;
+
 // "Find your group": live location sharing switches itself off this long after the ride's planned
 // departure, whatever else happens. Server-side only; the app is given the resulting moment.
 export const MEETUP_SHARING_TIMEOUT_MINUTES = 45;

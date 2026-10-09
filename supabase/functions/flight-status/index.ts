@@ -10,7 +10,7 @@
 // expectedArrivalAt (the passenger's currently-selected arrival date) anchors which occurrence of
 // a reused flight number/ident gets picked - see _shared/flightLookup.ts.
 
-import { AEROAPI_BASE_URL, pickBestFlight } from '../_shared/flightLookup.ts';
+import { AEROAPI_BASE_URL, flightSnapshot, pickBestFlight } from '../_shared/flightLookup.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,15 +64,17 @@ Deno.serve(async (req) => {
 
   const data = await response.json();
   const flight = pickBestFlight(data?.flights, anchorMs);
+  const snapshot = flight ? flightSnapshot(flight) : null;
 
-  // Prefer the actual landing time if it already happened, otherwise the live estimate,
-  // otherwise fall back to the schedule.
-  const estimatedLandingUtc = flight ? flight.actual_in ?? flight.estimated_in ?? flight.scheduled_in ?? null : null;
-  const scheduledLandingUtc = flight?.scheduled_in ?? null;
-
-  if (!estimatedLandingUtc) {
+  if (!snapshot?.estimatedLanding) {
     return jsonResponse({ found: false });
   }
 
-  return jsonResponse({ found: true, estimatedLandingUtc, scheduledLandingUtc });
+  return jsonResponse({
+    found: true,
+    estimatedLandingUtc: snapshot.estimatedLanding,
+    scheduledLandingUtc: snapshot.scheduledLanding,
+    // 'T1' / 'T2', or null while the flight data names no terminal (the passenger then chooses).
+    arrivalTerminal: snapshot.terminal,
+  });
 });

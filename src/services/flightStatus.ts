@@ -1,8 +1,11 @@
 import { supabase } from './supabase';
+import type { ArrivalTerminal } from './terminalRules';
 
 export type FlightLandingEstimate = {
   estimatedLandingAt: Date;
   scheduledLandingAt: Date | null;
+  // Null while the flight data names no terminal: the passenger chooses it then.
+  arrivalTerminal: ArrivalTerminal | null;
 };
 
 // Calls the flight-status Edge Function (never AeroAPI directly - the key must stay server-side).
@@ -28,5 +31,6 @@ export async function fetchEstimatedLandingTime(
   return {
     estimatedLandingAt: new Date(data.estimatedLandingUtc),
     scheduledLandingAt: data.scheduledLandingUtc ? new Date(data.scheduledLandingUtc) : null,
+    arrivalTerminal: data.arrivalTerminal === 'T1' || data.arrivalTerminal === 'T2' ? data.arrivalTerminal : null,
   };
 }

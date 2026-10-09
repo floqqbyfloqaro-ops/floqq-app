@@ -86,7 +86,7 @@
   "group_member_left": "A traveler left your group. We're updating your match.",
   "newRequest": {
     "title": "New ride request",
-    "flightNumberLabel": "Flight number",
+    "flightNumberLabel": "Flight number (optional)",
     "flightNumberPlaceholder": "e.g. AF1234",
     "arrivalDateLabel": "Arrival date",
     "arrivalTimeLabel": "Arrival time",
@@ -99,7 +99,7 @@
     "submit": "Submit request",
     "cancel": "Cancel",
     "done": "Done",
-    "missingFieldsError": "Please fill in the flight number and destination address.",
+    "missingFieldsError": "Please fill in the destination address.",
     "invalidNumberError": "Please enter a valid number for waiting time.",
     "successTitle": "Request submitted!",
     "updateSuccessTitle": "Changes saved!",
@@ -111,7 +111,18 @@
     "flightLookupNotFound": "Couldn't find live flight status — please set the arrival time manually.",
     "arrivalTimeAutoNote": "Auto-filled from flight {{flightNumber}}",
     "nowButtonLabel": "Now",
-    "submitError": "We couldn't submit your request. Check your connection and try again."
+    "submitError": "We couldn't submit your request. Check your connection and try again.",
+    "flightNumberHelper": "No flight number? Leave it empty and set your arrival time yourself.",
+    "barcelonaTimeNote": "Barcelona local time.",
+    "terminalLabel": "Arrival terminal",
+    "terminal": {
+      "T1": "Terminal 1 (T1)",
+      "T2": "Terminal 2 (T2)"
+    },
+    "terminalHelper": "Check your booking or boarding pass.",
+    "terminalFromFlightNote": "From flight {{flightNumber}}",
+    "terminalFromLocationNote": "Prefilled from your location. Change it if it's wrong.",
+    "terminalRequiredError": "Please choose your arrival terminal."
   },
   "admin": {
     "title": "Pending requests",
@@ -164,7 +175,13 @@
     "filterEmpty": "No pending requests for this day.",
     "guaranteeUsedFlag": "⚠ Ride Payment Guarantee used",
     "receiptNeedsReviewFlag": "⚠ Receipt needs review",
-    "receiptEstimatedFlag": "⚠ No receipt - estimated fare used"
+    "receiptEstimatedFlag": "⚠ No receipt - estimated fare used",
+    "terminalLabel": "Terminal {{terminal}}",
+    "terminalUnknown": "Terminal unknown",
+    "terminalMismatchError": "{{name}} arrives at {{terminal}}; your selection is {{groupTerminal}}. Groups can't mix terminals, because T1 and T2 are too far apart to meet.",
+    "terminalUnknownError": "{{name}} has no arrival terminal yet, so they can't be put in a group.",
+    "createGroupTerminalError": "This group couldn't be created: its passengers don't all arrive at the same terminal.",
+    "terminalConflictFlag": "Terminal conflict: flight data now says {{terminal}}"
   },
   "groupDetail": {
     "title": "Group fare split",
@@ -244,7 +261,9 @@
     "receiptApprove": "Approve receipt",
     "receiptSaveCorrection": "Save correction",
     "receiptReject": "Reject receipt",
-    "receiptActionError": "Couldn't update the receipt. Try again."
+    "receiptActionError": "Couldn't update the receipt. Try again.",
+    "addTerminalError": "{{name}} arrives at {{terminal}}; this group is {{groupTerminal}}. Groups can't mix terminals, because T1 and T2 are too far apart to meet.",
+    "terminalConflictNote": "Flight data now reports {{terminal}} for this passenger. The group is confirmed, so nothing was changed automatically."
   },
   "myRide": {
     "title": "My ride",
@@ -272,7 +291,8 @@
     "cancelOthersNote": "The other passengers' ride will be recalculated without you.",
     "cancelConfirmButton": "Yes, cancel my ride",
     "cancelFree": "You’re cancelling more than 24 hours before the ride, so it’s free: your whole reservation of €{{amount}} is released.",
-    "findGroupButton": "Find your group"
+    "findGroupButton": "Find your group",
+    "noFlightNumber": "No flight number"
   },
   "findingMatch": {
     "title": "Finding your match...",

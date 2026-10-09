@@ -232,7 +232,7 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
         ) : request.status === 'cancelled' || request.status === 'expired' ? (
           <View style={styles.emptyState}>
             <Card style={styles.cancelledCard} accessibilityLabel={t('myRide.title')}>
-              <Text style={styles.flightNumber}>{request.flight_number}</Text>
+              <Text style={styles.flightNumber}>{request.flight_number || t('myRide.noFlightNumber')}</Text>
               {/* Expired reuses the neutral Cancelled pill style; only the label tells them apart. */}
               <StatusPill
                 status="Cancelled"
@@ -243,7 +243,7 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
           </View>
         ) : (
           <Card onPress={handleCardPress} accessibilityLabel={t('myRide.title')}>
-            <Text style={styles.flightNumber}>{request.flight_number}</Text>
+            <Text style={styles.flightNumber}>{request.flight_number || t('myRide.noFlightNumber')}</Text>
 
             <Text style={styles.fieldLabel}>{t('myRide.destinationLabel')}</Text>
             <Text style={styles.destinationText}>{request.destination_address}</Text>

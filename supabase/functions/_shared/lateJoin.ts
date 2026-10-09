@@ -28,6 +28,7 @@ import type { JoinMember } from './lateJoinRule.ts';
 import { computeGroupScore, MatchSuggestion, PendingPassengerRequest } from './matchingEngine.ts';
 import { offerExpiresAt, stripeForOffers } from './offers.ts';
 import { sendPush } from './push.ts';
+import { sameTerminal } from './terminalRule.ts';
 
 type Geocoded = PendingPassengerRequest & { destination_lat: number; destination_lng: number };
 
@@ -36,7 +37,7 @@ type OfferMember = Geocoded & { user_id: string | null; group_id: string; distan
 type OpenOffer = { id: string; version: number; total_fare: number; members: OfferMember[] };
 
 const MEMBER_COLUMNS =
-  'id, user_id, group_id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, distance_km';
+  'id, user_id, group_id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, distance_km, arrival_terminal';
 
 const MINUTE_MS = 60_000;
 
@@ -143,6 +144,8 @@ export async function joinOpenOffers(
 
     for (const offer of offers) {
       if (changedOffers.has(offer.id)) continue;
+      // Hard rule: only an offer at the newcomer's own terminal.
+      if (offer.members.some((m) => !sameTerminal(m.arrival_terminal, newcomer.arrival_terminal))) continue;
       if (!alongTheWay.get(offer.id)?.has(newcomer.id)) continue;
       if (leftBefore.has(`${offer.id}:${newcomer.id}`)) continue;
       if (offer.members.some((m) => declined.has(`${newcomer.id}:${m.id}`))) continue;

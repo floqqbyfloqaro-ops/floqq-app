@@ -112,6 +112,12 @@ export const PAYMENTS_ENABLED = process.env.EXPO_PUBLIC_PAYMENTS_ENABLED === 'tr
 
 // "Find your group": a member's position is sent to the group when this much time has passed or
 // they moved this far since the last one sent, whichever comes first.
+// Request form: the arrival terminal is prefilled from the phone's location when the passenger is
+// within this distance of a verified meeting point, and only for a ride landing within this many
+// hours of now (someone booking next week's trip from inside T1 isn't arriving at T1).
+export const TERMINAL_GEOFENCE_METERS = 500;
+export const TERMINAL_PREFILL_WINDOW_HOURS = 3;
+
 // Admin "capture on site": a GPS reading with a larger accuracy radius than this is flagged as
 // poor when saving a meeting point's coordinates (the admin may retake it or place the pin by hand).
 export const MEETING_POINT_CAPTURE_MAX_ACCURACY_METERS = 15;

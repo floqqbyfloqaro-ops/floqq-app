@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     const { data: pending, error: pendingError } = await adminClient
       .from('passenger_requests')
       .select(
-        'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng'
+        'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, arrival_terminal'
       )
       .eq('status', 'pending')
       .order('arrival_at', { ascending: true });
@@ -85,10 +85,16 @@ Deno.serve(async (req) => {
 
       const totalFare = suggestion.members.reduce((sum, m) => sum + m.fareAmount, 0);
 
-      await adminClient
+      const { error: membersError } = await adminClient
         .from('passenger_requests')
         .update({ group_id: group.id, status: 'matched' })
         .in('id', suggestion.requestIds);
+      if (membersError) {
+        // The database refused the group (e.g. its same-terminal rule): leave no empty group behind.
+        console.error('placing passengers into a new group failed', membersError.message);
+        await adminClient.from('taxi_groups').delete().eq('id', group.id);
+        continue;
+      }
 
       await Promise.all(
         suggestion.members.map((m) =>
