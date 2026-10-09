@@ -49,7 +49,7 @@
         "expo-image-picker",
         {
           "photosPermission": false,
-          "cameraPermission": "FLOQQ uses your camera so you can photograph the taxi receipt after your ride.",
+          "cameraPermission": "FLOQQ uses your camera so you can photograph the taxi receipt after your ride, and so staff can photograph airport meeting points.",
           "microphonePermission": false
         }
       ]

@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import AdminMeetingPoints from '../components/AdminMeetingPoints';
 import AdminPaymentIssues from '../components/AdminPaymentIssues';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
@@ -38,10 +39,12 @@ import {
   updatePassengerDistance,
 } from '../services/adminGrouping';
 import { computeGroupScore, MatchSuggestion, suggestTaxiGroups } from '../services/matchingEngine';
+import { MeetingPoint } from '../services/meetingPointRules';
 import { fetchGroupPaymentSummaries, GroupPaymentSummary } from '../services/payments';
 import { baseText, colors, motion, overlays, spacing } from '../theme/colors';
 import { addDaysToDayKey, barcelonaDayKey, formatBarcelonaDateTime, weekdayForDayKey } from '../utils/formatDateTime';
 import GroupDetailScreen from './GroupDetailScreen';
+import MeetingPointEditorScreen from './MeetingPointEditorScreen';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -110,7 +113,8 @@ export default function AdminScreen({ session, onBack }: Props) {
   const [suggestions, setSuggestions] = useState<MatchSuggestion[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [creatingSuggestionKey, setCreatingSuggestionKey] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'history' | 'meetingPoints'>('active');
+  const [openMeetingPoint, setOpenMeetingPoint] = useState<MeetingPoint | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [rideDateFilter, setRideDateFilter] = useState<RideDateFilter>('all');
   const hasLoadedOnce = useRef(false);
@@ -233,6 +237,10 @@ export default function AdminScreen({ session, onBack }: Props) {
         }}
       />
     );
+  }
+
+  if (openMeetingPoint) {
+    return <MeetingPointEditorScreen point={openMeetingPoint} onBack={() => setOpenMeetingPoint(null)} />;
   }
 
   const handleRefresh = () => {
@@ -402,6 +410,17 @@ export default function AdminScreen({ session, onBack }: Props) {
             accessibilityState={{ selected: activeTab === 'history' }}
           >
             <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>{t('admin.tabHistory')}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveTab('meetingPoints')}
+            style={[styles.tab, activeTab === 'meetingPoints' && styles.tabActive]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'meetingPoints' }}
+            accessibilityLabel={t('adminMeetingPoints.title')}
+          >
+            <Text style={[styles.tabText, activeTab === 'meetingPoints' && styles.tabTextActive]}>
+              {t('adminMeetingPoints.tab')}
+            </Text>
           </Pressable>
         </View>
 
@@ -626,6 +645,8 @@ export default function AdminScreen({ session, onBack }: Props) {
           )}
         </View>
           </>
+        ) : activeTab === 'meetingPoints' ? (
+          <AdminMeetingPoints onOpen={setOpenMeetingPoint} />
         ) : (
           <>
             <View style={styles.groupsSection}>

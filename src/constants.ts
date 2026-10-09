@@ -112,5 +112,9 @@ export const PAYMENTS_ENABLED = process.env.EXPO_PUBLIC_PAYMENTS_ENABLED === 'tr
 
 // "Find your group": a member's position is sent to the group when this much time has passed or
 // they moved this far since the last one sent, whichever comes first.
+// Admin "capture on site": a GPS reading with a larger accuracy radius than this is flagged as
+// poor when saving a meeting point's coordinates (the admin may retake it or place the pin by hand).
+export const MEETING_POINT_CAPTURE_MAX_ACCURACY_METERS = 15;
+
 export const LOCATION_SEND_INTERVAL_MS = 5000;
 export const LOCATION_SEND_DISTANCE_METERS = 5;

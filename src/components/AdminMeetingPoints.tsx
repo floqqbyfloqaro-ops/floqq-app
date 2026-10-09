@@ -1,0 +1,155 @@
+import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { StyleSheet, Text, View } from 'react-native';
+
+import {
+  MeetingPoint,
+  MeetingPointLanguage,
+  MEETING_POINT_LANGUAGES,
+  meetingPointText,
+  missingForActivation,
+} from '../services/meetingPointRules';
+import { fetchMeetingPoints, shippedText } from '../services/meetingPoints';
+import { baseText, colors, spacing } from '../theme/colors';
+import { formatBarcelonaDateTime } from '../utils/formatDateTime';
+import Card from './Card';
+import ErrorNotice from './ErrorNotice';
+import Skeleton from './Skeleton';
+import StatusPill from './StatusPill';
+
+type Props = {
+  onOpen: (point: MeetingPoint) => void;
+};
+
+// The language the admin reads the list in: the app's own, if it is one the points are worded in.
+export function adminWordingLanguage(appLanguage: string): MeetingPointLanguage {
+  return (MEETING_POINT_LANGUAGES as readonly string[]).includes(appLanguage) ? (appLanguage as MeetingPointLanguage) : 'en';
+}
+
+// Admin dashboard, "Meeting points" tab: every point per terminal, with what it still needs
+// before passengers can be sent to it. Tapping one opens its editor.
+export default function AdminMeetingPoints({ onOpen }: Props) {
+  const { t, i18n } = useTranslation();
+  const [points, setPoints] = useState<MeetingPoint[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  const load = useCallback(async () => {
+    const { data, error } = await fetchMeetingPoints();
+    setIsLoading(false);
+    if (error) {
+      console.warn('fetchMeetingPoints failed', error);
+      setLoadFailed(true);
+      return;
+    }
+    setLoadFailed(false);
+    setPoints(data ?? []);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (isLoading) {
+    return (
+      <View accessible accessibilityLabel={t('admin.loading')}>
+        {[0, 1, 2].map((i) => (
+          <Card key={i} style={styles.row}>
+            <Skeleton width={120} height={18} style={styles.skeletonGap} />
+            <Skeleton width={200} height={14} />
+          </Card>
+        ))}
+      </View>
+    );
+  }
+
+  if (loadFailed) {
+    return <ErrorNotice message={t('adminMeetingPoints.loadError')} onRetry={load} retryLabel={t('common.retry')} />;
+  }
+
+  const language = adminWordingLanguage(i18n.language);
+  const terminals = [...new Set(points.map((point) => point.terminal))];
+
+  return (
+    <View>
+      {points.length === 0 ? <Text style={styles.emptyText}>{t('adminMeetingPoints.empty')}</Text> : null}
+      {terminals.map((terminal) => (
+        <View key={terminal}>
+          <Text style={styles.terminalHeader} accessibilityRole="header">
+            {t('adminMeetingPoints.terminal', { terminal })}
+          </Text>
+          {points
+            .filter((point) => point.terminal === terminal)
+            .map((point) => {
+              const name = meetingPointText(point, 'name', language, shippedText);
+              const missing = missingForActivation(point, shippedText);
+              const statusLabel = t(point.is_active ? 'adminMeetingPoints.active' : 'adminMeetingPoints.inactive');
+              const verifiedLabel = point.verified_at
+                ? t('adminMeetingPoints.verifiedOn', { date: formatBarcelonaDateTime(point.verified_at) })
+                : null;
+              const missingLabel = missing.length
+                ? t('adminMeetingPoints.missing', {
+                    items: missing.map((item) => t(`adminMeetingPoints.missingItem.${item}`)).join(', '),
+                  })
+                : null;
+              return (
+                <Card
+                  key={point.id}
+                  onPress={() => onOpen(point)}
+                  style={styles.row}
+                  accessibilityLabel={[point.short_code, name, statusLabel, verifiedLabel, missingLabel]
+                    .filter(Boolean)
+                    .join(', ')}
+                >
+                  <Text style={styles.code}>{point.short_code}</Text>
+                  <Text style={styles.name}>{name}</Text>
+                  {verifiedLabel ? <Text style={styles.meta}>{verifiedLabel}</Text> : null}
+                  {missingLabel ? <Text style={styles.missing}>{missingLabel}</Text> : null}
+                  <StatusPill status={point.is_active ? 'Group Confirmed' : 'Searching'} label={statusLabel} />
+                </Card>
+              );
+            })}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    marginBottom: spacing.x3,
+  },
+  skeletonGap: {
+    marginBottom: spacing.x2,
+  },
+  emptyText: {
+    ...baseText.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.x4,
+  },
+  terminalHeader: {
+    ...baseText.h3,
+    marginTop: spacing.x2,
+    marginBottom: spacing.x3,
+  },
+  code: {
+    ...baseText.label,
+    marginBottom: spacing.x1,
+  },
+  name: {
+    ...baseText.body,
+    fontWeight: '600',
+    marginBottom: spacing.x1,
+  },
+  meta: {
+    ...baseText.caption,
+    color: colors.info,
+    marginBottom: spacing.x1,
+  },
+  missing: {
+    ...baseText.caption,
+    color: colors.warning,
+    marginBottom: spacing.x2,
+  },
+});
