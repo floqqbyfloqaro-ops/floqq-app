@@ -109,3 +109,8 @@ export const BARCELONA_TIME_ZONE = 'Europe/Madrid';
 // EXPO_PUBLIC_PAYMENTS_ENABLED=true in .env - with it off the app behaves exactly as before. The
 // server enforces its own PAYMENTS_ENABLED secret independently; this flag only hides the UI.
 export const PAYMENTS_ENABLED = process.env.EXPO_PUBLIC_PAYMENTS_ENABLED === 'true';
+
+// "Find your group": a member's position is sent to the group when this much time has passed or
+// they moved this far since the last one sent, whichever comes first.
+export const LOCATION_SEND_INTERVAL_MS = 5000;
+export const LOCATION_SEND_DISTANCE_METERS = 5;

@@ -267,7 +267,8 @@
     "cancelLegacyFee": "La tarifa de servicio de {{fee}} € que pagaste no se reembolsa.",
     "cancelOthersNote": "El viaje de los demás pasajeros se recalculará sin ti.",
     "cancelConfirmButton": "Sí, cancelar mi viaje",
-    "cancelFree": "Cancelas con más de 24 horas de antelación, así que es gratis: se libera toda tu reserva de {{amount}} €."
+    "cancelFree": "Cancelas con más de 24 horas de antelación, así que es gratis: se libera toda tu reserva de {{amount}} €.",
+    "findGroupButton": "Encuentra a tu grupo"
   },
   "findingMatch": {
     "title": "Buscando tu coincidencia...",
@@ -284,9 +285,71 @@
     "cancelConfirmAction": "Cancelar trayecto",
     "cancelError": "No pudimos cancelar tu trayecto. Inténtalo de nuevo."
   },
-  "groupDetailsPlaceholder": {
-    "title": "Detalles del grupo",
-    "body": "Esta pantalla llegará pronto — tu grupo está confirmado y aquí mostraremos todos los detalles."
+  "meetingPoints": {
+    "T1-A": {
+      "name": "Oficina de información turística",
+      "directions": "Planta 0, justo al entrar en el vestíbulo de llegadas."
+    },
+    "T1-B": {
+      "name": "Cafetería en el extremo izquierdo del vestíbulo de llegadas",
+      "directions": "En el vestíbulo de llegadas, ve hasta el extremo izquierdo y espera delante de la cafetería."
+    },
+    "T1-C": {
+      "name": "Cafetería en el centro del vestíbulo de llegadas",
+      "directions": "En el centro del vestíbulo de llegadas, delante de la cafetería."
+    },
+    "T1-D": {
+      "name": "Consigna de equipajes",
+      "directions": "Planta 0, en el lado del Parking T1."
+    },
+    "T1-E": {
+      "name": "Oficina de objetos perdidos",
+      "directions": "Planta 0, delante de la oficina de objetos perdidos."
+    },
+    "T2-A": {
+      "name": "Punto de información turística",
+      "directions": "T2B: a unos 50 m a la izquierda de la salida de recogida de equipajes, en el centro del vestíbulo."
+    },
+    "T2-B": {
+      "name": "Estatua del caballo de bronce",
+      "directions": "Vestíbulo de llegadas de la T2B, junto a la estatua del caballo de bronce."
+    },
+    "T2-C": {
+      "name": "Farmacia",
+      "directions": "T2B, planta 0, delante de la farmacia."
+    },
+    "T2-D": {
+      "name": "Consigna de equipajes",
+      "directions": "T2B, cerca del vestíbulo de llegadas, delante de la consigna de equipajes."
+    }
+  },
+  "location_share_explainer": "Comparte tu ubicación en directo solo con tu grupo para que podáis encontraros. Se desactiva automáticamente cuando estéis juntos.",
+  "findGroup": {
+    "title": "Encuentra a tu grupo",
+    "subtitle": "Comparte tu ubicación en directo para que tú y tu grupo podáis encontraros en el aeropuerto.",
+    "windowClosed": "Podrás compartir tu ubicación cuando aterrice el primer viajero, hacia las {{time}}.",
+    "timedOut": "Este encuentro ha terminado, así que la ubicación ya no se comparte.",
+    "ended": "Tu trayecto ha empezado. La ubicación ya no se comparte.",
+    "noGroup": "Ya no estás en un grupo confirmado.",
+    "loadError": "No pudimos cargar tu grupo.",
+    "membersLabel": "Tu grupo",
+    "statusSharing": "Compartiendo ubicación en directo",
+    "statusLastSeen": "Visto por última vez hace {{count}} min",
+    "statusLastSeenNow": "Visto por última vez ahora mismo",
+    "statusNotSharing": "{{name}} no comparte su ubicación",
+    "youSharing": "Estás compartiendo tu ubicación",
+    "youSharingAccuracy": "Estás compartiendo tu ubicación · precisión de {{meters}} m",
+    "youNotSharing": "No estás compartiendo tu ubicación",
+    "explainerTitle": "¿Compartir tu ubicación?",
+    "shareButton": "Compartir mi ubicación",
+    "stopButton": "Dejar de compartir",
+    "notNow": "Ahora no",
+    "shareFootnote": "Solo tu grupo puede verla, y solo mientras esta pantalla esté abierta.",
+    "openSettings": "Abrir ajustes",
+    "accessDenied": "FLOQQ no tiene permiso para usar tu ubicación. Puedes encontrarte con tu grupo sin ella o permitirla en los ajustes.",
+    "accessReduced": "Tu teléfono solo comparte una ubicación aproximada con FLOQQ, demasiado imprecisa para encontraros. Activa la ubicación precisa en los ajustes para compartirla.",
+    "accessUnavailable": "La ubicación está desactivada en este teléfono. Actívala para compartir tu ubicación.",
+    "channelError": "No pudimos conectarte con las ubicaciones en directo de tu grupo. Revisa tu conexión y vuelve a abrir esta pantalla."
   },
   "active_ride_exists": "Ya tienes un trayecto activo. Solo puedes tener un trayecto a la vez.",
   "profile": {

@@ -67,3 +67,7 @@ export const MATCH_OFFER_TIMEOUT_MINUTES = 60;
 // Late join: a waiting passenger is only added to an existing offer whose ride leaves at least
 // this far in the future, so they still have time to answer (and reserve) before it does.
 export const LATE_JOIN_MIN_MINUTES_BEFORE_RIDE = 45;
+
+// "Find your group": live location sharing switches itself off this long after the ride's planned
+// departure, whatever else happens. Server-side only; the app is given the resulting moment.
+export const MEETUP_SHARING_TIMEOUT_MINUTES = 45;

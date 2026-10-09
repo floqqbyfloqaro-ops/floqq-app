@@ -271,7 +271,8 @@
     "cancelLegacyFee": "The €{{fee}} service fee you paid isn't refunded.",
     "cancelOthersNote": "The other passengers' ride will be recalculated without you.",
     "cancelConfirmButton": "Yes, cancel my ride",
-    "cancelFree": "You’re cancelling more than 24 hours before the ride, so it’s free: your whole reservation of €{{amount}} is released."
+    "cancelFree": "You’re cancelling more than 24 hours before the ride, so it’s free: your whole reservation of €{{amount}} is released.",
+    "findGroupButton": "Find your group"
   },
   "findingMatch": {
     "title": "Finding your match...",
@@ -288,9 +289,71 @@
     "cancelConfirmAction": "Cancel ride",
     "cancelError": "We couldn't cancel your ride. Please try again."
   },
-  "groupDetailsPlaceholder": {
-    "title": "Group details",
-    "body": "This screen is coming soon — your group is confirmed, and we'll show the full details here."
+  "meetingPoints": {
+    "T1-A": {
+      "name": "Tourist Information office",
+      "directions": "Level 0, right after you enter the arrivals hall."
+    },
+    "T1-B": {
+      "name": "Café at the left end of the arrivals hall",
+      "directions": "In the arrivals hall, go to the left end and wait in front of the café."
+    },
+    "T1-C": {
+      "name": "Café in the middle of the arrivals hall",
+      "directions": "In the middle of the arrivals hall, in front of the café."
+    },
+    "T1-D": {
+      "name": "Luggage storage point",
+      "directions": "Level 0, on the Parking T1 side."
+    },
+    "T1-E": {
+      "name": "Lost & Found office",
+      "directions": "Level 0, in front of the Lost & Found office."
+    },
+    "T2-A": {
+      "name": "Tourist Information stand",
+      "directions": "T2B: about 50 m to the left of the baggage claim exit, in the middle of the hall."
+    },
+    "T2-B": {
+      "name": "Bronze horse statue",
+      "directions": "T2B arrivals hall, next to the bronze horse statue."
+    },
+    "T2-C": {
+      "name": "Pharmacy",
+      "directions": "T2B, floor 0, in front of the pharmacy."
+    },
+    "T2-D": {
+      "name": "Luggage storage",
+      "directions": "T2B, near the arrivals hall, in front of the luggage storage."
+    }
+  },
+  "location_share_explainer": "Share your live location with your group only, so you can find each other. It turns off automatically once you're together.",
+  "findGroup": {
+    "title": "Find your group",
+    "subtitle": "Share your live location so you and your group can find each other at the airport.",
+    "windowClosed": "Location sharing opens when the first traveler lands, around {{time}}.",
+    "timedOut": "This meetup has ended, so location sharing is off.",
+    "ended": "Your ride has started. Location sharing is off.",
+    "noGroup": "You're no longer in a confirmed group.",
+    "loadError": "We couldn't load your group.",
+    "membersLabel": "Your group",
+    "statusSharing": "Sharing live location",
+    "statusLastSeen": "Last seen {{count}} min ago",
+    "statusLastSeenNow": "Last seen just now",
+    "statusNotSharing": "{{name}} isn't sharing their location",
+    "youSharing": "You're sharing your location",
+    "youSharingAccuracy": "You're sharing your location · accurate to {{meters}} m",
+    "youNotSharing": "You're not sharing your location",
+    "explainerTitle": "Share your location?",
+    "shareButton": "Share my location",
+    "stopButton": "Stop sharing",
+    "notNow": "Not now",
+    "shareFootnote": "Only your group can see it, and only while this screen is open.",
+    "openSettings": "Open settings",
+    "accessDenied": "FLOQQ isn't allowed to use your location. You can still meet your group without it, or allow it in settings.",
+    "accessReduced": "Your phone only shares an approximate location with FLOQQ, which is too rough to find each other. Turn on Precise Location in settings to share.",
+    "accessUnavailable": "Location is turned off on this phone. Turn it on to share your location.",
+    "channelError": "We couldn't connect you to your group's live locations. Check your connection and reopen this screen."
   },
   "active_ride_exists": "You already have an active ride. You can only have one ride at a time.",
   "profile": {

@@ -9,6 +9,7 @@ import PayerCard from '../components/PayerCard';
 import PrimaryButton from '../components/PrimaryButton';
 import RideHoldCard from '../components/RideHoldCard';
 import ScreenBackground from '../components/ScreenBackground';
+import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
 import { PAYMENTS_ENABLED, SERVICE_FEE_EUR } from '../constants';
@@ -17,6 +18,7 @@ import { createServiceFeeCheckout } from '../services/payments';
 import { fetchMyGroupStatus, fetchMyLatestRequest, MyPassengerRequest, MyTaxiGroup } from '../services/passengerRequests';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
 import FindingMatchScreen from './FindingMatchScreen';
+import GroupDetailsScreen from './GroupDetailsScreen';
 import MatchFoundScreen from './MatchFoundScreen';
 
 type Props = {
@@ -25,7 +27,7 @@ type Props = {
   onOpenProfile: () => void;
 };
 
-type SubScreen = 'findingMatch' | 'matchFound' | null;
+type SubScreen = 'findingMatch' | 'matchFound' | 'findGroup' | null;
 
 // How often the ride is re-read while the passenger is waiting for (or looking at) a match, on top
 // of the live updates - a safety net for a missed one.
@@ -177,6 +179,18 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
     );
   }
 
+  if (subScreen === 'findGroup' && request) {
+    return (
+      <GroupDetailsScreen
+        request={request}
+        onBack={() => {
+          setSubScreen(null);
+          loadData();
+        }}
+      />
+    );
+  }
+
   return (
     <ScreenBackground
       source={require('../../assets/bg-airport-arrival.png')}
@@ -276,6 +290,15 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
               </>
             )}
             {group?.status === 'confirmed' ? (
+              <View style={styles.findGroupButton}>
+                <SecondaryButton
+                  label={t('myRide.findGroupButton')}
+                  icon="people-outline"
+                  onPress={() => setSubScreen('findGroup')}
+                />
+              </View>
+            ) : null}
+            {group?.status === 'confirmed' ? (
               <CancelConfirmedRide
                 requestId={request.id}
                 groupId={group.id}
@@ -349,5 +372,8 @@ const styles = StyleSheet.create({
   pendingNote: {
     ...baseText.caption,
     marginBottom: spacing.x3,
+  },
+  findGroupButton: {
+    marginTop: spacing.x3,
   },
 });
