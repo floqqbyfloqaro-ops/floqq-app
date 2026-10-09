@@ -1,3 +1,4 @@
+import type { BadgeColor } from '../theme/badgePalette';
 import type { MeetingPointSummary } from './meetingPointRules';
 import { supabase } from './supabase';
 
@@ -6,7 +7,11 @@ export type MeetupMember = {
   requestId: string;
   isMe: boolean;
   firstName: string | null;
+  // When this member confirmed "I've found my group"; null: not yet.
+  foundAt: string | null;
 };
+
+export type MeetupBadge = { color: BadgeColor; number: number };
 
 export type Meetup = {
   groupId: string;
@@ -16,6 +21,13 @@ export type Meetup = {
   // the terminal has an active point).
   meetingPoint: MeetingPointSummary | null;
   meetingTime: string;
+  // The group's badge: assigned within a minute of confirmation and never changed after.
+  badge: MeetupBadge | null;
+  // Set once every member has confirmed "I've found my group": the meetup is done.
+  meetupCompletedAt: string | null;
+  // From this moment the members who confirmed may continue without whoever hasn't. Null until
+  // someone has confirmed.
+  continueWithoutFrom: string | null;
   // Set once the ride has started: the meetup is over.
   rideStartedAt: string | null;
   // The first member's landing time: location sharing is possible from then on.
@@ -33,6 +45,35 @@ export async function fetchMeetup(requestId: string) {
   const { data, error } = await supabase.functions.invoke('find-group', { body: { requestId } });
   if (error) return { meetup: null as Meetup | null, error };
   return { meetup: (data?.meetup ?? null) as Meetup | null, error: null };
+}
+
+// "I've found my group": each member confirms for themselves. The group is found once all have.
+export async function confirmFound(requestId: string) {
+  const { data, error } = await supabase.rpc('member_confirm_found', { p_request_id: requestId });
+  if (error) return { ok: false, error: error.message };
+  const result = data as { confirmed: boolean; reason?: string };
+  return { ok: result.confirmed, error: result.confirmed ? null : (result.reason ?? 'not_confirmed') };
+}
+
+// "We're in the taxi": marks the ride as started. Only once the group has been found.
+export async function startRide(requestId: string) {
+  const { data, error } = await supabase.rpc('member_start_ride', { p_request_id: requestId });
+  if (error) return { ok: false, error: error.message };
+  const result = data as { started: boolean; reason?: string };
+  return { ok: result.started, error: result.started ? null : (result.reason ?? 'not_started') };
+}
+
+// "Continue without [name]" (meetup-actions Edge Function): leaves behind a member who never
+// showed up. They are marked as a no-show and removed, and the fare estimate is recalculated for
+// whoever is left. Refused while the wait isn't over or if fewer than two passengers would remain.
+export async function continueWithout(requestId: string, targetRequestId: string) {
+  const { error } = await supabase.functions.invoke('meetup-actions', {
+    body: { action: 'continue_without', requestId, targetRequestId },
+  });
+  if (!error) return { ok: true, error: null as string | null };
+  const context = (error as { context?: Response }).context;
+  const body = context ? await context.json().catch(() => null) : null;
+  return { ok: false, error: (body?.error as string | undefined) ?? 'continue_failed' };
 }
 
 export type SharingStopReason = 'user' | 'background' | 'left_screen' | 'timeout' | 'group_ended' | 'permission';

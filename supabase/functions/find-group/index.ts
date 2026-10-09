@@ -14,7 +14,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-import { MEETUP_SHARING_TIMEOUT_MINUTES } from '../_shared/constants.ts';
+import { MEETUP_SHARING_TIMEOUT_MINUTES, NO_SHOW_WAIT_MINUTES } from '../_shared/constants.ts';
 import { rideDepartureMs } from '../_shared/holdMath.ts';
 
 const corsHeaders = {
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
 
   const { data: group } = await adminClient
     .from('taxi_groups')
-    .select('id, status, ride_started_at, meeting_point_id, meeting_time')
+    .select('id, status, ride_started_at, meeting_point_id, meeting_time, badge_color, badge_number, meetup_completed_at')
     .eq('id', mine.group_id)
     .maybeSingle();
   if (!group || group.status !== 'confirmed') {
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
 
   const { data: memberRows } = await adminClient
     .from('passenger_requests')
-    .select('id, passenger_name, arrival_at, arrival_terminal')
+    .select('id, passenger_name, arrival_at, arrival_terminal, found_group_at')
     .eq('group_id', group.id)
     .order('arrival_at', { ascending: true })
     .order('id', { ascending: true });
@@ -117,9 +117,21 @@ Deno.serve(async (req) => {
         .maybeSingle()
     : { data: null };
 
+  // "I've found my group": from the first confirmation the others have NO_SHOW_WAIT_MINUTES; after
+  // that the members who are there may continue without whoever hasn't confirmed.
+  const foundTimes = members.filter((m) => m.found_group_at != null).map((m) => new Date(m.found_group_at).getTime());
+  const continueWithoutFrom = foundTimes.length
+    ? new Date(Math.min(...foundTimes) + NO_SHOW_WAIT_MINUTES * MINUTE_MS).toISOString()
+    : null;
+
   return jsonResponse({
     meetup: {
       groupId: group.id,
+      // The group's badge: assigned within a minute of confirmation and never changed after.
+      badge: group.badge_color && group.badge_number != null ? { color: group.badge_color, number: group.badge_number } : null,
+      // Set once every member has confirmed "I've found my group".
+      meetupCompletedAt: group.meetup_completed_at,
+      continueWithoutFrom,
       // 'T1' / 'T2': a group only ever holds passengers arriving at one terminal.
       terminal: members.find((m) => m.arrival_terminal != null)?.arrival_terminal ?? null,
       meetingPoint: meetingPoint ?? null,
@@ -133,6 +145,8 @@ Deno.serve(async (req) => {
         requestId: member.id,
         isMe: member.id === requestId,
         firstName: firstName(member.passenger_name),
+        // When this member confirmed "I've found my group"; null: not yet.
+        foundAt: member.found_group_at,
       })),
     },
   });

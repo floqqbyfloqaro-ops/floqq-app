@@ -178,7 +178,9 @@
     "terminalUnknownError": "{{name}} aún no tiene terminal de llegada, así que no se puede añadir a un grupo.",
     "createGroupTerminalError": "No se pudo crear este grupo: sus pasajeros no llegan todos a la misma terminal.",
     "terminalConflictFlag": "Conflicto de terminal: los datos del vuelo indican ahora {{terminal}}",
-    "noMeetingPointFlag": "Sin punto de encuentro asignado"
+    "noMeetingPointFlag": "Sin punto de encuentro asignado",
+    "meetupFlaggedFlag": "Por revisar: este grupo nunca se encontró. No se cobra nada hasta que confirmes el trayecto.",
+    "noShowFlag": "No presentado: su grupo continuó sin esta persona ({{date}})"
   },
   "groupDetail": {
     "title": "Reparto de la tarifa",
@@ -267,7 +269,15 @@
     "meetingPointChange": "Cambiar punto de encuentro",
     "meetingPointAuto": "Volver a la asignación automática",
     "meetingPointPickerEmpty": "No hay ningún punto de encuentro activo en esta terminal.",
-    "meetingPointError": "No se pudo cambiar el punto de encuentro. Inténtalo de nuevo."
+    "meetingPointError": "No se pudo cambiar el punto de encuentro. Inténtalo de nuevo.",
+    "badgeLabel": "Insignia: {{color}} {{number}}",
+    "badgeNone": "Aún sin insignia",
+    "meetupNotFound": "El grupo aún no se ha encontrado",
+    "meetupFound": "Grupo encontrado",
+    "meetupStarted": "Trayecto iniciado",
+    "meetupFlaggedNote": "Este grupo nunca confirmó que se había encontrado y la hora de su trayecto pasó hace tiempo. No se ejecuta ningún paso de pago hasta que confirmes que el trayecto tuvo lugar.",
+    "rideTookPlaceButton": "El trayecto tuvo lugar",
+    "rideTookPlaceError": "No se pudo guardar. Inténtalo de nuevo."
   },
   "myRide": {
     "title": "Mi trayecto",
@@ -443,7 +453,8 @@
     "accessDenied": "FLOQQ no tiene permiso para usar tu ubicación. Puedes encontrarte con tu grupo sin ella o permitirla en los ajustes.",
     "accessReduced": "Tu teléfono solo comparte una ubicación aproximada con FLOQQ, demasiado imprecisa para encontraros. Activa la ubicación precisa en los ajustes para compartirla.",
     "accessUnavailable": "La ubicación está desactivada en este teléfono. Actívala para compartir tu ubicación.",
-    "channelError": "No pudimos conectarte con las ubicaciones en directo de tu grupo. Revisa tu conexión y vuelve a abrir esta pantalla."
+    "channelError": "No pudimos conectarte con las ubicaciones en directo de tu grupo. Revisa tu conexión y vuelve a abrir esta pantalla.",
+    "groupFound": "Ya estáis todos. Abre tu insignia para indicar que el trayecto ha empezado."
   },
   "active_ride_exists": "Ya tienes un trayecto activo. Solo puedes tener un trayecto a la vez.",
   "profile": {
@@ -667,5 +678,49 @@
     "meetingTime": "Hora de encuentro: {{time}} (hora de Barcelona)",
     "openInMaps": "Abrir en Google Maps",
     "photoLabel": "Foto del punto de encuentro: {{name}}"
+  },
+  "badge_hold_up": "Levanta el teléfono y busca la misma insignia.",
+  "found_my_group": "He encontrado a mi grupo",
+  "badge": {
+    "title": "La insignia de tu grupo",
+    "showButton": "Mostrar nuestra insignia",
+    "pending": "Tu insignia aparecerá aquí en un momento.",
+    "accessibilityLabel": "{{shape}} {{color}}, número {{number}}",
+    "color": {
+      "purple": "morado",
+      "teal": "turquesa",
+      "orange": "naranja",
+      "pink": "rosa",
+      "yellow": "amarillo",
+      "blue": "azul"
+    },
+    "shape": {
+      "circle": "Círculo",
+      "square": "Cuadrado",
+      "triangle": "Triángulo",
+      "diamond": "Rombo",
+      "star": "Estrella",
+      "hexagon": "Hexágono"
+    },
+    "membersLabel": "Quién ha encontrado al grupo",
+    "memberFound": "Encontrado ✓",
+    "memberNotYet": "Todavía no",
+    "waitingForOthers": "Esperando a que los demás confirmen.",
+    "foundError": "No se ha podido enviar. Inténtalo de nuevo.",
+    "noShowTitle": "{{names}} todavía no ha confirmado",
+    "noShowBody": "Podéis seguir esperando o continuar sin esa persona.",
+    "keepWaiting": "Seguir esperando",
+    "continueWithout": "Continuar sin {{names}}",
+    "continueConfirmQuestion": "{{names}} quedará como no presentado/a y saldrá de vuestro grupo, y la tarifa se recalculará para quienes quedan. ¿Continuar?",
+    "continueConfirmYes": "Sí, continuar sin {{names}}",
+    "continueError": "No pudimos actualizar tu grupo. Inténtalo de nuevo.",
+    "continueTooFew": "Tienen que quedar al menos dos pasajeros, así que no podéis continuar sin esa persona. Seguid esperando o cancela tu trayecto.",
+    "groupFoundTitle": "Ya estáis todos",
+    "groupFoundBody": "Id juntos a la parada de taxis.",
+    "inTheTaxi": "Estamos en el taxi",
+    "taxiConfirmQuestion": "¿Estáis todos en el taxi?",
+    "taxiConfirmYes": "Sí, estamos en el taxi",
+    "taxiConfirmNo": "Todavía no",
+    "taxiError": "No pudimos indicar que el trayecto ha empezado. Inténtalo de nuevo."
   }
 }

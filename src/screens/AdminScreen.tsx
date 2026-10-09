@@ -614,6 +614,11 @@ export default function AdminScreen({ session, onBack }: Props) {
                             {'  ·  '}
                             {t('admin.bagsAndWait', { bags: item.bags_count, wait: item.max_wait_minutes })}
                           </Text>
+                          {item.no_show_at ? (
+                            <Text style={styles.guaranteeFlag}>
+                              {t('admin.noShowFlag', { date: formatBarcelonaDateTime(item.no_show_at) })}
+                            </Text>
+                          ) : null}
                         </View>
                       </View>
                     </Card>
@@ -697,6 +702,9 @@ export default function AdminScreen({ session, onBack }: Props) {
                   ) : null}
                   {terminalConflictLabel ? <Text style={styles.guaranteeFlag}>{terminalConflictLabel}</Text> : null}
                   {noMeetingPointLabel ? <Text style={styles.guaranteeFlag}>{noMeetingPointLabel}</Text> : null}
+                  {group.meetup_flagged_at ? (
+                    <Text style={styles.guaranteeFlag}>{t('admin.meetupFlaggedFlag')}</Text>
+                  ) : null}
                   <Text style={styles.groupSubtitle}>{fareLabel}</Text>
                   {paymentsLabel ? <Text style={styles.groupSubtitle}>{paymentsLabel}</Text> : null}
                   {receiptFlags[group.id] ? <Text style={styles.guaranteeFlag}>{receiptFlags[group.id]}</Text> : null}

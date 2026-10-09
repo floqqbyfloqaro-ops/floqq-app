@@ -17,6 +17,7 @@ import StatusPill from '../components/StatusPill';
 import { MAX_PASSENGERS_PER_TAXI, PAYMENTS_ENABLED } from '../constants';
 import {
   addGroupMember,
+  confirmRideTookPlace,
   confirmTaxiGroup,
   dissolveGroup,
   fetchGroupById,
@@ -38,7 +39,7 @@ import { fetchRideReceipt, formatCents, RideReceipt, syncGroupHolds } from '../s
 import { MeetingPoint, meetingPointText } from '../services/meetingPointRules';
 import { fetchMeetingPoints, shippedText } from '../services/meetingPoints';
 import { sameTerminal, terminalOfMeetingPoint } from '../services/terminalRules';
-import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
+import { BadgeColor, baseText, colors, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
   groupId: string;
@@ -96,6 +97,15 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   const [isPickingMeetingPoint, setIsPickingMeetingPoint] = useState(false);
   const [isSavingMeetingPoint, setIsSavingMeetingPoint] = useState(false);
   const [meetingPointError, setMeetingPointError] = useState<string | null>(null);
+  // The group's badge and how far its meetup got. `flagged`: it never met and its ride time is
+  // long past - no payment step runs until the admin confirms the ride took place.
+  const [meetupState, setMeetupState] = useState<{
+    badge: { color: BadgeColor; number: number } | null;
+    found: boolean;
+    started: boolean;
+    flagged: boolean;
+  }>({ badge: null, found: false, started: false, flagged: false });
+  const [isConfirmingRide, setIsConfirmingRide] = useState(false);
 
   const canCorrect = groupStatus === 'unconfirmed';
 
@@ -119,6 +129,15 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
     if (groupResult.data) {
       setGroupStatus(groupResult.data.status);
       setMeetingPoint({ id: groupResult.data.meeting_point_id, time: groupResult.data.meeting_time });
+      setMeetupState({
+        badge:
+          groupResult.data.badge_color && groupResult.data.badge_number != null
+            ? { color: groupResult.data.badge_color as BadgeColor, number: groupResult.data.badge_number }
+            : null,
+        found: groupResult.data.meetup_completed_at != null,
+        started: groupResult.data.ride_started_at != null,
+        flagged: groupResult.data.meetup_flagged_at != null,
+      });
     }
 
 
@@ -278,6 +297,19 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   const pickableMeetingPoints = meetingPoints.filter(
     (point) => point.is_active && groupTerminal != null && terminalOfMeetingPoint(point.terminal) === groupTerminal
   );
+
+  const handleConfirmRideTookPlace = async () => {
+    setMeetingPointError(null);
+    setIsConfirmingRide(true);
+    const { error } = await confirmRideTookPlace(groupId);
+    setIsConfirmingRide(false);
+    if (error) {
+      console.warn('confirmRideTookPlace failed', error);
+      setMeetingPointError(t('groupDetail.rideTookPlaceError'));
+      return;
+    }
+    await loadData();
+  };
 
   const handleSetMeetingPoint = async (meetingPointId: string | null) => {
     setMeetingPointError(null);
@@ -608,6 +640,32 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                   <Text style={styles.memberSubtitle}>
                     {t('groupDetail.meetingTimeLabel', { time: formatRideDateTime(t, i18n.language, meetingPoint.time) })}
                   </Text>
+                ) : null}
+                <Text style={styles.memberSubtitle}>
+                  {meetupState.badge
+                    ? t('groupDetail.badgeLabel', {
+                        color: t(`badge.color.${meetupState.badge.color}`),
+                        number: meetupState.badge.number,
+                      })
+                    : t('groupDetail.badgeNone')}
+                  {'  ·  '}
+                  {t(
+                    meetupState.started
+                      ? 'groupDetail.meetupStarted'
+                      : meetupState.found
+                        ? 'groupDetail.meetupFound'
+                        : 'groupDetail.meetupNotFound'
+                  )}
+                </Text>
+                {meetupState.flagged ? (
+                  <>
+                    <Text style={styles.guaranteeNote}>{t('groupDetail.meetupFlaggedNote')}</Text>
+                    <SecondaryButton
+                      label={t('groupDetail.rideTookPlaceButton')}
+                      onPress={handleConfirmRideTookPlace}
+                      loading={isConfirmingRide}
+                    />
+                  </>
                 ) : null}
                 {meetingPointError ? <ErrorNotice message={meetingPointError} /> : null}
 

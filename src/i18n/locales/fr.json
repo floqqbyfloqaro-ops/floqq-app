@@ -182,7 +182,9 @@
     "terminalUnknownError": "{{name}} n'a pas encore de terminal d'arrivée et ne peut donc pas être placé dans un groupe.",
     "createGroupTerminalError": "Ce groupe n'a pas pu être créé : ses passagers n'arrivent pas tous au même terminal.",
     "terminalConflictFlag": "Conflit de terminal : les données de vol indiquent maintenant {{terminal}}",
-    "noMeetingPointFlag": "Aucun point de rencontre attribué"
+    "noMeetingPointFlag": "Aucun point de rencontre attribué",
+    "meetupFlaggedFlag": "À vérifier : ce groupe ne s'est jamais retrouvé. Rien n'est débité tant que vous n'avez pas confirmé le trajet.",
+    "noShowFlag": "Absent : son groupe a continué sans cette personne ({{date}})"
   },
   "groupDetail": {
     "title": "Répartition du tarif",
@@ -271,7 +273,15 @@
     "meetingPointChange": "Changer de point de rencontre",
     "meetingPointAuto": "Revenir à l’attribution automatique",
     "meetingPointPickerEmpty": "Il n'y a aucun point de rencontre actif à ce terminal.",
-    "meetingPointError": "Le point de rencontre n'a pas pu être modifié. Veuillez réessayer."
+    "meetingPointError": "Le point de rencontre n'a pas pu être modifié. Veuillez réessayer.",
+    "badgeLabel": "Badge : {{color}} {{number}}",
+    "badgeNone": "Pas encore de badge",
+    "meetupNotFound": "Groupe pas encore retrouvé",
+    "meetupFound": "Groupe retrouvé",
+    "meetupStarted": "Trajet commencé",
+    "meetupFlaggedNote": "Ce groupe n'a jamais confirmé s'être retrouvé et l'heure de son trajet est largement passée. Aucune étape de paiement n'est lancée tant que vous n'avez pas confirmé que le trajet a eu lieu.",
+    "rideTookPlaceButton": "Le trajet a eu lieu",
+    "rideTookPlaceError": "L'enregistrement a échoué. Veuillez réessayer."
   },
   "myRide": {
     "title": "Mon trajet",
@@ -447,7 +457,8 @@
     "accessDenied": "FLOQQ n'est pas autorisé à utiliser votre position. Vous pouvez retrouver votre groupe sans elle, ou l'autoriser dans les réglages.",
     "accessReduced": "Votre téléphone ne partage qu'une position approximative avec FLOQQ, trop imprécise pour vous retrouver. Activez la position exacte dans les réglages pour la partager.",
     "accessUnavailable": "La localisation est désactivée sur ce téléphone. Activez-la pour partager votre position.",
-    "channelError": "Impossible de vous connecter aux positions en direct de votre groupe. Vérifiez votre connexion et rouvrez cet écran."
+    "channelError": "Impossible de vous connecter aux positions en direct de votre groupe. Vérifiez votre connexion et rouvrez cet écran.",
+    "groupFound": "Tout le monde est là. Ouvrez votre badge pour indiquer que le trajet a commencé."
   },
   "active_ride_exists": "Vous avez déjà un trajet actif. Vous ne pouvez avoir qu’un seul trajet à la fois.",
   "profile": {
@@ -671,5 +682,49 @@
     "meetingTime": "Heure de rendez-vous : {{time}} (heure de Barcelone)",
     "openInMaps": "Ouvrir dans Google Maps",
     "photoLabel": "Photo du point de rencontre : {{name}}"
+  },
+  "badge_hold_up": "Levez votre téléphone et cherchez le même badge.",
+  "found_my_group": "J'ai trouvé mon groupe",
+  "badge": {
+    "title": "Le badge de votre groupe",
+    "showButton": "Afficher notre badge",
+    "pending": "Votre badge apparaîtra ici dans un instant.",
+    "accessibilityLabel": "{{shape}} {{color}}, numéro {{number}}",
+    "color": {
+      "purple": "violet",
+      "teal": "turquoise",
+      "orange": "orange",
+      "pink": "rose",
+      "yellow": "jaune",
+      "blue": "bleu"
+    },
+    "shape": {
+      "circle": "Cercle",
+      "square": "Carré",
+      "triangle": "Triangle",
+      "diamond": "Losange",
+      "star": "Étoile",
+      "hexagon": "Hexagone"
+    },
+    "membersLabel": "Qui a trouvé le groupe",
+    "memberFound": "Trouvé ✓",
+    "memberNotYet": "Pas encore",
+    "waitingForOthers": "En attente de la confirmation des autres.",
+    "foundError": "Cela n'a pas fonctionné. Veuillez réessayer.",
+    "noShowTitle": "{{names}} n'a pas encore confirmé",
+    "noShowBody": "Vous pouvez continuer à attendre, ou continuer sans cette personne.",
+    "keepWaiting": "Continuer à attendre",
+    "continueWithout": "Continuer sans {{names}}",
+    "continueConfirmQuestion": "{{names}} sera signalé(e) comme absent(e) et retiré(e) de votre groupe, et le tarif sera recalculé pour ceux qui restent. Continuer ?",
+    "continueConfirmYes": "Oui, continuer sans {{names}}",
+    "continueError": "Impossible de mettre à jour votre groupe. Veuillez réessayer.",
+    "continueTooFew": "Au moins deux passagers doivent rester : vous ne pouvez pas continuer sans cette personne. Continuez à attendre ou annulez votre trajet.",
+    "groupFoundTitle": "Tout le monde est là",
+    "groupFoundBody": "Rendez-vous ensemble à la station de taxis.",
+    "inTheTaxi": "Nous sommes dans le taxi",
+    "taxiConfirmQuestion": "Êtes-vous tous dans le taxi ?",
+    "taxiConfirmYes": "Oui, nous sommes dans le taxi",
+    "taxiConfirmNo": "Pas encore",
+    "taxiError": "Impossible d'indiquer que le trajet a commencé. Veuillez réessayer."
   }
 }

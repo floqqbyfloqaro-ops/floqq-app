@@ -26,7 +26,8 @@ export type PushMessageKey =
   | 'groupConfirmed'
   | 'memberJoined'
   | 'terminalChanged'
-  | 'meetingPointChanged';
+  | 'meetingPointChanged'
+  | 'removedNoShow';
 
 export type PushParams = {
   amount?: string;
@@ -129,6 +130,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Your meeting point changed',
       body: 'Open FLOQQ to see where your group meets now.',
     },
+    removedNoShow: {
+      title: 'Your group left without you',
+      body: 'You weren’t at the meeting point, so your group continued. Any reservation on your card was released.',
+    },
   },
   es: {
     holdOpen: {
@@ -219,6 +224,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Tu punto de encuentro ha cambiado',
       body: 'Abre FLOQQ para ver dónde se encuentra ahora tu grupo.',
     },
+    removedNoShow: {
+      title: 'Tu grupo se ha ido sin ti',
+      body: 'No estabas en el punto de encuentro, así que tu grupo ha continuado. Cualquier reserva en tu tarjeta se ha liberado.',
+    },
   },
   fr: {
     holdOpen: {
@@ -308,6 +317,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
     meetingPointChanged: {
       title: 'Votre point de rencontre a changé',
       body: 'Ouvrez FLOQQ pour voir où votre groupe se retrouve maintenant.',
+    },
+    removedNoShow: {
+      title: 'Votre groupe est parti sans vous',
+      body: 'Vous n’étiez pas au point de rencontre, votre groupe a donc continué. Toute réservation sur votre carte a été libérée.',
     },
   },
 };

@@ -51,6 +51,10 @@ export const colors = {
 export type ColorToken = keyof typeof colors;
 export type ColorValue = (typeof colors)[ColorToken];
 
+// The six group badge colours with their shapes - see badgePalette.ts.
+export { BADGE_COLORS, badgePalette } from './badgePalette';
+export type { BadgeColor, BadgeShape, BadgeStyle } from './badgePalette';
+
 export const overlays = {
   scrimLight: 'rgba(11, 15, 25, 0.32)',
   // Strengthened from 0.56/0.78 - the source images have a bright purple/orange glow in the

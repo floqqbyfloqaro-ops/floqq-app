@@ -182,7 +182,9 @@
     "terminalUnknownError": "{{name}} has no arrival terminal yet, so they can't be put in a group.",
     "createGroupTerminalError": "This group couldn't be created: its passengers don't all arrive at the same terminal.",
     "terminalConflictFlag": "Terminal conflict: flight data now says {{terminal}}",
-    "noMeetingPointFlag": "No meeting point assigned"
+    "noMeetingPointFlag": "No meeting point assigned",
+    "meetupFlaggedFlag": "Needs review: this group never met. Nothing is charged until you confirm the ride.",
+    "noShowFlag": "No-show: their group continued without them ({{date}})"
   },
   "groupDetail": {
     "title": "Group fare split",
@@ -271,7 +273,15 @@
     "meetingPointChange": "Change meeting point",
     "meetingPointAuto": "Back to automatic",
     "meetingPointPickerEmpty": "There is no active meeting point at this terminal.",
-    "meetingPointError": "The meeting point couldn't be changed. Please try again."
+    "meetingPointError": "The meeting point couldn't be changed. Please try again.",
+    "badgeLabel": "Badge: {{color}} {{number}}",
+    "badgeNone": "No badge yet",
+    "meetupNotFound": "Group not found yet",
+    "meetupFound": "Group found",
+    "meetupStarted": "Ride started",
+    "meetupFlaggedNote": "This group never confirmed it met, and its ride time is long past. No payment step runs for it until you confirm that the ride took place.",
+    "rideTookPlaceButton": "The ride took place",
+    "rideTookPlaceError": "That couldn't be saved. Please try again."
   },
   "myRide": {
     "title": "My ride",
@@ -447,7 +457,8 @@
     "accessDenied": "FLOQQ isn't allowed to use your location. You can still meet your group without it, or allow it in settings.",
     "accessReduced": "Your phone only shares an approximate location with FLOQQ, which is too rough to find each other. Turn on Precise Location in settings to share.",
     "accessUnavailable": "Location is turned off on this phone. Turn it on to share your location.",
-    "channelError": "We couldn't connect you to your group's live locations. Check your connection and reopen this screen."
+    "channelError": "We couldn't connect you to your group's live locations. Check your connection and reopen this screen.",
+    "groupFound": "Everyone's together. Open your badge to mark the ride as started."
   },
   "active_ride_exists": "You already have an active ride. You can only have one ride at a time.",
   "profile": {
@@ -671,5 +682,49 @@
     "meetingTime": "Meeting time: {{time}} (Barcelona time)",
     "openInMaps": "Open in Google Maps",
     "photoLabel": "Photo of the meeting point: {{name}}"
+  },
+  "badge_hold_up": "Hold up your phone - look for the same badge.",
+  "found_my_group": "I've found my group",
+  "badge": {
+    "title": "Your group's badge",
+    "showButton": "Show our badge",
+    "pending": "Your badge will appear here in a moment.",
+    "accessibilityLabel": "{{color}} {{shape}}, number {{number}}",
+    "color": {
+      "purple": "Purple",
+      "teal": "Teal",
+      "orange": "Orange",
+      "pink": "Pink",
+      "yellow": "Yellow",
+      "blue": "Blue"
+    },
+    "shape": {
+      "circle": "circle",
+      "square": "square",
+      "triangle": "triangle",
+      "diamond": "diamond",
+      "star": "star",
+      "hexagon": "hexagon"
+    },
+    "membersLabel": "Who has found the group",
+    "memberFound": "Found ✓",
+    "memberNotYet": "Not yet",
+    "waitingForOthers": "Waiting for the others to confirm.",
+    "foundError": "That didn't go through. Please try again.",
+    "noShowTitle": "{{names}} hasn't confirmed yet",
+    "noShowBody": "You can keep waiting, or continue without them.",
+    "keepWaiting": "Keep waiting",
+    "continueWithout": "Continue without {{names}}",
+    "continueConfirmQuestion": "{{names}} will be marked as a no-show and removed from your group, and the fare is recalculated for those who remain. Continue?",
+    "continueConfirmYes": "Yes, continue without {{names}}",
+    "continueError": "We couldn't update your group. Please try again.",
+    "continueTooFew": "At least two passengers have to remain, so you can't continue without them. Keep waiting, or cancel your ride.",
+    "groupFoundTitle": "Everyone's together",
+    "groupFoundBody": "Head to the taxi rank together.",
+    "inTheTaxi": "We're in the taxi",
+    "taxiConfirmQuestion": "Are you all in the taxi?",
+    "taxiConfirmYes": "Yes, we're in the taxi",
+    "taxiConfirmNo": "Not yet",
+    "taxiError": "We couldn't mark the ride as started. Please try again."
   }
 }

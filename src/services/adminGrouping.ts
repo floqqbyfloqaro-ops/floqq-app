@@ -17,6 +17,8 @@ export type PendingPassengerRequest = {
   destination_lng: number | null;
   // 'T1' / 'T2'; null only on rides from before terminals existed. A group never mixes terminals.
   arrival_terminal: string | null;
+  // Set when the passenger's earlier group continued without them at the meeting point.
+  no_show_at: string | null;
 };
 
 // The admin dashboard's "Active" list: only requests still being searched/matched. Grouped
@@ -27,7 +29,7 @@ export function fetchPendingRequests() {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, arrival_terminal'
+      'id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, arrival_terminal, no_show_at'
     )
     .eq('status', 'pending')
     .order('arrival_at', { ascending: true });
@@ -114,6 +116,9 @@ export type TaxiGroupSummary = {
   status: TaxiGroupStatus;
   // Where the group meets at the airport; assigned automatically once it is confirmed.
   meeting_point_id: string | null;
+  // The group never met and its ride time is long past: it needs the admin's review, and until
+  // then no payment step runs for it.
+  meetup_flagged_at: string | null;
 };
 
 const ACTIVE_GROUP_STATUSES: TaxiGroupStatus[] = ['unconfirmed', 'confirmed'];
@@ -125,7 +130,7 @@ export const HISTORY_GROUP_STATUSES: TaxiGroupStatus[] = ['dissolved'];
 export function fetchTaxiGroups(statuses: TaxiGroupStatus[] = ACTIVE_GROUP_STATUSES) {
   return supabase
     .from('taxi_groups')
-    .select('id, created_at, total_fare, status, meeting_point_id')
+    .select('id, created_at, total_fare, status, meeting_point_id, meetup_flagged_at')
     .in('status', statuses)
     .order('created_at', { ascending: false });
 }
@@ -133,9 +138,19 @@ export function fetchTaxiGroups(statuses: TaxiGroupStatus[] = ACTIVE_GROUP_STATU
 export function fetchGroupById(groupId: string) {
   return supabase
     .from('taxi_groups')
-    .select('id, created_at, total_fare, status, payer_request_id, payer_user_id, meeting_point_id, meeting_time')
+    .select(
+      'id, created_at, total_fare, status, payer_request_id, payer_user_id, meeting_point_id, meeting_time, badge_color, badge_number, meetup_completed_at, meetup_flagged_at, ride_started_at'
+    )
     .eq('id', groupId)
     .single();
+}
+
+// The admin's answer to a group flagged because it never met: the ride did take place. Marks it
+// as started and lifts the flag, so its payment steps can run again.
+export async function confirmRideTookPlace(groupId: string) {
+  const { data, error } = await supabase.rpc('admin_confirm_ride_took_place', { p_group_id: groupId });
+  if (error) return { error: error.message as string | null };
+  return { error: (data as { applied: boolean; reason?: string }).applied ? null : 'not_applied' };
 }
 
 export type SetMeetingPointBlockedReason = 'group_not_confirmed' | 'point_not_active' | 'terminal_mismatch';

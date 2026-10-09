@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import Avatar from '../components/Avatar';
+import BadgeView from '../components/BadgeView';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import MeetingPointCard from '../components/MeetingPointCard';
@@ -46,6 +47,7 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
   const [hasConsent, setHasConsent] = useState(false);
   const [showExplainer, setShowExplainer] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [showBadge, setShowBadge] = useState(false);
 
   const load = useCallback(async () => {
     const { meetup: next, error } = await fetchMeetup(request.id);
@@ -85,7 +87,9 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
   const windowOpen = meetup != null && now >= new Date(meetup.windowOpensAt).getTime();
   const timedOut = meetup != null && now >= new Date(meetup.sharingEndsAt).getTime();
   const rideStarted = meetup?.rideStartedAt != null;
-  const active = meetup != null && windowOpen && !timedOut && !rideStarted;
+  // Every member confirmed "I've found my group": the meetup is done, and with it the sharing.
+  const groupFound = meetup?.meetupCompletedAt != null;
+  const active = meetup != null && windowOpen && !timedOut && !rideStarted && !groupFound;
 
   const sharing = useLocationSharing({
     groupId,
@@ -147,7 +151,7 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
 
   const backButton = (
     <Pressable
-      onPress={showExplainer ? () => setShowExplainer(false) : onBack}
+      onPress={showExplainer ? () => setShowExplainer(false) : showBadge ? () => setShowBadge(false) : onBack}
       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       accessibilityRole="button"
       accessibilityLabel={t('admin.back')}
@@ -188,6 +192,13 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
             </View>
             <SecondaryButton label={t('findGroup.notNow')} onPress={() => setShowExplainer(false)} />
           </View>
+        ) : showBadge && meetup ? (
+          // Shown in place of the rest, not as another screen: leaving this screen would stop the
+          // location sharing that may be running underneath.
+          <>
+            <Text style={styles.title}>{t('badge.title')}</Text>
+            <BadgeView meetup={meetup} myRequestId={request.id} now={now} onChanged={load} />
+          </>
         ) : (
           <>
             <Text style={styles.title}>{t('findGroup.title')}</Text>
@@ -209,7 +220,9 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
                 <Text style={styles.subtitle}>
                   {rideStarted
                     ? t('findGroup.ended')
-                    : timedOut
+                    : groupFound
+                      ? t('findGroup.groupFound')
+                      : timedOut
                       ? t('findGroup.timedOut')
                       : !windowOpen
                         ? t('findGroup.windowClosed', {
@@ -219,6 +232,13 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
                 </Text>
 
                 <MeetingPointCard terminal={meetup.terminal} point={meetup.meetingPoint} meetingTime={meetup.meetingTime} />
+
+                {/* Always there, whatever the GPS or the permissions say: the badge needs neither. */}
+                {!rideStarted ? (
+                  <View style={styles.badgeButton}>
+                    <SecondaryButton label={t('badge.showButton')} icon="shapes-outline" onPress={() => setShowBadge(true)} />
+                  </View>
+                ) : null}
 
                 <Card style={styles.card}>
                   <Text style={styles.cardLabel}>{t('findGroup.membersLabel')}</Text>
@@ -315,6 +335,9 @@ const styles = StyleSheet.create({
   cardLabel: {
     ...baseText.label,
     marginBottom: spacing.x3,
+  },
+  badgeButton: {
+    marginBottom: spacing.x4,
   },
   memberRow: {
     flexDirection: 'row',
