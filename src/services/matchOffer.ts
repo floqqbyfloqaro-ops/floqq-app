@@ -11,6 +11,9 @@ export type MatchOfferMember = {
   lat: number | null;
   lng: number | null;
   arrivalAt: string;
+  // When this member can leave the airport: their arrival at the gate plus the time to leave the
+  // plane, passport control and luggage. The group meets when its last member is ready.
+  readyAt?: string;
   arrivalFromFlight: boolean;
   scheduledArrivalAt: string | null;
   secured: boolean;

@@ -15,6 +15,7 @@ import {
 import AdminAirlineTerminals from '../components/AdminAirlineTerminals';
 import AdminJobStatus from '../components/AdminJobStatus';
 import AdminMeetingPoints from '../components/AdminMeetingPoints';
+import AdminReadyTimeCalibration from '../components/AdminReadyTimeCalibration';
 import AdminPaymentIssues from '../components/AdminPaymentIssues';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
@@ -770,6 +771,8 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
           <AdminAirlineTerminals refreshKey={paymentIssuesKey} />
         ) : (
           <>
+            {/* Looks back at finished rides: how well the calculated ready times held up. */}
+            <AdminReadyTimeCalibration refreshKey={paymentIssuesKey} />
             <View style={styles.groupsSection}>
               <Text style={styles.sectionTitle}>{t('admin.historyRequestsTitle')}</Text>
               {isLoading ? (

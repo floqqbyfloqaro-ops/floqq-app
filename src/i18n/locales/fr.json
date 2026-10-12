@@ -343,6 +343,27 @@
   "matching_interval_explainer": "Nous recherchons des correspondances toutes les {{minutes}} minutes pour vous associer aux voyageurs les plus compatibles et vous offrir le meilleur prix.",
   "matching_next_check": "Prochaine recherche dans {{time}}",
   "matching_checking_now": "Recherche en cours...",
+  "meeting_time_label": "Heure de rendez-vous : {{time}}",
+  "meeting_time_explainer": "Comprend le temps de quitter l'avion, le contrôle des passeports et les bagages.",
+  "ready_around": "Prêt vers {{time}}",
+  "adminCalibration": {
+    "title": "Calibrage de l'heure de disponibilité",
+    "intro": "Écart entre l'heure de disponibilité calculée et le moment où les passagers ont réellement atteint le point de rencontre, par type de trajet.",
+    "empty": "Aucun trajet avec une arrivée enregistrée au point de rencontre pour l'instant.",
+    "loadError": "Impossible de charger le calibrage.",
+    "basis": "{{rides}} trajets · marge {{buffer}} min",
+    "verdict": {
+      "later": "En moyenne {{minutes}} min plus tard que calculé",
+      "earlier": "En moyenne {{minutes}} min plus tôt que calculé",
+      "onTime": "En moyenne comme calculé"
+    },
+    "category": {
+      "schengen": { "bag": "Vol Schengen, bagage en soute", "noBag": "Vol Schengen, sans bagage en soute" },
+      "non_schengen": { "bag": "Vol hors Schengen, bagage en soute", "noBag": "Vol hors Schengen, sans bagage en soute" },
+      "unknown": { "bag": "Origine inconnue, bagage en soute", "noBag": "Origine inconnue, sans bagage en soute" },
+      "no_flight": { "bag": "Sans numéro de vol, bagages à récupérer", "noBag": "Sans numéro de vol, rien à récupérer" }
+    }
+  },
   "find_my_group_button": "Trouver mon groupe",
   "find_my_group_landed": "Vous avez atterri - retrouvons votre groupe",
   "guidance_starts_on_landing": "Le guidage commence à votre atterrissage",

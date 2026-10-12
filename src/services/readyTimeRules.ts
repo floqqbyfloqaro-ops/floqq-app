@@ -38,6 +38,24 @@ export function waitsFit(rides: WaitingRide[]): boolean {
   return rides.every((ride) => waitMinutes(ride, meetingMs) <= ride.max_wait_minutes);
 }
 
+// Calibration: one kind of ride (flight category and checked bag) with how far its passengers'
+// real arrival at the meeting point was from their calculated ready time, on average.
+export type CalibrationRow = {
+  category: 'schengen' | 'non_schengen' | 'unknown' | 'no_flight';
+  checked_bag: boolean;
+  rides: number;
+  buffer_minutes: number;
+  // Positive: they reached the meeting point later than calculated.
+  average_difference_minutes: number;
+};
+
+// What an average difference means for the buffer: passengers come later than calculated (the
+// buffer is too short), earlier (too long), or within a minute of it.
+export function calibrationVerdict(averageDifferenceMinutes: number): 'later' | 'earlier' | 'onTime' {
+  if (Math.abs(averageDifferenceMinutes) < 1) return 'onTime';
+  return averageDifferenceMinutes > 0 ? 'later' : 'earlier';
+}
+
 // A member of a confirmed group whose flight now arrives well off the time the group was formed
 // on: the difference in minutes when it is `flagMinutes` or more, otherwise null. (The group is
 // never changed automatically - the admin is shown this.)

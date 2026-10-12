@@ -129,6 +129,18 @@ Timing now goes by the ready time instead of the arrival time.
 - **Not verified:** a real match end to end (the test project has no Google Routes key) and the
   moved payment deadlines (no payments on the test project).
 
+## Ready time, phase C (branch `feat/ready-time-phase-c`, 2026-10-12)
+
+App only - no database or server change.
+
+- **"Match found" / "Group confirmed".** The meeting time (the latest ready time in the group)
+  with "Includes time to leave the plane, passport control and luggage.", and "Ready around
+  14:50" under each member's flight status.
+- **Admin dashboard, History tab.** "Ready time calibration": per kind of ride, how many rides,
+  the buffer used, and how far passengers' real arrival at the meeting point was from the
+  calculated ready time on average.
+- **Not verified:** anything on screen (needs a build); the texts and the rules are unit-tested.
+
 ## Before anything can be tested
 
 - [ ] A development build. iPhone: EAS has no iOS credentials for this project yet, so run
