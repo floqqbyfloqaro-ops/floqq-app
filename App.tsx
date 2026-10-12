@@ -16,8 +16,9 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeSplashScreen from './src/screens/WelcomeSplashScreen';
-import { ADMIN_EMAIL, PAYMENTS_ENABLED } from './src/constants';
+import { PAYMENTS_ENABLED } from './src/constants';
 import WebAppFrame from './src/components/WebAppFrame';
+import { fetchIsAdmin } from './src/services/adminRole';
 import { handleStripeRedirect } from './src/services/cardSetup';
 import { parseEmailVerifiedLink } from './src/services/emailVerification';
 import type { FindGroupOpenSource } from './src/services/findGroup';
@@ -97,6 +98,21 @@ function AppContent() {
 
   // Register this phone for push notifications once someone is logged in.
   const userId = session?.user?.id;
+
+  // Whether the logged-in user has the admin role - asked of the server for this user alone.
+  // Only decides what the app shows; the server checks the role again on everything admin-only.
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    setIsAdmin(false);
+    if (!userId) return;
+    let cancelled = false;
+    fetchIsAdmin().then((admin) => {
+      if (!cancelled) setIsAdmin(admin);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
   useEffect(() => {
     if (userId) registerPushToken();
   }, [userId]);
@@ -218,14 +234,14 @@ function AppContent() {
     }
 
     if (mainScreen === 'admin') {
-      return <AdminScreen session={session} onBack={() => setMainScreen('home')} />;
+      return <AdminScreen isAdmin={isAdmin} onBack={() => setMainScreen('home')} />;
     }
 
     return (
       <HomeScreen
         onCreateRequest={() => openNewRequest()}
         onOpenMyRide={() => setMainScreen('myRide')}
-        isAdmin={session.user?.email === ADMIN_EMAIL}
+        isAdmin={isAdmin}
         onOpenAdmin={() => setMainScreen('admin')}
         showProfile={PAYMENTS_ENABLED}
         onOpenProfile={() => setMainScreen('profile')}

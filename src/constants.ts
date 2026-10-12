@@ -6,9 +6,6 @@ export const MAX_PASSENGERS_PER_TAXI = 3;
 // most 2 per passenger, see the request form) always fits and doesn't count.
 export const MAX_LARGE_LUGGAGE_PER_TAXI = 4;
 
-// Only this account can see and use the admin screen (also enforced server-side via RLS).
-export const ADMIN_EMAIL = 'floqqbyfloqaro@gmail.com';
-
 // Single fixed airport for the MVP matching engine.
 export const AIRPORT = {
   code: 'BCN',

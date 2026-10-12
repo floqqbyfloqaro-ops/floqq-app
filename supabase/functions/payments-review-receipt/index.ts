@@ -7,7 +7,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-import { ADMIN_EMAIL } from '../_shared/constants.ts';
+import { isAdminUser } from '../_shared/auth.ts';
 import { isValidReceiptTotal } from '../_shared/receiptMath.ts';
 import { recordReceipt, scheduleSettlement } from '../_shared/receipts.ts';
 import { paymentsEnabled } from '../_shared/stripe.ts';
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 
   const { data: userData } = await adminClient.auth.getUser(authHeader.replace(/^Bearer\s+/i, ''));
   const admin = userData.user;
-  if (!admin || admin.email !== ADMIN_EMAIL) {
+  if (!admin || !(await isAdminUser(adminClient, admin.id))) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }
 

@@ -25,9 +25,10 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { airlineCodeOf, airlineTerminal } from '../_shared/airlineTerminalRule.ts';
 import { loadAirlineTerminals, recordTerminalMismatch } from '../_shared/airlineTerminals.ts';
 import { isAuthorized } from '../_shared/auth.ts';
-import { ADMIN_EMAIL, FLIGHT_REFRESH_SCHEDULE } from '../_shared/constants.ts';
+import { FLIGHT_REFRESH_SCHEDULE } from '../_shared/constants.ts';
 import { airportDayKey, cachedLookupFlight, JOB_CACHE_MAX_AGE_MS } from '../_shared/flightLookup.ts';
 import type { FlightSnapshot } from '../_shared/flightLookup.ts';
+import { monitored } from '../_shared/jobRuns.ts';
 import { isFlightCheckDue } from '../_shared/flightRefresh.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { computeGroupScore, PendingPassengerRequest } from '../_shared/matchingEngine.ts';
@@ -66,12 +67,13 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 const ms = (iso: string | null) => (iso ? new Date(iso).getTime() : null);
 
-Deno.serve(async (req) => {
+// Every run leaves a trace for the admin dashboard (_shared/jobRuns.ts).
+Deno.serve(monitored('recheck-landing-times', async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-  if (!(await isAuthorized(req, adminClient, ADMIN_EMAIL))) {
+  if (!(await isAuthorized(req, adminClient))) {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
@@ -315,4 +317,4 @@ Deno.serve(async (req) => {
   } finally {
     await releaseLock(adminClient, LOCK_ID);
   }
-});
+}));

@@ -14,7 +14,8 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-import { ADMIN_EMAIL, DETOUR_LIMITS, MAX_LARGE_LUGGAGE_PER_TAXI, MAX_PASSENGERS_PER_TAXI } from '../_shared/constants.ts';
+import { isAdminUser } from '../_shared/auth.ts';
+import { DETOUR_LIMITS, MAX_LARGE_LUGGAGE_PER_TAXI, MAX_PASSENGERS_PER_TAXI } from '../_shared/constants.ts';
 import { buildGroupTotalsPayload, buildMemberScoresPayload, isGroupStillValid } from '../_shared/groupRebalance.ts';
 import { computeGroupScore, PendingPassengerRequest } from '../_shared/matchingEngine.ts';
 import { sendPush } from '../_shared/push.ts';
@@ -73,13 +74,13 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
   // Runs as the calling admin (Authorization forwarded) so auth.jwt()/auth.uid() inside the SQL
-  // functions resolve to them - those functions authorize themselves against the admin email
+  // functions resolve to them - those functions authorize themselves against the admin role
   // instead of relying on RLS, since they must write rows the admin doesn't own.
   const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
   const { data: userData } = await userClient.auth.getUser();
-  if (userData.user?.email !== ADMIN_EMAIL) {
+  if (!(await isAdminUser(adminClient, userData.user?.id))) {
     return jsonResponse({ error: 'unauthorized' }, 401);
   }
 

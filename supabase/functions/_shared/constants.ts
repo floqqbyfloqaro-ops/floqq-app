@@ -1,8 +1,6 @@
 // Ported from src/constants.ts for the Deno Edge Function runtime, which cannot import the
 // Expo app's files directly. Keep both copies in sync when tuning these values.
 
-export const ADMIN_EMAIL = 'floqqbyfloqaro@gmail.com';
-
 // Kept in sync with src/constants.ts.
 export const MAX_PASSENGERS_PER_TAXI = 3;
 // Large luggage only - hand luggage (at most 2 per passenger) doesn't count towards it.

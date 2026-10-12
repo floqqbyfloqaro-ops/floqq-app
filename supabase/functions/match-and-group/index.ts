@@ -11,7 +11,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { isAuthorized } from '../_shared/auth.ts';
-import { ADMIN_EMAIL } from '../_shared/constants.ts';
+import { monitored } from '../_shared/jobRuns.ts';
 import { joinOpenOffers } from '../_shared/lateJoin.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { suggestTaxiGroups } from '../_shared/matchingEngine.ts';
@@ -20,12 +20,13 @@ import { announceOffer } from '../_shared/offers.ts';
 
 const LOCK_ID = 1;
 
-Deno.serve(async (req) => {
+// Every run leaves a trace for the admin dashboard (_shared/jobRuns.ts).
+Deno.serve(monitored('match-and-group', async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-  if (!(await isAuthorized(req, adminClient, ADMIN_EMAIL))) {
+  if (!(await isAuthorized(req, adminClient))) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
@@ -40,15 +41,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { data: users, error: usersError } = await adminClient.auth.admin.listUsers();
-    const adminUser = users?.users.find((u) => u.email === ADMIN_EMAIL);
-    if (usersError || !adminUser) {
-      return new Response(JSON.stringify({ error: 'Admin account not found' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
     const { data: pending, error: pendingError } = await adminClient
       .from('passenger_requests')
       .select(
@@ -79,17 +71,20 @@ Deno.serve(async (req) => {
 
     const claimed = new Set<string>();
     let groupsCreated = 0;
+    // What went wrong along the way without stopping the run - shown on the admin dashboard.
+    const problems: string[] = [];
 
     for (const suggestion of suggestions) {
       if (suggestion.requestIds.some((id) => claimed.has(id))) continue;
 
-      const { data: group, error: groupError } = await adminClient
-        .from('taxi_groups')
-        .insert({ created_by: adminUser.id })
-        .select('id')
-        .single();
+      // Formed by the system: no created_by (that is for groups the admin makes by hand).
+      const { data: group, error: groupError } = await adminClient.from('taxi_groups').insert({}).select('id').single();
 
-      if (groupError || !group) continue;
+      if (groupError || !group) {
+        console.error('creating a group failed', groupError?.message);
+        problems.push(`creating a group failed: ${groupError?.message ?? 'no group returned'}`);
+        continue;
+      }
 
       const totalFare = suggestion.members.reduce((sum, m) => sum + m.fareAmount, 0);
 
@@ -100,6 +95,7 @@ Deno.serve(async (req) => {
       if (membersError) {
         // The database refused the group (e.g. its same-terminal rule): leave no empty group behind.
         console.error('placing passengers into a new group failed', membersError.message);
+        problems.push(`placing passengers into a new group failed: ${membersError.message}`);
         await adminClient.from('taxi_groups').delete().eq('id', group.id);
         continue;
       }
@@ -136,11 +132,11 @@ Deno.serve(async (req) => {
       groupsCreated++;
     }
 
-    return new Response(JSON.stringify({ groupsCreated, joinedExistingGroups: joined.size }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ groupsCreated, joinedExistingGroups: joined.size, ...(problems.length ? { problems } : {}) }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
   } finally {
     await releaseLock(adminClient, LOCK_ID);
   }
-});
+}));

@@ -1,4 +1,3 @@
-import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 
 import AdminAirlineTerminals from '../components/AdminAirlineTerminals';
+import AdminJobStatus from '../components/AdminJobStatus';
 import AdminMeetingPoints from '../components/AdminMeetingPoints';
 import AdminPaymentIssues from '../components/AdminPaymentIssues';
 import Card from '../components/Card';
@@ -24,7 +24,7 @@ import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
-import { ADMIN_EMAIL, ADMIN_HISTORY_DEFAULT_WINDOW_DAYS, MAX_PASSENGERS_PER_TAXI, PAYMENTS_ENABLED } from '../constants';
+import { ADMIN_HISTORY_DEFAULT_WINDOW_DAYS, MAX_PASSENGERS_PER_TAXI, PAYMENTS_ENABLED } from '../constants';
 import {
   createTaxiGroup,
   fetchGroupMemberArrivals,
@@ -60,7 +60,9 @@ const LIST_LAYOUT_ANIMATION = {
 };
 
 type Props = {
-  session: Session | null;
+  // The logged-in user has the admin role (App.tsx asks the server). The server checks it again
+  // on everything this screen reads or does.
+  isAdmin: boolean;
   onBack: () => void;
 };
 
@@ -102,9 +104,8 @@ function groupRequestsByRideDay(requests: PendingPassengerRequest[]): RideDaySec
   return sections;
 }
 
-export default function AdminScreen({ session, onBack }: Props) {
+export default function AdminScreen({ isAdmin, onBack }: Props) {
   const { t, i18n } = useTranslation();
-  const isAdmin = session?.user?.email === ADMIN_EMAIL;
 
   const [requests, setRequests] = useState<PendingPassengerRequest[]>([]);
   const [groups, setGroups] = useState<TaxiGroupSummary[]>([]);
@@ -478,6 +479,7 @@ export default function AdminScreen({ session, onBack }: Props) {
 
         {activeTab === 'active' ? (
           <>
+        <AdminJobStatus refreshKey={paymentIssuesKey} />
         <AdminAirlineTerminals warningsOnly refreshKey={paymentIssuesKey} />
         {PAYMENTS_ENABLED ? <AdminPaymentIssues onOpenGroup={setOpenGroupId} refreshKey={paymentIssuesKey} /> : null}
         <View style={styles.suggestionsSection}>
