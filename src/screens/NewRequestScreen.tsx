@@ -69,6 +69,11 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
   const [operatorIata, setOperatorIata] = useState<string | null>(null);
   // The passenger said the airline's terminal is not theirs: they choose instead.
   const [isAirlineTerminalRejected, setIsAirlineTerminalRejected] = useState(false);
+  // Where the flight comes from, from the lookup: saved with the ride, for its ready time.
+  const [flightOrigin, setFlightOrigin] = useState<{ iata: string | null; icao: string | null } | null>(null);
+  // Without a flight number: "Do you still need to collect checked luggage?" Null until answered -
+  // the answer shown then follows whether they travel with large luggage.
+  const [luggageToCollectAnswer, setLuggageToCollectAnswer] = useState<boolean | null>(null);
   // The choice was prefilled from where the phone is, and the passenger hasn't changed it.
   const [isTerminalFromLocation, setIsTerminalFromLocation] = useState(false);
   const chosenTerminalRef = useRef(chosenTerminal);
@@ -116,6 +121,8 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
       // Their own choice stands, whatever the airline table says about the flight.
       setIsAirlineTerminalRejected(data.arrival_terminal_source === 'passenger');
     }
+    setFlightOrigin(data.flight_origin_icao ? { iata: data.flight_origin_iata, icao: data.flight_origin_icao } : null);
+    setLuggageToCollectAnswer(data.luggage_to_collect);
     // Same rule as a fresh flight lookup: a flight number present on the stored ride means the
     // arrival time came from (or should stay pinned to) that flight, so it loads read-only.
     setHasFlightEstimate(Boolean(data.flight_number.trim()));
@@ -147,6 +154,9 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
       cancelled = true;
     };
   }, []);
+
+  // Shown preselected from their large luggage until they answer it themselves.
+  const luggageToCollect = luggageToCollectAnswer ?? largeLuggageCount > 0;
 
   // The terminal of the flight's airline, known the moment the flight number is typed.
   const airlineRow = airlineTerminal(airlineRows, [operatorIata, airlineCodeOf(flightNumber)]);
@@ -208,6 +218,7 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
     setIsLookingUpFlight(false);
 
     setOperatorIata(lookup?.operatorIata ?? null);
+    setFlightOrigin(lookup?.originIcao ? { iata: lookup.originIata, icao: lookup.originIcao } : null);
     // Null when the flight data names no terminal yet: the airline's terminal (or the passenger's
     // choice) stands until the flight's own terminal is known.
     setFlightTerminal(lookup?.flightTerminal ?? null);
@@ -279,8 +290,12 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
       return;
     }
 
+    const hasFlightNumber = flightNumber.trim() !== '';
     const payload = {
       flightNumber: flightNumber.trim(),
+      flightOriginIata: hasFlightNumber ? (flightOrigin?.iata ?? null) : null,
+      flightOriginIcao: hasFlightNumber ? (flightOrigin?.icao ?? null) : null,
+      luggageToCollect: hasFlightNumber ? null : luggageToCollect,
       arrivalTerminal,
       arrivalTerminalSource: flightTerminal
         ? ('flight' as const)
@@ -419,6 +434,7 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
           setIsArrivalFromLookup(false);
           setFlightTerminal(null);
           setOperatorIata(null);
+          setFlightOrigin(null);
           setIsAirlineTerminalRejected(false);
         }}
         onBlur={handleFlightNumberBlur}
@@ -584,6 +600,38 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
         options={HAND_LUGGAGE_OPTIONS}
         onChange={setHandLuggageCount}
       />
+
+      {/* Only without a flight number: with one, the flight and the large luggage say how long
+          the passenger needs before they can leave. */}
+      {flightNumber.trim() === '' ? (
+        <>
+          <Text style={styles.label}>{t('newRequest.luggageToCollectLabel')}</Text>
+          <View
+            style={styles.terminalRow}
+            accessibilityRole="radiogroup"
+            accessibilityLabel={t('newRequest.luggageToCollectLabel')}
+          >
+            {[true, false].map((answer) => {
+              const isSelected = luggageToCollect === answer;
+              const label = t(answer ? 'newRequest.luggageToCollectYes' : 'newRequest.luggageToCollectNo');
+              return (
+                <Pressable
+                  key={String(answer)}
+                  style={[styles.terminalOption, isSelected && styles.terminalOptionSelected]}
+                  onPress={() => setLuggageToCollectAnswer(answer)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={label}
+                >
+                  <Text style={[styles.terminalOptionLabel, isSelected && styles.terminalOptionLabelSelected]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
 
       <Text style={styles.label}>{t('newRequest.maxWaitLabel')}</Text>
       <AuthTextInput

@@ -38,8 +38,9 @@ export function airportDayKey(ms: number): string {
 
 // What the app uses of one flight.
 export type FlightSnapshot = {
-  // The actual landing time if it already happened, otherwise the live estimate, otherwise the
-  // schedule.
+  // When the plane is at the GATE (FlightAware's "in" times - never its runway "on" times): the
+  // actual gate arrival if it already happened, otherwise the live estimate, otherwise the
+  // schedule. This is the ride's arrival time; its ready time is counted from it.
   estimatedLanding: string | null;
   scheduledLanding: string | null;
   scheduledDeparture: string | null;
@@ -49,9 +50,17 @@ export type FlightSnapshot = {
   terminal: ArrivalTerminal | null;
   // The airline flying the plane ("VY"), which on a codeshare is not the one in the flight number.
   operatorIata: string | null;
-  // False when this is another day's flight under the same number: only operatorIata applies.
+  // Where the flight comes from ("BOS" / "KBOS"). The four-letter code tells the country, and with
+  // it whether the passenger goes through passport control (the ride's ready time).
+  originIata: string | null;
+  originIcao: string | null;
+  // False when this is another day's flight under the same number: only the operator and the
+  // origin apply (the same number flies the same route).
   onExpectedDay: boolean;
 };
+
+const airportCode = (value: unknown, length: number): string | null =>
+  typeof value === 'string' && value.trim().length === length ? value.trim().toUpperCase() : null;
 
 export function flightSnapshot(flight: any, anchorMs: number): FlightSnapshot {
   const destination = flight?.destination;
@@ -66,6 +75,8 @@ export function flightSnapshot(flight: any, anchorMs: number): FlightSnapshot {
     cancelled: flight?.cancelled === true,
     terminal: landsHere ? normalizeTerminal(flight?.terminal_destination) : null,
     operatorIata: typeof flight?.operator_iata === 'string' && flight.operator_iata ? flight.operator_iata.toUpperCase() : null,
+    originIata: airportCode(flight?.origin?.code_iata, 3),
+    originIcao: airportCode(flight?.origin?.code_icao, 4),
     onExpectedDay:
       landingMs != null &&
       (airportDayKey(landingMs) === airportDayKey(anchorMs) || Math.abs(landingMs - anchorMs) <= SAME_DAY_SLACK_MS),

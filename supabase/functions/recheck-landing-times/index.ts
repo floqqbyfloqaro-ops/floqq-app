@@ -52,11 +52,12 @@ type RideRow = PendingPassengerRequest & {
   flight_checked_at: string | null;
   flight_scheduled_departure_at: string | null;
   flight_operator_iata: string | null;
+  flight_origin_icao: string | null;
   terminal_conflict: string | null;
 };
 
 const RIDE_COLUMNS =
-  'id, user_id, group_id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, scheduled_arrival_at, arrival_terminal, arrival_terminal_source, flight_checked_at, flight_scheduled_departure_at, flight_operator_iata, terminal_conflict';
+  'id, user_id, group_id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, scheduled_arrival_at, arrival_terminal, arrival_terminal_source, flight_checked_at, flight_scheduled_departure_at, flight_operator_iata, flight_origin_icao, terminal_conflict';
 
 const MEMBER_COLUMNS =
   'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng';
@@ -165,6 +166,12 @@ Deno.serve(monitored('recheck-landing-times', async (req) => {
       // so an unknown flight number isn't asked about again on every run.
       const update: Record<string, unknown> = { flight_checked_at: now.toISOString() };
       if (operatorIata !== ride.flight_operator_iata) update.flight_operator_iata = operatorIata;
+      // Where the flight comes from decides the ride's ready time (the database calculates it):
+      // passport control or not. Another day's flight under the same number flies the same route.
+      if (found?.originIcao && found.originIcao !== ride.flight_origin_icao) {
+        update.flight_origin_icao = found.originIcao;
+        update.flight_origin_iata = found.originIata;
+      }
 
       if (snapshot) {
         if (snapshot.scheduledDeparture) update.flight_scheduled_departure_at = snapshot.scheduledDeparture;

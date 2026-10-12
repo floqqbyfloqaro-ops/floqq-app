@@ -93,6 +93,24 @@ the test project has no passengers and no Google Routes key).
   the countdown switched to "Checking now..." at each and restarted when the run finished. The
   look on screen needs a build.
 
+## Ready time, phase A (branch `feat/ready-time-phase-a`, 2026-10-12)
+
+Calculated and recorded; **nothing uses it yet** (matching, meeting time and expiry still go by
+the arrival time until phase B).
+
+- **Ready time** = gate arrival (`arrival_at`) + a buffer: Schengen 25 / 40 min without / with a
+  checked bag, non-Schengen 45 / 60, no flight number 15 / 25 by the new luggage question. The
+  database calculates it on every save of a ride.
+- **Schengen or not** from the origin airport's four-letter code, kept on the ride from the
+  flight lookups already made. Origin unknown: calculated as non-Schengen.
+- **Editable in the dashboard:** `ready_time_settings` (the six buffers) and
+  `schengen_origin_prefixes` (the countries).
+- **Calibration:** `admin_ready_time_calibration()` gives the average of actual minus calculated
+  per kind of flight; the dashboard card comes in phase C.
+- **Verified on `floqq-test`:** all 19 checks of `scripts/ready-time-test.mjs`.
+- **Not verified:** that FlightAware always returns the origin's four-letter code, and how often
+  it has only a runway time (no FlightAware key was available for a sample).
+
 ## Before anything can be tested
 
 - [ ] A development build. iPhone: EAS has no iOS credentials for this project yet, so run
