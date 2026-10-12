@@ -3,7 +3,8 @@
 // (src/screens/AdminScreen.tsx), which is untouched and keeps working independently.
 //
 // Invoked in two ways, both handled below:
-//   1. On a schedule, by a pg_cron job calling this URL with the `x-cron-secret` header.
+//   1. On a schedule (every minute), by a pg_cron job calling this URL with the `x-cron-secret`
+//      header.
 //   2. On demand, by an admin (or curl, for testing) with a Supabase user JWT.
 // Deployed with --no-verify-jwt since this file does its own auth check instead.
 
@@ -14,6 +15,7 @@ import { ADMIN_EMAIL } from '../_shared/constants.ts';
 import { joinOpenOffers } from '../_shared/lateJoin.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { suggestTaxiGroups } from '../_shared/matchingEngine.ts';
+import { loadRejectionMemory, saveRejectionMemory } from '../_shared/matchRejections.ts';
 import { announceOffer } from '../_shared/offers.ts';
 
 const LOCK_ID = 1;
@@ -64,10 +66,16 @@ Deno.serve(async (req) => {
 
     // First fill free seats in groups that are still an offer; whoever fits nowhere goes on to
     // form new groups.
-    const joined = await joinOpenOffers(adminClient, pending ?? []);
+    // This runs every minute; scoring a combination is a paid route lookup. What was turned down
+    // recently and hasn't changed since is skipped (_shared/matchRejectionRule.ts).
+    const now = new Date();
+    const memory = await loadRejectionMemory(adminClient, now);
+
+    const joined = await joinOpenOffers(adminClient, pending ?? [], now, memory);
     const stillPending = (pending ?? []).filter((r) => !joined.has(r.id));
 
-    const suggestions = await suggestTaxiGroups(adminClient, stillPending);
+    const suggestions = await suggestTaxiGroups(adminClient, stillPending, memory);
+    await saveRejectionMemory(adminClient, memory, now);
 
     const claimed = new Set<string>();
     let groupsCreated = 0;

@@ -26,6 +26,8 @@ import { syncGroupHolds } from './holds.ts';
 import { arrivalsCompatible, joinRejection } from './lateJoinRule.ts';
 import type { JoinMember } from './lateJoinRule.ts';
 import { computeGroupScore, MatchSuggestion, PendingPassengerRequest } from './matchingEngine.ts';
+import { rejectionFingerprint, rejectionKey } from './matchRejectionRule.ts';
+import type { RejectionMemory } from './matchRejectionRule.ts';
 import { offerExpiresAt, stripeForOffers } from './offers.ts';
 import { sendPush } from './push.ts';
 import { sameTerminal } from './terminalRule.ts';
@@ -101,7 +103,10 @@ async function pendingInCorridor(adminClient: SupabaseClient, memberId: string):
 export async function joinOpenOffers(
   adminClient: SupabaseClient,
   pending: PendingPassengerRequest[],
-  now = new Date()
+  now = new Date(),
+  // With a memory, a passenger this offer turned down recently isn't scored (and paid for) again
+  // while neither of them changed - see matchRejectionRule.ts.
+  memory?: RejectionMemory
 ): Promise<Set<string>> {
   const joined = new Set<string>();
   const waiting = pending.filter((r): r is Geocoded => r.destination_lat != null && r.destination_lng != null);
@@ -154,7 +159,12 @@ export async function joinOpenOffers(
       const largeLuggage = offer.members.reduce((sum, m) => sum + m.large_luggage_count, newcomer.large_luggage_count);
       if (largeLuggage > MAX_LARGE_LUGGAGE_PER_TAXI) continue;
 
-      const suggestion = await computeGroupScore([...offer.members, newcomer]);
+      const enlarged = [...offer.members, newcomer];
+      const memoryKey = rejectionKey('join', enlarged.map((r) => r.id));
+      const memoryPrint = rejectionFingerprint(enlarged, `v${offer.version}|${offer.total_fare}`);
+      if (memory?.isRejected(memoryKey, memoryPrint)) continue;
+
+      const suggestion = await computeGroupScore(enlarged);
       const currentShares = estimatedSharesCents(
         offer.members.map((m) => ({ id: m.id, distanceKm: Number(m.distance_km) })),
         offer.total_fare
@@ -167,6 +177,8 @@ export async function joinOpenOffers(
         MAX_LARGE_LUGGAGE_PER_TAXI,
         DETOUR_LIMITS
       );
+      // Remembered only when there was an answer to reject, never when the route lookup failed.
+      if (rejection && suggestion) memory?.reject(memoryKey, memoryPrint);
       if (rejection || !suggestion) continue;
 
       if (!best || suggestion.worstIndividualScore < best.suggestion.worstIndividualScore) {

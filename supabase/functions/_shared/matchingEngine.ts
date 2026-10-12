@@ -19,6 +19,8 @@ import {
 import { exceedsDetourLimit } from './detourLimit.ts';
 import { calculateBarcelonaTaxiFare, calculateFareSplit } from './fareSplit.ts';
 import { computeRouteMatrix, LatLng, RouteMatrixCell } from './googleRoutes.ts';
+import { rejectionFingerprint, rejectionKey } from './matchRejectionRule.ts';
+import type { RejectionMemory } from './matchRejectionRule.ts';
 import { sameTerminal } from './terminalRule.ts';
 
 export type PendingPassengerRequest = {
@@ -228,21 +230,13 @@ export async function computeGroupScore(group: GeoRequest[]): Promise<MatchSugge
   };
 }
 
-// Used when forming brand-new candidate groups: computes the score, then rejects the group
-// outright if any single passenger's detour is over their own limit (detourLimit.ts) - never
-// just averaged away by the rest of the group looking good.
-async function scoreGroup(group: GeoRequest[]): Promise<MatchSuggestion | null> {
-  const suggestion = await computeGroupScore(group);
-  if (!suggestion) return null;
-  if (suggestion.members.some((m) => exceedsDetourLimit(m, DETOUR_LIMITS))) return null;
-  return suggestion;
-}
-
 // Runs all 4 layers over the current pending pool and returns ranked group suggestions
-// (best worst-case individual score first).
+// (best worst-case individual score first). With a `memory`, a combination that was turned down
+// recently and hasn't changed is skipped instead of being scored (and paid for) again.
 export async function suggestTaxiGroups(
   client: SupabaseClient,
-  pending: PendingPassengerRequest[]
+  pending: PendingPassengerRequest[],
+  memory?: RejectionMemory
 ): Promise<MatchSuggestion[]> {
   const geocoded = pending.filter(hasCoordinates);
   const suggestions: MatchSuggestion[] = [];
@@ -282,10 +276,20 @@ export async function suggestTaxiGroups(
         if (seenGroupKeys.has(groupKey)) continue;
         seenGroupKeys.add(groupKey);
 
-        const suggestion = await scoreGroup(group);
-        if (suggestion) {
-          suggestions.push(suggestion);
+        const memoryKey = rejectionKey('new', group.map((r) => r.id));
+        const memoryPrint = rejectionFingerprint(group);
+        if (memory?.isRejected(memoryKey, memoryPrint)) continue;
+
+        const suggestion = await computeGroupScore(group);
+        // No answer (the route lookup failed): nothing to remember, it is asked again next run.
+        if (!suggestion) continue;
+        // Rejected outright if any single passenger's detour is over their own limit
+        // (detourLimit.ts) - never just averaged away by the rest of the group looking good.
+        if (suggestion.members.some((m) => exceedsDetourLimit(m, DETOUR_LIMITS))) {
+          memory?.reject(memoryKey, memoryPrint);
+          continue;
         }
+        suggestions.push(suggestion);
       }
     }
   }
