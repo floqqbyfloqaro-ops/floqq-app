@@ -12,7 +12,7 @@ const DETOUR_LIMITS = { maxMinutes: 15, maxPercent: 50, minAllowedMinutes: 5 };
 
 const passenger = (id: string, overrides: Partial<JoinMember> = {}): JoinMember => ({
   id,
-  arrivalAt: '2026-10-09T12:00:00Z',
+  readyAt: '2026-10-09T12:00:00Z',
   largeLuggageCount: 1,
   maxWaitMinutes: 15,
   ...overrides,
@@ -58,13 +58,28 @@ test('refused: an existing passenger would pay more', () => {
   });
 });
 
-test('refused: the newcomer lands too far apart from someone in the group', () => {
-  const late = passenger('c', { arrivalAt: '2026-10-09T12:20:00Z' });
+test('refused: the newcomer is ready so much later that someone in the group would wait too long', () => {
+  const late = passenger('c', { readyAt: '2026-10-09T12:20:00Z' });
   const suggestion = scored({ a: 14, b: 15.5, c: 16 });
   assert.deepEqual(joinRejection(suggestion, existing, late, currentShares, MAX_LARGE_LUGGAGE, DETOUR_LIMITS), {
     reason: 'arrival_window',
     request_id: 'a',
   });
+});
+
+test('refused: the newcomer is ready so much earlier that they would wait too long themselves', () => {
+  const early = passenger('c', { readyAt: '2026-10-09T11:40:00Z' });
+  const suggestion = scored({ a: 14, b: 15.5, c: 16 });
+  assert.deepEqual(joinRejection(suggestion, existing, early, currentShares, MAX_LARGE_LUGGAGE, DETOUR_LIMITS), {
+    reason: 'arrival_window',
+    request_id: 'c',
+  });
+});
+
+test('may join: a patient newcomer who is ready earlier waits for the group', () => {
+  const early = passenger('c', { readyAt: '2026-10-09T11:40:00Z', maxWaitMinutes: 20 });
+  const suggestion = scored({ a: 14, b: 15.5, c: 16 });
+  assert.equal(joinRejection(suggestion, existing, early, currentShares, MAX_LARGE_LUGGAGE, DETOUR_LIMITS), null);
 });
 
 test('refused: an existing passenger would get too long a detour', () => {

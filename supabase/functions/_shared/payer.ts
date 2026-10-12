@@ -8,6 +8,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import { rideDepartureMs } from './holdMath.ts';
+import { readyIso } from './readyTimeRule.ts';
 import { sendPush } from './push.ts';
 import { assertTestKey } from './stripe.ts';
 
@@ -54,9 +55,9 @@ async function sendPayerReminderIfDue(adminClient: SupabaseClient, groupId: stri
     return;
   }
 
-  const { data: members } = await adminClient.from('passenger_requests').select('arrival_at').eq('group_id', groupId);
+  const { data: members } = await adminClient.from('passenger_requests').select('arrival_at, ready_at').eq('group_id', groupId);
   if (!members?.length) return;
-  const rideMs = rideDepartureMs(members.map((m) => m.arrival_at));
+  const rideMs = rideDepartureMs(members.map(readyIso));
   if (rideMs - now.getTime() > PAYER_REMINDER_BEFORE_RIDE_MINUTES * MINUTE_MS) return;
 
   const { data: profile } = await adminClient

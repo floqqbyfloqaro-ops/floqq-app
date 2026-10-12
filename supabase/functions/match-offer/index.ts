@@ -16,6 +16,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { AIRPORT } from '../_shared/constants.ts';
 import { computeRoutePolyline, lookupNeighborhood } from '../_shared/googleRoutes.ts';
 import { estimatedSharesCents, holdAmountCents, holdWindow, PLATFORM_FEE_CENTS, rideDepartureMs } from '../_shared/holdMath.ts';
+import { readyIso } from '../_shared/readyTimeRule.ts';
 import { paymentsEnabled } from '../_shared/stripe.ts';
 
 const corsHeaders = {
@@ -39,6 +40,7 @@ type MemberRow = {
   destination_lng: number | null;
   destination_neighborhood: string | null;
   arrival_at: string;
+  ready_at: string | null;
   arrival_time_source: string | null;
   scheduled_arrival_at: string | null;
   distance_km: number | null;
@@ -47,7 +49,7 @@ type MemberRow = {
 };
 
 const MEMBER_COLUMNS =
-  'id, user_id, passenger_name, destination_address, destination_lat, destination_lng, destination_neighborhood, arrival_at, arrival_time_source, scheduled_arrival_at, distance_km, spot_secured_at, spot_secured_group_id';
+  'id, user_id, passenger_name, destination_address, destination_lat, destination_lng, destination_neighborhood, arrival_at, ready_at, arrival_time_source, scheduled_arrival_at, distance_km, spot_secured_at, spot_secured_group_id';
 
 // About 100 m: enough for a dot on a city-wide map, not enough to find a front door.
 const roundCoordinate = (value: number) => Math.round(value * 1000) / 1000;
@@ -160,7 +162,9 @@ Deno.serve(async (req) => {
 
   // "Secure my spot": whether it reserves money on the card, and from when that's possible.
   const withPayments = paymentsEnabled();
-  const { opensAt: holdOpensAt } = holdWindow(rideDepartureMs(members.map((m) => m.arrival_at)), Date.now());
+  // The group meets when its last member is ready.
+  const meetingMs = rideDepartureMs(members.map(readyIso));
+  const { opensAt: holdOpensAt } = holdWindow(meetingMs, Date.now());
   const { data: myPayment } = withPayments
     ? await adminClient
         .from('ride_payments')
@@ -195,6 +199,8 @@ Deno.serve(async (req) => {
           lat: !hasPoint ? null : isMe ? member.destination_lat : roundCoordinate(member.destination_lat!),
           lng: !hasPoint ? null : isMe ? member.destination_lng : roundCoordinate(member.destination_lng!),
           arrivalAt: member.arrival_at,
+          // When this member can leave the airport: after passport control and luggage.
+          readyAt: readyIso(member),
           arrivalFromFlight: member.arrival_time_source === 'flight',
           scheduledArrivalAt: member.scheduled_arrival_at,
           secured: member.spot_secured_at != null && member.spot_secured_group_id === group.id,

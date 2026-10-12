@@ -111,6 +111,24 @@ the arrival time until phase B).
 - **Not verified:** that FlightAware always returns the origin's four-letter code, and how often
   it has only a runway time (no FlightAware key was available for a sample).
 
+## Ready time, phase B (branch `feat/ready-time-phase-b`, 2026-10-12)
+
+Timing now goes by the ready time instead of the arrival time.
+
+- **Matching and late join.** A group meets when its last member is ready; each member waits
+  from their own ready time, and a group is only formed (or joined) if every member's own wait
+  fits their own maximum - checked for the group as a whole, before any route lookup.
+- **The ride's moment** used by seat reservations, the payer reminder, receipts, the meeting time
+  and "Find your group" is that meeting time (it was the last arrival plus 10 minutes).
+- **Ride expiry** is ready time + maximum wait.
+- **A delay:** in an unconfirmed group the group is checked again and dissolved for a fresh match
+  when it no longer fits; in a confirmed group nothing changes, the audit trail records
+  `ready_time_conflict` and the admin dashboard flags it (10 minutes or more).
+- **Verified:** the rule by unit tests (Boston + Madrid match only when the Madrid passenger will
+  wait 35 minutes); on `floqq-test` the expiry change and that the matcher runs.
+- **Not verified:** a real match end to end (the test project has no Google Routes key) and the
+  moved payment deadlines (no payments on the test project).
+
 ## Before anything can be tested
 
 - [ ] A development build. iPhone: EAS has no iOS credentials for this project yet, so run

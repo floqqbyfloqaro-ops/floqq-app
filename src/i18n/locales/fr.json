@@ -191,6 +191,8 @@
     "terminalUnknownError": "{{name}} n'a pas encore de terminal d'arrivée et ne peut donc pas être placé dans un groupe.",
     "createGroupTerminalError": "Ce groupe n'a pas pu être créé : ses passagers n'arrivent pas tous au même terminal.",
     "terminalConflictFlag": "Conflit de terminal : les données de vol indiquent maintenant {{terminal}}",
+    "flightLaterFlag": "Horaire de vol modifié : un membre arrive maintenant {{minutes}} min plus tard",
+    "flightEarlierFlag": "Horaire de vol modifié : un membre arrive maintenant {{minutes}} min plus tôt",
     "noMeetingPointFlag": "Aucun point de rencontre attribué",
     "meetupFlaggedFlag": "À vérifier : ce groupe ne s'est jamais retrouvé. Rien n'est débité tant que vous n'avez pas confirmé le trajet.",
     "noShowFlag": "Absent : son groupe a continué sans cette personne ({{date}})"
@@ -276,6 +278,7 @@
     "receiptActionError": "Impossible de mettre à jour le reçu. Réessayez.",
     "addTerminalError": "{{name}} arrive au {{terminal}} ; ce groupe est au {{groupTerminal}}. Un groupe ne peut pas mélanger les terminaux : T1 et T2 sont trop éloignés pour se retrouver.",
     "terminalConflictNote": "Les données de vol indiquent maintenant {{terminal}} pour ce passager. Le groupe est confirmé, donc rien n'a été modifié automatiquement.",
+    "flightTimeChangedNote": "Les données de vol indiquent maintenant une arrivée de ce passager à {{time}}. Le groupe est confirmé, donc son heure de rendez-vous n'a pas été modifiée automatiquement.",
     "meetingPointTitle": "Point de rencontre",
     "meetingPointNone": "Pas encore de point de rencontre. Il est attribué automatiquement en moins d'une minute, dès que ce terminal a un point actif.",
     "meetingTimeLabel": "Heure de rendez-vous : {{time}}",

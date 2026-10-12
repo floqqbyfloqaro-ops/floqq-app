@@ -24,7 +24,12 @@ import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
-import { ADMIN_HISTORY_DEFAULT_WINDOW_DAYS, MAX_PASSENGERS_PER_TAXI, PAYMENTS_ENABLED } from '../constants';
+import {
+  ADMIN_HISTORY_DEFAULT_WINDOW_DAYS,
+  MAX_PASSENGERS_PER_TAXI,
+  PAYMENTS_ENABLED,
+  READY_TIME_FLAG_MINUTES,
+} from '../constants';
 import {
   createTaxiGroup,
   fetchGroupMemberArrivals,
@@ -41,6 +46,7 @@ import {
 } from '../services/adminGrouping';
 import { computeGroupScore, MatchSuggestion, suggestTaxiGroups } from '../services/matchingEngine';
 import { MeetingPoint } from '../services/meetingPointRules';
+import { flightTimeChange } from '../services/readyTimeRules';
 import { sameTerminal } from '../services/terminalRules';
 import { fetchGroupPaymentSummaries, GroupPaymentSummary } from '../services/payments';
 import { baseText, colors, motion, overlays, spacing } from '../theme/colors';
@@ -76,7 +82,9 @@ const RIDE_DATE_FILTERS: { value: RideDateFilter; labelKey: string }[] = [
 
 type RideDaySection = { dayKey: string; requests: PendingPassengerRequest[] };
 
-type GroupTerminalInfo = { terminal: string | null; conflict: string | null };
+// timeChangeMinutes: how far a member's flight now arrives off the group's time, when that is
+// enough to flag (the largest such difference in the group); null: nothing to flag.
+type GroupTerminalInfo = { terminal: string | null; conflict: string | null; timeChangeMinutes: number | null };
 
 // A confirmed group without a meeting point is only flagged while its ride is still ahead (its
 // first landing no more than this long ago).
@@ -181,8 +189,20 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
           if (!current || new Date(row.arrival_at).getTime() < new Date(current).getTime()) {
             earliestByGroup[row.group_id] = row.arrival_at;
           }
-          const info = terminalByGroup[row.group_id] ?? { terminal: row.arrival_terminal, conflict: null };
-          terminalByGroup[row.group_id] = { ...info, conflict: info.conflict ?? row.terminal_conflict };
+          const info = terminalByGroup[row.group_id] ?? {
+            terminal: row.arrival_terminal,
+            conflict: null,
+            timeChangeMinutes: null,
+          };
+          const change = flightTimeChange(row, READY_TIME_FLAG_MINUTES);
+          terminalByGroup[row.group_id] = {
+            ...info,
+            conflict: info.conflict ?? row.terminal_conflict,
+            timeChangeMinutes:
+              change && Math.abs(change.minutes) > Math.abs(info.timeChangeMinutes ?? 0)
+                ? change.minutes
+                : info.timeChangeMinutes,
+          };
         }
         setGroupRideDates(earliestByGroup);
         setGroupTerminals(terminalByGroup);
@@ -677,6 +697,15 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
               const terminalConflictLabel = terminalInfo?.conflict
                 ? t('admin.terminalConflictFlag', { terminal: terminalInfo.conflict })
                 : null;
+              // A confirmed group's times don't follow flight data: say so when a member's flight
+              // has moved.
+              const timeChange = group.status === 'confirmed' ? (terminalInfo?.timeChangeMinutes ?? null) : null;
+              const timeChangeLabel =
+                timeChange == null
+                  ? null
+                  : t(timeChange > 0 ? 'admin.flightLaterFlag' : 'admin.flightEarlierFlag', {
+                      minutes: Math.abs(timeChange),
+                    });
               // A confirmed group whose ride is still ahead should have a meeting point within a
               // minute; without one, its terminal has no active point (or needs a manual pick).
               const noMeetingPointLabel =
@@ -709,7 +738,7 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
                     paymentsLabel ? `${paymentsLabel}, ` : ''
                   }${receiptFlags[group.id] ? `${receiptFlags[group.id]}, ` : ''}${
                     terminalConflictLabel ? `${terminalConflictLabel}, ` : ''
-                  }${noMeetingPointLabel ? `${noMeetingPointLabel}, ` : ''}${statusLabel}`}
+                  }${timeChangeLabel ? `${timeChangeLabel}, ` : ''}${noMeetingPointLabel ? `${noMeetingPointLabel}, ` : ''}${statusLabel}`}
                 >
                   {rideDateLabel ? <Text style={styles.groupTitle}>{rideDateLabel}</Text> : null}
                   <Text style={rideDateLabel ? styles.groupSubtitle : styles.groupTitle}>{createdLabel}</Text>
@@ -717,6 +746,7 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
                     <Text style={styles.groupSubtitle}>{t('admin.terminalLabel', { terminal: terminalInfo.terminal })}</Text>
                   ) : null}
                   {terminalConflictLabel ? <Text style={styles.guaranteeFlag}>{terminalConflictLabel}</Text> : null}
+                  {timeChangeLabel ? <Text style={styles.guaranteeFlag}>{timeChangeLabel}</Text> : null}
                   {noMeetingPointLabel ? <Text style={styles.guaranteeFlag}>{noMeetingPointLabel}</Text> : null}
                   {group.meetup_flagged_at ? (
                     <Text style={styles.guaranteeFlag}>{t('admin.meetupFlaggedFlag')}</Text>

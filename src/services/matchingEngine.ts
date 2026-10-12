@@ -1,7 +1,6 @@
 import {
   AIRPORT,
   CORRIDOR_METERS,
-  GROUP_DEPARTURE_BUFFER_MINUTES,
   MAX_LARGE_LUGGAGE_PER_TAXI,
   DETOUR_LIMITS,
   MAX_PASSENGERS_PER_TAXI,
@@ -11,6 +10,7 @@ import { PendingPassengerRequest } from './adminGrouping';
 import { exceedsDetourLimit } from './detourLimit';
 import { calculateBarcelonaTaxiFare, calculateFareSplit } from './fareSplit';
 import { computeRouteMatrix, LatLng, RouteMatrixCell } from './googleRoutes';
+import { meetingTimeMs, waitMinutes, waitsFit } from './readyTimeRules';
 import { supabase } from './supabase';
 import { sameTerminal } from './terminalRules';
 
@@ -41,21 +41,22 @@ function hasCoordinates(request: PendingPassengerRequest): request is GeoRequest
   return request.destination_lat != null && request.destination_lng != null;
 }
 
-function isArrivalWindowCompatible(a: PendingPassengerRequest, b: PendingPassengerRequest): boolean {
-  const diffMinutes = Math.abs(new Date(a.arrival_at).getTime() - new Date(b.arrival_at).getTime()) / 60000;
-  return diffMinutes <= Math.min(a.max_wait_minutes, b.max_wait_minutes);
+// Could these two share a taxi as far as timing goes: whoever is ready first would wait for the
+// other no longer than their own maximum wait (see readyTimeRules.ts).
+function isReadyWindowCompatible(a: PendingPassengerRequest, b: PendingPassengerRequest): boolean {
+  return waitsFit([a, b]);
 }
 
 // Layer 1 (per-candidate part): same airport (single-airport MVP, always true today), same
-// terminal (a hard rule - T1 and T2 passengers never share a group) and a compatible arrival
-// window. The remaining hard constraints (group size cap, luggage cap) are checked once actual
+// terminal (a hard rule - T1 and T2 passengers never share a group) and ready times that fit
+// each other. The remaining hard constraints (group size cap, luggage cap) are checked once actual
 // candidate groups are assembled below.
 function filterHardConstraints(anchor: PendingPassengerRequest, pool: GeoRequest[]): GeoRequest[] {
   return pool.filter(
     (candidate) =>
       candidate.id !== anchor.id &&
       sameTerminal(anchor.arrival_terminal, candidate.arrival_terminal) &&
-      isArrivalWindowCompatible(anchor, candidate)
+      isReadyWindowCompatible(anchor, candidate)
   );
 }
 
@@ -163,8 +164,8 @@ export async function computeGroupScore(group: GeoRequest[]): Promise<MatchSugge
 
   const totalRouteDistanceKm = cumulativeMeters / 1000;
 
-  const latestArrivalMs = Math.max(...group.map((r) => new Date(r.arrival_at).getTime()));
-  const groupDepartureMs = latestArrivalMs + GROUP_DEPARTURE_BUFFER_MINUTES * 60000;
+  // The group meets, and leaves, when its last member is ready.
+  const groupDepartureMs = meetingTimeMs(group);
 
   // Real regulated Barcelona tariff (day/night/weekend rate + airport supplement) for the actual
   // km driven, priced at the taxi's real departure time - not a flat per-km estimate.
@@ -182,7 +183,7 @@ export async function computeGroupScore(group: GeoRequest[]): Promise<MatchSugge
     const cumulative = cumulativeByPassengerIndex.get(index);
     const solo = soloDurationSec(index);
     const extraDetourMinutes = cumulative && solo != null ? (cumulative.sec - solo) / 60 : 0;
-    const waitingMinutes = Math.max(0, (groupDepartureMs - new Date(request.arrival_at).getTime()) / 60000);
+    const waitingMinutes = waitMinutes(request, groupDepartureMs);
     const distanceKm = (cumulative?.meters ?? 0) / 1000;
     const fareAmount = fareById.get(request.id) ?? 0;
     const individualScore =
@@ -240,6 +241,10 @@ export async function suggestTaxiGroups(pending: PendingPassengerRequest[]): Pro
 
         const totalLargeLuggage = group.reduce((sum, r) => sum + r.large_luggage_count, 0);
         if (totalLargeLuggage > MAX_LARGE_LUGGAGE_PER_TAXI) continue;
+
+        // Every member's own wait must fit their own maximum - for the group as a whole, which
+        // each pair fitting does not guarantee. Checked before the (paid) route lookup.
+        if (!waitsFit(group)) continue;
 
         const groupKey = group
           .map((r) => r.id)

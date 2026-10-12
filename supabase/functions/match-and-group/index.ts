@@ -44,7 +44,7 @@ Deno.serve(monitored('match-and-group', async (req) => {
     const { data: pending, error: pendingError } = await adminClient
       .from('passenger_requests')
       .select(
-        'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, arrival_terminal'
+        'id, flight_number, arrival_at, ready_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, arrival_terminal'
       )
       .eq('status', 'pending')
       .order('arrival_at', { ascending: true });

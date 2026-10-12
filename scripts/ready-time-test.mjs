@@ -163,6 +163,35 @@ try {
   await service.from('ready_time_settings').update({ schengen_no_bag_minutes: 25 }).eq('id', true);
   expectReady('changing a buffer in the settings applies to rides saved after it', withNewSetting, 'schengen', 30);
 
+  // Ride expiry goes by the ready time (phase B): a passenger still at passport control has not
+  // run out of waiting time yet.
+  const minutesAgo = (minutes) => iso(new Date(Date.now() - minutes * MINUTE));
+  // At the gate 20 minutes ago, ready in 40 (non-Schengen, checked bag), will wait 15: by the
+  // arrival time this ride would be 5 minutes overdue; by the ready time it has 55 minutes left.
+  const stillComing = await createRide('still-coming', {
+    flight_number: 'DL250',
+    flight_origin_iata: 'BOS',
+    flight_origin_icao: 'KBOS',
+    large_luggage_count: 1,
+    arrival_at: minutesAgo(20),
+  });
+  // At the gate 90 minutes ago, ready 30 minutes ago, will wait 15: overdue either way.
+  const overdue = await createRide('overdue', {
+    flight_number: 'DL250',
+    flight_origin_iata: 'BOS',
+    flight_origin_icao: 'KBOS',
+    large_luggage_count: 1,
+    arrival_at: minutesAgo(90),
+  });
+  const { error: expireError } = await service.rpc('expire_overdue_requests');
+  const statusOf = async (id) => (await service.from('passenger_requests').select('status').eq('id', id).single()).data?.status;
+  check(
+    'a passenger who is not ready yet is not expired, though their plane arrived a while ago',
+    !expireError && (await statusOf(stillComing)) === 'pending',
+    expireError?.message ?? ''
+  );
+  check('a ride is expired once the ready time plus the maximum wait has passed', (await statusOf(overdue)) === 'expired');
+
   // Calibration: only the admin, and the average of (actual - calculated).
   const admin = await createUser('admin');
   await service.from('user_roles').insert({ user_id: admin.id, role: 'admin' });

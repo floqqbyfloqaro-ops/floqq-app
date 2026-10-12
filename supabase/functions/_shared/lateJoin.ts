@@ -23,11 +23,12 @@ import {
 import { buildGroupTotalsPayload, buildMemberScoresPayload } from './groupRebalance.ts';
 import { estimatedSharesCents, rideDepartureMs } from './holdMath.ts';
 import { syncGroupHolds } from './holds.ts';
-import { arrivalsCompatible, joinRejection } from './lateJoinRule.ts';
+import { joinRejection, readyTimesCompatible } from './lateJoinRule.ts';
 import type { JoinMember } from './lateJoinRule.ts';
 import { computeGroupScore, MatchSuggestion, PendingPassengerRequest } from './matchingEngine.ts';
 import { rejectionFingerprint, rejectionKey } from './matchRejectionRule.ts';
 import type { RejectionMemory } from './matchRejectionRule.ts';
+import { readyIso } from './readyTimeRule.ts';
 import { offerExpiresAt, stripeForOffers } from './offers.ts';
 import { sendPush } from './push.ts';
 import { sameTerminal } from './terminalRule.ts';
@@ -39,13 +40,13 @@ type OfferMember = Geocoded & { user_id: string | null; group_id: string; distan
 type OpenOffer = { id: string; version: number; total_fare: number; members: OfferMember[] };
 
 const MEMBER_COLUMNS =
-  'id, user_id, group_id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, distance_km, arrival_terminal';
+  'id, user_id, group_id, flight_number, arrival_at, ready_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, distance_km, arrival_terminal';
 
 const MINUTE_MS = 60_000;
 
 const toJoinMember = (r: PendingPassengerRequest): JoinMember => ({
   id: r.id,
-  arrivalAt: r.arrival_at,
+  readyAt: readyIso(r),
   largeLuggageCount: r.large_luggage_count,
   maxWaitMinutes: r.max_wait_minutes,
 });
@@ -82,7 +83,7 @@ async function loadOpenOffers(adminClient: SupabaseClient, now: Date): Promise<O
         offer.members.length >= 2 &&
         offer.members.length < MAX_PASSENGERS_PER_TAXI &&
         offer.members.every((m) => m.destination_lat != null && m.destination_lng != null && m.distance_km != null) &&
-        rideDepartureMs(offer.members.map((m) => m.arrival_at)) > latestStartMs
+        rideDepartureMs(offer.members.map(readyIso)) > latestStartMs
     );
 }
 
@@ -155,7 +156,7 @@ export async function joinOpenOffers(
       if (leftBefore.has(`${offer.id}:${newcomer.id}`)) continue;
       if (offer.members.some((m) => declined.has(`${newcomer.id}:${m.id}`))) continue;
       // The rules that need no route lookup first, so Google is only asked about real candidates.
-      if (offer.members.some((m) => !arrivalsCompatible(toJoinMember(m), toJoinMember(newcomer)))) continue;
+      if (offer.members.some((m) => !readyTimesCompatible(toJoinMember(m), toJoinMember(newcomer)))) continue;
       const largeLuggage = offer.members.reduce((sum, m) => sum + m.large_luggage_count, newcomer.large_luggage_count);
       if (largeLuggage > MAX_LARGE_LUGGAGE_PER_TAXI) continue;
 

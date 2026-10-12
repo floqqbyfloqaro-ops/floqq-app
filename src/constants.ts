@@ -63,9 +63,6 @@ export const BARCELONA_TAXI_TARIFFS = {
   minimumFareEur: 7.5,
 } as const;
 
-// Assumed buffer between the last passenger's arrival and actual taxi departure (curb/meetup time).
-export const GROUP_DEPARTURE_BUFFER_MINUTES = 10;
-
 // Linear weights used to scalarize each passenger's detour/wait/fare into one comparable score.
 export const SCORE_WEIGHTS = {
   detourMinute: 1,
@@ -156,6 +153,11 @@ export const MEETING_POINT_MIN_SEPARATION_METERS = 30;
 // Admin "capture on site": a GPS reading with a larger accuracy radius than this is flagged as
 // poor when saving a meeting point's coordinates (the admin may retake it or place the pin by hand).
 export const MEETING_POINT_CAPTURE_MAX_ACCURACY_METERS = 15;
+
+// Admin: a member of a confirmed group whose flight now arrives this many minutes or more off the
+// time the group was formed on is flagged (kept in sync with READY_TIME_FLAG_MINUTES in
+// supabase/functions/_shared/constants.ts).
+export const READY_TIME_FLAG_MINUTES = 10;
 
 // Admin "Check airline terminal": shown for an airline once flight data has named another terminal
 // than the airline table on this many different flights within this many days.

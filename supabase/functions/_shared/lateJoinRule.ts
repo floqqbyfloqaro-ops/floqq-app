@@ -7,24 +7,34 @@
 import type { DetourLimits } from './detourLimit.ts';
 import { groupRejection } from './groupRebalance.ts';
 import type { GroupRejection, SuggestionLike } from './groupRebalance.ts';
+import { waitOverLimit, waitsFit } from './readyTimeRule.ts';
+import type { WaitingRide } from './readyTimeRule.ts';
 
 export type JoinMember = {
   id: string;
-  arrivalAt: string;
+  // When they can leave the airport (see readyTimeRule.ts) - not when their plane arrives.
+  readyAt: string;
   largeLuggageCount: number;
   maxWaitMinutes: number;
 };
+
+const asWaitingRide = (m: JoinMember): WaitingRide => ({
+  id: m.id,
+  arrival_at: m.readyAt,
+  ready_at: m.readyAt,
+  max_wait_minutes: m.maxWaitMinutes,
+});
 
 export type JoinRejection =
   | GroupRejection
   | { reason: 'arrival_window'; request_id: string }
   | { reason: 'share_would_rise'; request_id: string; current_cents: number; new_cents: number };
 
-// Same pairwise rule the matching job uses when it forms a group: two passengers' arrivals may be
-// no further apart than the smaller of their maximum waits.
-export function arrivalsCompatible(a: JoinMember, b: JoinMember): boolean {
-  const diffMinutes = Math.abs(new Date(a.arrivalAt).getTime() - new Date(b.arrivalAt).getTime()) / 60000;
-  return diffMinutes <= Math.min(a.maxWaitMinutes, b.maxWaitMinutes);
+// Same pairwise rule the matching job uses when it forms a group: whoever is ready first would
+// wait for the other no longer than their own maximum wait. A cheap first filter - the group as a
+// whole is checked in joinRejection.
+export function readyTimesCompatible(a: JoinMember, b: JoinMember): boolean {
+  return waitsFit([asWaitingRide(a), asWaitingRide(b)]);
 }
 
 // The enlarged group must pass every rule a group has to pass (route found, large luggage, each
@@ -41,8 +51,10 @@ export function joinRejection(
   maxLargeLuggagePerTaxi: number,
   detourLimits: DetourLimits
 ): JoinRejection | null {
-  const clash = existing.find((member) => !arrivalsCompatible(member, newcomer));
-  if (clash) return { reason: 'arrival_window', request_id: clash.id };
+  // With the newcomer the group meets when its last member is ready: every member's own wait
+  // until then must fit their own maximum.
+  const overLimit = waitOverLimit([...existing, newcomer].map(asWaitingRide));
+  if (overLimit) return { reason: 'arrival_window', request_id: overLimit.request_id };
 
   const rejection = groupRejection(suggestion, [...existing, newcomer], maxLargeLuggagePerTaxi, detourLimits);
   if (rejection) return rejection;

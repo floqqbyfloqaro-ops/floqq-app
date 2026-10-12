@@ -5,7 +5,7 @@
 // A rejected combination is not asked about again until
 //   - MATCH_REJECTION_RECHECK_MINUTES have passed (routes are traffic-aware, so the answer can
 //     change), or
-//   - something about it changed: a member's arrival time, destination or luggage, or (for a
+//   - something about it changed: a member's arrival or ready time, destination or luggage, or (for a
 //     passenger joining an open offer) the offer itself.
 // Only real rejections are remembered - never a lookup that failed.
 //
@@ -18,6 +18,7 @@ export type RejectionRow = { group_key: string; fingerprint: string; rejected_at
 type Member = {
   id: string;
   arrival_at: string;
+  ready_at?: string | null;
   destination_lat: number | null;
   destination_lng: number | null;
   large_luggage_count: number;
@@ -35,7 +36,7 @@ export function rejectionFingerprint(members: Member[], extra = ''): string {
   const parts = [...members]
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((m) =>
-      [m.id, m.arrival_at, m.destination_lat, m.destination_lng, m.large_luggage_count, m.max_wait_minutes].join('|')
+      [m.id, m.arrival_at, m.ready_at ?? '', m.destination_lat, m.destination_lng, m.large_luggage_count, m.max_wait_minutes].join('|')
     );
   return [...parts, extra].join(';');
 }

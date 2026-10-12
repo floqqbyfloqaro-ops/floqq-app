@@ -12,6 +12,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import { rideDepartureMs } from './holdMath.ts';
+import { readyIso } from './readyTimeRule.ts';
 import { sendPush } from './push.ts';
 import { recordReceipt } from './receipts.ts';
 import { missingReceiptStep, receiptDeadlineMs } from './settlementMath.ts';
@@ -75,7 +76,7 @@ export async function handleMissingReceipts(adminClient: SupabaseClient, now = n
       .is('meetup_flagged_at', null)
       .not('payer_request_id', 'is', null),
     adminClient.from('ride_receipts').select('group_id, status').in('group_id', groupIds),
-    adminClient.from('passenger_requests').select('group_id, arrival_at').in('group_id', groupIds),
+    adminClient.from('passenger_requests').select('group_id, arrival_at, ready_at').in('group_id', groupIds),
   ]);
   const receiptStatus = new Map((receipts ?? []).map((r) => [r.group_id, r.status as string]));
 
@@ -83,7 +84,7 @@ export async function handleMissingReceipts(adminClient: SupabaseClient, now = n
     const status = receiptStatus.get(group.id);
     if (status && status !== 'REJECTED') continue;
 
-    const arrivals = (members ?? []).filter((m) => m.group_id === group.id).map((m) => m.arrival_at as string);
+    const arrivals = (members ?? []).filter((m) => m.group_id === group.id).map(readyIso);
     if (!arrivals.length) continue;
     const departureMs = rideDepartureMs(arrivals);
     if (now.getTime() < departureMs) continue;

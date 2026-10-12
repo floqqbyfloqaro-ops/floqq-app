@@ -21,6 +21,7 @@ import {
   PLATFORM_FEE_CENTS,
   rideDepartureMs,
 } from './holdMath.ts';
+import { readyIso } from './readyTimeRule.ts';
 import { freeCancelUntilMs } from './settlementMath.ts';
 
 export type RidePaymentRow = {
@@ -115,7 +116,7 @@ export async function syncGroupHolds(
 
   const { data: members, error: membersError } = await adminClient
     .from('passenger_requests')
-    .select('id, user_id, distance_km, arrival_at')
+    .select('id, user_id, distance_km, arrival_at, ready_at')
     .eq('group_id', groupId);
   if (membersError || !members) return { groupId, outcome: 'members_load_failed' };
 
@@ -169,7 +170,7 @@ export async function syncGroupHolds(
     members.map((m) => ({ id: m.id, distanceKm: Number(m.distance_km) })),
     Number(group.total_fare)
   );
-  const rideMs = rideDepartureMs(members.map((m) => m.arrival_at));
+  const rideMs = rideDepartureMs(members.map(readyIso));
   const rowByRequest = new Map(rows.filter((r) => r.request_id).map((r) => [r.request_id!, r]));
   const freeCancelUntil = new Date(freeCancelUntilMs(rideMs)).toISOString();
 

@@ -27,6 +27,7 @@ import {
 import { BadgeColor, ExistingBadge, pickBadge } from './badgeAssignment.ts';
 import { rideDepartureMs } from './holdMath.ts';
 import { landedPushDue } from './landedRule.ts';
+import { readyIso } from './readyTimeRule.ts';
 import { AssignablePoint, ExistingAssignment, pickMeetingPoint } from './meetingPointAssignment.ts';
 import { sendPush } from './push.ts';
 import type { PushLocale } from './pushMessages.ts';
@@ -51,6 +52,7 @@ type MemberRow = {
   group_id: string;
   user_id: string | null;
   arrival_at: string;
+  ready_at: string | null;
   arrival_terminal: string | null;
   flight_estimated_arrival_at: string | null;
   landed_push_sent_at: string | null;
@@ -68,7 +70,7 @@ export type MeetupUpkeep = {
 };
 
 // Confirmed groups whose ride hasn't started, soonest first. The meeting time is the ride's
-// planned departure: the last landing plus the curb buffer.
+// planned departure: the moment its last member is ready.
 async function loadConfirmedGroups(adminClient: SupabaseClient): Promise<Entry[]> {
   const { data: groupRows } = await adminClient
     .from('taxi_groups')
@@ -80,7 +82,7 @@ async function loadConfirmedGroups(adminClient: SupabaseClient): Promise<Entry[]
 
   const { data: memberRows } = await adminClient
     .from('passenger_requests')
-    .select('id, group_id, user_id, arrival_at, arrival_terminal, flight_estimated_arrival_at, landed_push_sent_at')
+    .select('id, group_id, user_id, arrival_at, ready_at, arrival_terminal, flight_estimated_arrival_at, landed_push_sent_at')
     .in(
       'group_id',
       groups.map((g) => g.id)
@@ -99,7 +101,7 @@ async function loadConfirmedGroups(adminClient: SupabaseClient): Promise<Entry[]
           group,
           members,
           terminal: members[0].arrival_terminal,
-          meetingTimeMs: rideDepartureMs(members.map((m) => m.arrival_at)),
+          meetingTimeMs: rideDepartureMs(members.map(readyIso)),
         },
       ];
     })

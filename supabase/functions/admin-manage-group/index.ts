@@ -46,7 +46,7 @@ function isBody(value: unknown): value is Body {
 }
 
 const GROUP_COLUMNS =
-  'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, arrival_terminal';
+  'id, flight_number, arrival_at, ready_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, arrival_terminal';
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
