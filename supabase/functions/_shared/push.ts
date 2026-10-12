@@ -17,6 +17,10 @@ export type PushRequest = {
   timeIso?: string | null;
   // The settled ride's amounts ("Taxi €38.60 - your share €12.80 ...").
   rideCents?: { total: number; share: number; fee: number; released: number };
+  // Where the group meets, per language; English stands in for a language that has none.
+  place?: Partial<Record<PushLocale, string>>;
+  // The screen a tap opens. Default: My ride.
+  screen?: 'myRide' | 'findGroup';
 };
 
 const euros = (cents: number) => (cents / 100).toFixed(2);
@@ -34,6 +38,7 @@ export async function sendPush(adminClient: SupabaseClient, request: PushRequest
       const { title, body } = renderPushMessage(request.key, pushLocale, {
         amount: request.amountCents != null ? euros(request.amountCents) : undefined,
         time: request.timeIso ? formatPushTime(request.timeIso, pushLocale) : undefined,
+        place: request.place?.[pushLocale] ?? request.place?.en,
         ...(request.rideCents
           ? {
               total: euros(request.rideCents.total),
@@ -43,8 +48,8 @@ export async function sendPush(adminClient: SupabaseClient, request: PushRequest
             }
           : {}),
       });
-      // Tapping any payments notification opens My ride.
-      return { to: token, title, body, sound: 'default', data: { screen: 'myRide' } };
+      // Tapping a notification opens My ride, unless it names another screen.
+      return { to: token, title, body, sound: 'default', data: { screen: request.screen ?? 'myRide' } };
     });
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'application/json' };

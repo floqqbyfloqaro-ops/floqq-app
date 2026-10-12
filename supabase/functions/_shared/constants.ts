@@ -107,3 +107,7 @@ export const NO_SHOW_WAIT_MINUTES = 10;
 // "Find your group": live location sharing switches itself off this long after the ride's planned
 // departure, whatever else happens. Server-side only; the app is given the resulting moment.
 export const MEETUP_SHARING_TIMEOUT_MINUTES = 45;
+
+// The "You've landed" notification is sent at a passenger's expected landing, and no longer once
+// that is this long ago - see _shared/landedRule.ts.
+export const LANDED_PUSH_MAX_LATE_MINUTES = 60;

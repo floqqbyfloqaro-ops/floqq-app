@@ -27,7 +27,8 @@ export type PushMessageKey =
   | 'memberJoined'
   | 'terminalChanged'
   | 'meetingPointChanged'
-  | 'removedNoShow';
+  | 'removedNoShow'
+  | 'landedFindGroup';
 
 export type PushParams = {
   amount?: string;
@@ -36,6 +37,8 @@ export type PushParams = {
   share?: string;
   fee?: string;
   released?: string;
+  // Where the group meets: the meeting point's name, or its terminal.
+  place?: string;
 };
 
 type Template = { title: string; body: string };
@@ -134,6 +137,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Your group left without you',
       body: 'You weren’t at the meeting point, so your group continued. Any reservation on your card was released.',
     },
+    landedFindGroup: {
+      title: 'You’ve landed!',
+      body: 'Find your group at {{place}}.',
+    },
   },
   es: {
     holdOpen: {
@@ -228,6 +235,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'Tu grupo se ha ido sin ti',
       body: 'No estabas en el punto de encuentro, así que tu grupo ha continuado. Cualquier reserva en tu tarjeta se ha liberado.',
     },
+    landedFindGroup: {
+      title: '¡Has aterrizado!',
+      body: 'Encuentra a tu grupo: {{place}}.',
+    },
   },
   fr: {
     holdOpen: {
@@ -321,6 +332,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
     removedNoShow: {
       title: 'Votre groupe est parti sans vous',
       body: 'Vous n’étiez pas au point de rencontre, votre groupe a donc continué. Toute réservation sur votre carte a été libérée.',
+    },
+    landedFindGroup: {
+      title: 'Vous avez atterri !',
+      body: 'Retrouvez votre groupe : {{place}}.',
     },
   },
 };

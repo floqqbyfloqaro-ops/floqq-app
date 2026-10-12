@@ -334,6 +334,12 @@
     "cancelConfirmAction": "Annuler le trajet",
     "cancelError": "Impossible d'annuler votre trajet. Veuillez réessayer."
   },
+  "find_my_group_button": "Trouver mon groupe",
+  "find_my_group_landed": "Vous avez atterri - retrouvons votre groupe",
+  "guidance_starts_on_landing": "Le guidage commence à votre atterrissage",
+  "find_my_group_helper": "Terminal {{terminal}} - {{name}} à {{time}}",
+  "find_my_group_helper_terminal": "Terminal {{terminal}} à {{time}}",
+  "find_my_group_helper_time": "Rendez-vous à {{time}}",
   "adminAirlines": {
     "tab": "Compagnies",
     "title": "Terminaux des compagnies",
@@ -465,6 +471,8 @@
     "title": "Retrouvez votre groupe",
     "subtitle": "Suivez la flèche jusqu’à votre point de rencontre. Partager votre position avec votre groupe est facultatif.",
     "windowClosed": "Le partage de position s'ouvre à l'atterrissage du premier voyageur, vers {{time}}.",
+    "memberLands": "Atterrit à {{time}}",
+    "memberLanded": "A atterri",
     "timedOut": "Ce rendez-vous est terminé : le partage de position est désactivé.",
     "ended": "Votre trajet a commencé. Le partage de position est désactivé.",
     "noGroup": "Vous ne faites plus partie d'un groupe confirmé.",

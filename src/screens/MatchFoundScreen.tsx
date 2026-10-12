@@ -2,10 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Avatar from '../components/Avatar';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
+import FindMyGroupButton from '../components/FindMyGroupButton';
 import PrimaryButton from '../components/PrimaryButton';
 import RouteMap from '../components/RouteMap';
 import ScreenBackground from '../components/ScreenBackground';
@@ -31,6 +33,8 @@ type Props = {
   onBack: () => void;
   onEdit: () => void;
   onOpenProfile: () => void;
+  // "Find my group" on a confirmed group: opens the meetup screen.
+  onFindGroup: () => void;
   // The passenger left the group ("Not for me"): their ride is searching again.
   onLeft: () => void;
 };
@@ -102,8 +106,9 @@ function OfferCountdown({ expiresAt }: { expiresAt: string }) {
 // spot" or "Not for me" - within the response window. Once the group is confirmed the same
 // screen stays up, read-only. MyRideScreen decides when it is shown and leaves it when the group
 // is gone.
-export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfile, onLeft }: Props) {
+export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfile, onFindGroup, onLeft }: Props) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   const [offer, setOffer] = useState<MatchOffer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -494,6 +499,15 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
           </>
         )}
       </ScrollView>
+
+      {/* The confirmed group's main action, pinned below the scrolling content so it is on screen
+          without scrolling, clear of the phone's bottom edge. Renders nothing once the ride has
+          started. */}
+      {isConfirmed ? (
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.x4) }]}>
+          <FindMyGroupButton request={request} onPress={onFindGroup} />
+        </View>
+      ) : null}
     </ScreenBackground>
   );
 }
@@ -506,6 +520,13 @@ const styles = StyleSheet.create({
     paddingTop: spacing.x12,
     paddingHorizontal: spacing.x6,
     paddingBottom: spacing.x12,
+  },
+  footer: {
+    paddingTop: spacing.x4,
+    paddingHorizontal: spacing.x6,
+    borderTopWidth: borders.regular,
+    borderTopColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceCardSolid,
   },
   backButton: {
     alignSelf: 'flex-start',

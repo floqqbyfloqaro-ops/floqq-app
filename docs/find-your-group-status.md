@@ -43,6 +43,25 @@ Built, not yet deployed or tried on a phone; `npm test` passes (167 tests).
 Still to test: a known airline, an unknown airline, a codeshare number, "Not correct?", editing a
 ride, a flight more than two days ahead, the Airlines tab (change, add, remove), and the warning.
 
+## "Find my group" entry (branch `feat/find-my-group-entry`, 2026-10-12)
+
+Built, not yet deployed or tried on a phone; `npm test` passes (187 tests).
+
+- **Button.** "Find my group", primary and pinned to the bottom of the confirmed-group screen
+  (and on the My ride card), with the meeting point and time under it. Hidden once the ride has
+  started or the group is gone.
+- **Preview.** Until the passenger's own landing, "Find your group" shows the meeting point, the
+  members with "Lands at 17:05" / "Landed" and the badge - and reads no location at all.
+- **Landed.** From the passenger's expected landing (the flight's latest estimate, otherwise the
+  ride's arrival time) the button pulses and guidance may run, as built before.
+- **Notification.** "You've landed!" once per ride, at the expected landing; a tap opens "Find
+  your group". Push no longer depends on the payments switch.
+- **App open.** Opening the app after landing goes straight to "Find your group", once per ride.
+- **Audit event** `find_group_opened` (state and source only).
+
+Still to test on a phone: a group confirmed the day before (preview, no location prompt), then a
+landing (highlight, notification, direct opening, back to the confirmed group).
+
 ## Before anything can be tested
 
 - [ ] A development build. iPhone: EAS has no iOS credentials for this project yet, so run

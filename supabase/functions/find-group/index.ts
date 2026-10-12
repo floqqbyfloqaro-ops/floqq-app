@@ -16,6 +16,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { MEETUP_SHARING_TIMEOUT_MINUTES, NO_SHOW_WAIT_MINUTES } from '../_shared/constants.ts';
 import { rideDepartureMs } from '../_shared/holdMath.ts';
+import { expectedLandingIso } from '../_shared/landedRule.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,7 +94,9 @@ Deno.serve(async (req) => {
 
   const { data: memberRows } = await adminClient
     .from('passenger_requests')
-    .select('id, passenger_name, arrival_at, arrival_terminal, found_group_at, meeting_point_arrived_at')
+    .select(
+      'id, passenger_name, arrival_at, flight_estimated_arrival_at, arrival_terminal, found_group_at, meeting_point_arrived_at'
+    )
     .eq('group_id', group.id)
     .order('arrival_at', { ascending: true })
     .order('id', { ascending: true });
@@ -145,6 +148,9 @@ Deno.serve(async (req) => {
         requestId: member.id,
         isMe: member.id === requestId,
         firstName: firstName(member.passenger_name),
+        // When this member lands: their flight's latest estimate, otherwise their ride's own
+        // arrival time. A time only - no flight number.
+        expectedLandingAt: expectedLandingIso(member),
         // When this member confirmed "I've found my group"; null: not yet.
         foundAt: member.found_group_at,
         // When this member said (or their phone detected) they are at the meeting point; null:

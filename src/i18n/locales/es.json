@@ -330,6 +330,12 @@
     "cancelConfirmAction": "Cancelar trayecto",
     "cancelError": "No pudimos cancelar tu trayecto. Inténtalo de nuevo."
   },
+  "find_my_group_button": "Encontrar a mi grupo",
+  "find_my_group_landed": "Has aterrizado - vamos a encontrar a tu grupo",
+  "guidance_starts_on_landing": "La guía empieza cuando aterrices",
+  "find_my_group_helper": "Terminal {{terminal}} - {{name}} a las {{time}}",
+  "find_my_group_helper_terminal": "Terminal {{terminal}} a las {{time}}",
+  "find_my_group_helper_time": "Encuentro a las {{time}}",
   "adminAirlines": {
     "tab": "Aerolíneas",
     "title": "Terminales de las aerolíneas",
@@ -461,6 +467,8 @@
     "title": "Encuentra a tu grupo",
     "subtitle": "Sigue la flecha hasta tu punto de encuentro. Compartir tu ubicación con tu grupo es opcional.",
     "windowClosed": "Podrás compartir tu ubicación cuando aterrice el primer viajero, hacia las {{time}}.",
+    "memberLands": "Aterriza a las {{time}}",
+    "memberLanded": "Ha aterrizado",
     "timedOut": "Este encuentro ha terminado, así que la ubicación ya no se comparte.",
     "ended": "Tu trayecto ha empezado. La ubicación ya no se comparte.",
     "noGroup": "Ya no estás en un grupo confirmado.",

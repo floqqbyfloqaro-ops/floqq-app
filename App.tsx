@@ -2,8 +2,9 @@ import './src/i18n';
 
 import type { Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
-import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AdminScreen from './src/screens/AdminScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
@@ -19,6 +20,8 @@ import { ADMIN_EMAIL, PAYMENTS_ENABLED } from './src/constants';
 import WebAppFrame from './src/components/WebAppFrame';
 import { handleStripeRedirect } from './src/services/cardSetup';
 import { parseEmailVerifiedLink } from './src/services/emailVerification';
+import type { FindGroupOpenSource } from './src/services/findGroup';
+import { shouldOpenFindGroupNow } from './src/services/findGroupAutoOpen';
 import { registerPushToken, useTappedNotification } from './src/services/pushNotifications';
 import { hasCompletedOnboarding, setOnboardingCompleted } from './src/services/onboarding';
 import { supabase } from './src/services/supabase';
@@ -31,9 +34,11 @@ const MIN_SPLASH_MS = 4000;
 
 export default function App() {
   return (
-    <WebAppFrame>
-      <AppContent />
-    </WebAppFrame>
+    <SafeAreaProvider>
+      <WebAppFrame>
+        <AppContent />
+      </WebAppFrame>
+    </SafeAreaProvider>
   );
 }
 
@@ -47,6 +52,17 @@ function AppContent() {
   const [mainScreen, setMainScreen] = useState<'home' | 'newRequest' | 'myRide' | 'admin' | 'profile'>('home');
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [showEmailVerified, setShowEmailVerified] = useState(false);
+  // Set to take My ride straight to "Find your group" (a new nonce each time).
+  const [openFindGroup, setOpenFindGroup] = useState<{ nonce: number; source: FindGroupOpenSource } | null>(null);
+  const mainScreenRef = useRef(mainScreen);
+  mainScreenRef.current = mainScreen;
+
+  const clearOpenFindGroup = useCallback(() => setOpenFindGroup(null), []);
+
+  const goToFindGroup = (source: FindGroupOpenSource) => {
+    setOpenFindGroup({ nonce: Date.now(), source });
+    setMainScreen('myRide');
+  };
 
   // "Open FLOQQ" on the email-verified page (docs/email-verified.html) opens
   // floqq://email-verified#access_token=…&refresh_token=… - log the passenger straight in and
@@ -79,7 +95,7 @@ function AppContent() {
       });
   }, [linkingUrl]);
 
-  // Payments prototype: register this phone for push notifications once someone is logged in.
+  // Register this phone for push notifications once someone is logged in.
   const userId = session?.user?.id;
   useEffect(() => {
     if (userId) registerPushToken();
@@ -89,13 +105,36 @@ function AppContent() {
   const tappedNotification = useTappedNotification();
   const handledNotificationRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!PAYMENTS_ENABLED || !userId || !tappedNotification) return;
+    if (!userId || !tappedNotification) return;
     if (handledNotificationRef.current === tappedNotification.id) return;
     handledNotificationRef.current = tappedNotification.id;
-    if (tappedNotification.screen === 'myRide') {
+    if (tappedNotification.screen === 'findGroup') {
+      goToFindGroup('notification');
+    } else if (tappedNotification.screen === 'myRide') {
       setMainScreen('myRide');
     }
   }, [tappedNotification, userId]);
+
+  // Opening the app (or coming back to it) after landing goes straight to "Find your group"
+  // instead of Home - once per ride, and only from Home: never away from what the passenger is
+  // doing.
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    const check = async () => {
+      if (mainScreenRef.current !== 'home') return;
+      const open = await shouldOpenFindGroupNow();
+      if (!cancelled && open && mainScreenRef.current === 'home') goToFindGroup('app_open');
+    };
+    check();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') check();
+    });
+    return () => {
+      cancelled = true;
+      subscription.remove();
+    };
+  }, [userId]);
 
   const openNewRequest = (requestId?: string) => {
     setEditingRequestId(requestId ?? null);
@@ -168,6 +207,8 @@ function AppContent() {
           onBack={() => setMainScreen('home')}
           onCreateRequest={openNewRequest}
           onOpenProfile={() => setMainScreen('profile')}
+          openFindGroup={openFindGroup}
+          onFindGroupOpened={clearOpenFindGroup}
         />
       );
     }

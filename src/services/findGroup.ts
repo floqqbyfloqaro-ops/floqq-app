@@ -7,6 +7,8 @@ export type MeetupMember = {
   requestId: string;
   isMe: boolean;
   firstName: string | null;
+  // When this member lands: their flight's latest estimate, otherwise their ride's arrival time.
+  expectedLandingAt: string;
   // When this member confirmed "I've found my group"; null: not yet.
   foundAt: string | null;
   // When this member said (or their phone detected) they are at the meeting point; null: not there.
@@ -93,6 +95,19 @@ export async function continueWithout(requestId: string, targetRequestId: string
   const context = (error as { context?: Response }).context;
   const body = context ? await context.json().catch(() => null) : null;
   return { ok: false, error: (body?.error as string | undefined) ?? 'continue_failed' };
+}
+
+export type FindGroupOpenSource = 'button' | 'notification' | 'app_open';
+
+// Audit trail: that the passenger opened "Find your group", in which state and how they got there
+// - never where they are. Best effort: the screen doesn't depend on it.
+export async function logFindGroupOpened(requestId: string, state: 'preview' | 'landed', source: FindGroupOpenSource) {
+  const { error } = await supabase.rpc('log_find_group_opened', {
+    p_request_id: requestId,
+    p_state: state,
+    p_source: source,
+  });
+  if (error) console.warn('log_find_group_opened failed', error.message);
 }
 
 export type SharingStopReason = 'user' | 'background' | 'left_screen' | 'timeout' | 'group_ended' | 'permission';

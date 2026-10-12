@@ -1,34 +1,29 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { PAYMENTS_ENABLED } from '../constants';
 import i18n from '../i18n';
 import { supabase } from './supabase';
 
-// Push notifications for the payments prototype (seat reservation reminders etc., sent by the
-// Edge Functions through Expo's push service - see supabase/functions/_shared/push.ts). Behind
-// PAYMENTS_ENABLED like the rest of the prototype. Never asks for permission itself: onboarding
+// Push notifications (a match found, "You've landed", seat reservation reminders etc., sent by
+// the Edge Functions through Expo's push service - see supabase/functions/_shared/push.ts). Not
+// tied to the payments switch: the meetup needs them too. Never asks for permission itself: onboarding
 // already does; a phone without permission simply isn't registered. The web build uses
 // pushNotifications.web.ts instead (no push on web).
 
 let registeredToken: string | null = null;
 
-if (PAYMENTS_ENABLED) {
-  // Show notifications as a banner while the app is open, too.
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }),
-  });
-}
+// Show notifications as a banner while the app is open, too.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 // Registers this phone for the logged-in user, in the app's current language.
 export async function registerPushToken(): Promise<void> {
-  if (!PAYMENTS_ENABLED) return;
-
   try {
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== 'granted') return;

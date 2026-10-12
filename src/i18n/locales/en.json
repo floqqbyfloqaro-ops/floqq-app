@@ -334,6 +334,12 @@
     "cancelConfirmAction": "Cancel ride",
     "cancelError": "We couldn't cancel your ride. Please try again."
   },
+  "find_my_group_button": "Find my group",
+  "find_my_group_landed": "You've landed - let's find your group",
+  "guidance_starts_on_landing": "Guidance starts when you land",
+  "find_my_group_helper": "Terminal {{terminal}} - {{name}} at {{time}}",
+  "find_my_group_helper_terminal": "Terminal {{terminal}} at {{time}}",
+  "find_my_group_helper_time": "Meeting at {{time}}",
   "adminAirlines": {
     "tab": "Airlines",
     "title": "Airline terminals",
@@ -465,6 +471,8 @@
     "title": "Find your group",
     "subtitle": "Follow the arrow to your meeting point. Sharing your location with your group is optional.",
     "windowClosed": "Location sharing opens when the first traveler lands, around {{time}}.",
+    "memberLands": "Lands at {{time}}",
+    "memberLanded": "Landed",
     "timedOut": "This meetup has ended, so location sharing is off.",
     "ended": "Your ride has started. Location sharing is off.",
     "noGroup": "You're no longer in a confirmed group.",
