@@ -166,6 +166,9 @@ Deno.serve(async (req) => {
 
       if (snapshot) {
         if (snapshot.scheduledDeparture) update.flight_scheduled_departure_at = snapshot.scheduledDeparture;
+        // Kept for every ride, also in a confirmed group whose own times are left alone: it is
+        // what "You've landed" goes by (_shared/landedRule.ts).
+        if (snapshot.estimatedLanding) update.flight_estimated_arrival_at = snapshot.estimatedLanding;
         if (snapshot.scheduledLanding && ms(snapshot.scheduledLanding) !== ms(ride.scheduled_arrival_at)) {
           update.scheduled_arrival_at = snapshot.scheduledLanding;
         }

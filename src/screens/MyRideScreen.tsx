@@ -5,14 +5,15 @@ import { AppState, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import CancelConfirmedRide from '../components/CancelConfirmedRide';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
+import FindMyGroupButton from '../components/FindMyGroupButton';
 import PayerCard from '../components/PayerCard';
 import PrimaryButton from '../components/PrimaryButton';
 import RideHoldCard from '../components/RideHoldCard';
 import ScreenBackground from '../components/ScreenBackground';
-import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
 import { PAYMENTS_ENABLED, SERVICE_FEE_EUR } from '../constants';
+import { FindGroupOpenSource } from '../services/findGroup';
 import { subscribeToRide } from '../services/matchOffer';
 import { MeetingPointSummary, meetingPointText, wordingLanguageFor } from '../services/meetingPointRules';
 import { fetchMeetingPointSummary, shippedText } from '../services/meetingPoints';
@@ -27,6 +28,11 @@ type Props = {
   onBack: () => void;
   onCreateRequest: (requestId?: string) => void;
   onOpenProfile: () => void;
+  // Set (with a new nonce each time) to go straight to "Find your group": a tapped "You've
+  // landed" notification, or the app being opened after landing.
+  openFindGroup?: { nonce: number; source: FindGroupOpenSource } | null;
+  // Called once that was acted on, so coming back to this screen later doesn't repeat it.
+  onFindGroupOpened?: () => void;
 };
 
 type SubScreen = 'findingMatch' | 'matchFound' | 'findGroup' | null;
@@ -35,7 +41,7 @@ type SubScreen = 'findingMatch' | 'matchFound' | 'findGroup' | null;
 // of the live updates - a safety net for a missed one.
 const LIVE_RECHECK_MS = 15_000;
 
-export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }: Props) {
+export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, openFindGroup, onFindGroupOpened }: Props) {
   const { t, i18n } = useTranslation();
 
   const [request, setRequest] = useState<MyPassengerRequest | null>(null);
@@ -47,6 +53,26 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [meetingPoint, setMeetingPoint] = useState<MeetingPointSummary | null>(null);
+  // "Find your group": how it was opened (for the audit trail) and where its back button leads.
+  const [findGroupSource, setFindGroupSource] = useState<FindGroupOpenSource>('button');
+  const [findGroupReturn, setFindGroupReturn] = useState<SubScreen>(null);
+
+  const showFindGroup = (source: FindGroupOpenSource, returnTo: SubScreen) => {
+    setFindGroupSource(source);
+    setFindGroupReturn(returnTo);
+    setSubScreen('findGroup');
+  };
+
+  // Opened from outside this screen: back then leads to the confirmed group.
+  const openNonce = openFindGroup?.nonce;
+  const openSource = openFindGroup?.source;
+  useEffect(() => {
+    if (openNonce == null || !openSource) return;
+    setFindGroupSource(openSource);
+    setFindGroupReturn('matchFound');
+    setSubScreen('findGroup');
+    onFindGroupOpened?.();
+  }, [openNonce, openSource, onFindGroupOpened]);
 
   const loadData = useCallback(async () => {
     setErrorMessage(null);
@@ -192,6 +218,7 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
         onBack={() => setSubScreen(null)}
         onEdit={() => onCreateRequest(request.id)}
         onOpenProfile={onOpenProfile}
+        onFindGroup={() => showFindGroup('button', 'matchFound')}
         onLeft={() => {
           setSubScreen('findingMatch');
           loadData();
@@ -204,8 +231,9 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
     return (
       <GroupDetailsScreen
         request={request}
+        openedFrom={findGroupSource}
         onBack={() => {
-          setSubScreen(null);
+          setSubScreen(findGroupReturn);
           loadData();
         }}
       />
@@ -320,11 +348,7 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile }:
             ) : null}
             {group?.status === 'confirmed' ? (
               <View style={styles.findGroupButton}>
-                <SecondaryButton
-                  label={t('myRide.findGroupButton')}
-                  icon="people-outline"
-                  onPress={() => setSubScreen('findGroup')}
-                />
+                <FindMyGroupButton request={request} onPress={() => showFindGroup('button', null)} />
               </View>
             ) : null}
             {group?.status === 'confirmed' ? (
@@ -403,7 +427,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.x3,
   },
   findGroupButton: {
-    marginTop: spacing.x3,
+    marginTop: spacing.x4,
+    marginBottom: spacing.x3,
   },
   meetAt: {
     ...baseText.body,

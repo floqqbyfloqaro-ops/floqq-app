@@ -9,18 +9,27 @@
 //      the admin overrides it (admin_set_group_meeting_point).
 //   2. A badge (badgeAssignment.ts): assigned once and never changed, not even when the meeting
 //      time shifts, because members may already have seen it.
-//   3. The end: MEETUP_SHARING_TIMEOUT_MINUTES after the planned departure a group that was found
+//   3. "You've landed": each member is told once, at their expected landing (landedRule.ts), to
+//      find their group at its meeting point. Tapping it opens "Find your group".
+//   4. The end: MEETUP_SHARING_TIMEOUT_MINUTES after the planned departure a group that was found
 //      is marked as started; so is one whose payer sent a taxi receipt (the ride evidently took
 //      place). A group that never met is NOT marked started: it is flagged for the admin, and
 //      while it is flagged no payment step runs for it.
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
-import { BADGE_WINDOW_MINUTES, MEETING_WINDOW_MINUTES, MEETUP_SHARING_TIMEOUT_MINUTES } from './constants.ts';
+import {
+  BADGE_WINDOW_MINUTES,
+  LANDED_PUSH_MAX_LATE_MINUTES,
+  MEETING_WINDOW_MINUTES,
+  MEETUP_SHARING_TIMEOUT_MINUTES,
+} from './constants.ts';
 import { BadgeColor, ExistingBadge, pickBadge } from './badgeAssignment.ts';
 import { rideDepartureMs } from './holdMath.ts';
+import { landedPushDue } from './landedRule.ts';
 import { AssignablePoint, ExistingAssignment, pickMeetingPoint } from './meetingPointAssignment.ts';
 import { sendPush } from './push.ts';
+import type { PushLocale } from './pushMessages.ts';
 
 const MINUTE_MS = 60_000;
 
@@ -37,7 +46,15 @@ type GroupRow = {
   meetup_completed_at: string | null;
   meetup_flagged_at: string | null;
 };
-type MemberRow = { group_id: string; user_id: string | null; arrival_at: string; arrival_terminal: string | null };
+type MemberRow = {
+  id: string;
+  group_id: string;
+  user_id: string | null;
+  arrival_at: string;
+  arrival_terminal: string | null;
+  flight_estimated_arrival_at: string | null;
+  landed_push_sent_at: string | null;
+};
 
 type Entry = { group: GroupRow; members: MemberRow[]; terminal: string | null; meetingTimeMs: number };
 
@@ -47,6 +64,7 @@ export type MeetupUpkeep = {
   badgesAssigned: number;
   ridesStarted: number;
   flaggedForReview: number;
+  landedPushes: number;
 };
 
 // Confirmed groups whose ride hasn't started, soonest first. The meeting time is the ride's
@@ -62,7 +80,7 @@ async function loadConfirmedGroups(adminClient: SupabaseClient): Promise<Entry[]
 
   const { data: memberRows } = await adminClient
     .from('passenger_requests')
-    .select('group_id, user_id, arrival_at, arrival_terminal')
+    .select('id, group_id, user_id, arrival_at, arrival_terminal, flight_estimated_arrival_at, landed_push_sent_at')
     .in(
       'group_id',
       groups.map((g) => g.id)
@@ -207,6 +225,59 @@ async function assignBadges(adminClient: SupabaseClient, upcoming: Entry[], run:
   }
 }
 
+const PUSH_LOCALES: PushLocale[] = ['en', 'es', 'fr'];
+
+// "T1" -> "Terminal 1", "T2B" -> "Terminal 2B".
+const terminalName = (terminal: string) => `Terminal ${terminal.replace(/^T/, '')}`;
+
+// Runs after the meeting points, so the notification can name the one just assigned.
+async function sendLandedPushes(adminClient: SupabaseClient, upcoming: Entry[], now: Date, run: MeetupUpkeep): Promise<void> {
+  const due = upcoming.flatMap((entry) =>
+    // A group that has already found each other needs no pointing to the meeting point.
+    entry.group.meetup_completed_at
+      ? []
+      : entry.members
+          .filter((member) => landedPushDue(member, now.getTime(), LANDED_PUSH_MAX_LATE_MINUTES))
+          .map((member) => ({ entry, member }))
+  );
+  if (due.length === 0) return;
+
+  const pointIds = [...new Set(due.map(({ entry }) => entry.group.meeting_point_id).filter((id): id is string => id != null))];
+  const { data: pointRows } = pointIds.length
+    ? await adminClient.from('meeting_points').select('id, terminal, name_i18n').in('id', pointIds)
+    : { data: [] };
+  const points = new Map(
+    (pointRows ?? []).map((p) => [p.id as string, p as { terminal: string; name_i18n: Record<string, string> | null }])
+  );
+
+  for (const { entry, member } of due) {
+    // Only if it wasn't sent yet: once per ride, whatever happens to the notification itself.
+    const { data: claimed } = await adminClient
+      .from('passenger_requests')
+      .update({ landed_push_sent_at: now.toISOString() })
+      .eq('id', member.id)
+      .is('landed_push_sent_at', null)
+      .select('id');
+    if (!claimed?.length) continue;
+    member.landed_push_sent_at = now.toISOString();
+    if (!member.user_id) continue;
+
+    // The point's name where the admin worded it; the app's own shipped wording isn't available
+    // here, so otherwise the terminal - the first thing a passenger must know anyway.
+    const point = entry.group.meeting_point_id ? points.get(entry.group.meeting_point_id) : null;
+    const terminal = point?.terminal ?? entry.terminal;
+    const fallback = terminal ? terminalName(terminal) : 'FLOQQ';
+    const place: Partial<Record<PushLocale, string>> = {};
+    for (const locale of PUSH_LOCALES) {
+      const name = point?.name_i18n?.[locale]?.trim();
+      place[locale] = name ? `${fallback} - ${name}` : fallback;
+    }
+
+    await sendPush(adminClient, { userId: member.user_id, key: 'landedFindGroup', place, screen: 'findGroup' });
+    run.landedPushes += 1;
+  }
+}
+
 async function closeMeetups(adminClient: SupabaseClient, entries: Entry[], now: Date, run: MeetupUpkeep): Promise<void> {
   const nowMs = now.getTime();
   const overdue = entries.filter(({ meetingTimeMs }) => {
@@ -272,6 +343,7 @@ export async function runMeetupUpkeep(adminClient: SupabaseClient, now = new Dat
     badgesAssigned: 0,
     ridesStarted: 0,
     flaggedForReview: 0,
+    landedPushes: 0,
   };
 
   const entries = await loadConfirmedGroups(adminClient);
@@ -283,6 +355,7 @@ export async function runMeetupUpkeep(adminClient: SupabaseClient, now = new Dat
 
   await assignMeetingPoints(adminClient, upcoming, run);
   await assignBadges(adminClient, upcoming, run);
+  await sendLandedPushes(adminClient, upcoming, now, run);
   await closeMeetups(adminClient, entries, now, run);
 
   return run;

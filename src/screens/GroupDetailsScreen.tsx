@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useKeepAwake } from 'expo-keep-awake';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -18,15 +18,27 @@ import Skeleton from '../components/Skeleton';
 import { useGuidance } from '../hooks/useGuidance';
 import { useLocationSharing } from '../hooks/useLocationSharing';
 import { useOwnLocation } from '../hooks/useOwnLocation';
-import { fetchMeetup, markArrived, Meetup, MeetupMember, undoArrival } from '../services/findGroup';
+import {
+  fetchMeetup,
+  FindGroupOpenSource,
+  logFindGroupOpened,
+  markArrived,
+  Meetup,
+  MeetupMember,
+  undoArrival,
+} from '../services/findGroup';
+import { findGroupEntryState, hasLanded, locationMayRun } from '../services/findGroupEntryRules';
 import { memberSharingStatus } from '../services/locationSharingRules';
 import { subscribeToRide } from '../services/matchOffer';
 import { MyPassengerRequest } from '../services/passengerRequests';
 import { baseText, borders, colors, overlays, radii, spacing } from '../theme/colors';
+import { barcelonaDateParts } from '../utils/formatDateTime';
 
 type Props = {
   request: MyPassengerRequest;
   onBack: () => void;
+  // How the passenger got here, for the audit trail.
+  openedFrom?: FindGroupOpenSource;
 };
 
 // How often the group is re-read on top of the live updates (a safety net for a missed one), and
@@ -54,8 +66,11 @@ function KeepScreenAwake() {
 //     (and only them), which is what "sharing / last seen" in the members list comes from.
 //   - The badge and "I'm at the meeting point": need no location at all, so nothing ever blocks
 //     the meetup.
+// Before the passenger has landed the screen is a calm preview (findGroupEntryRules.ts): where and
+// when the group meets, who is in it and when they land, the badge - and no location at all: none
+// is read, and none is asked for.
 // Not the same file as GroupDetailScreen.tsx, which is the admin-facing fare-split/confirm screen.
-export default function GroupDetailsScreen({ request, onBack }: Props) {
+export default function GroupDetailsScreen({ request, onBack, openedFrom = 'button' }: Props) {
   const { t } = useTranslation();
 
   const [meetup, setMeetup] = useState<Meetup | null>(null);
@@ -114,16 +129,30 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
   const groupFound = meetup?.meetupCompletedAt != null;
   // The meetup is on: someone has landed, and the ride hasn't started.
   const meetupRunning = meetup != null && windowOpen && !timedOut && !rideStarted;
-  const sharingAllowed = meetupRunning && !groupFound;
+
+  // Preview until the passenger's own landing; only from then on may the location be used.
+  const entryState = findGroupEntryState(meetup, now);
+  const isPreview = entryState === 'preview';
+  const locationAllowed = locationMayRun(entryState);
+  const sharingAllowed = meetupRunning && !groupFound && locationAllowed;
 
   const me = meetup?.members.find((member) => member.isMe) ?? null;
   const arrived = me?.arrivedAt != null;
 
+  // Audit trail: once per visit, as soon as it is known what was opened.
+  const loggedOpen = useRef(false);
+  useEffect(() => {
+    if (loggedOpen.current || entryState === 'hidden') return;
+    loggedOpen.current = true;
+    logFindGroupOpened(request.id, entryState, openedFrom);
+  }, [entryState, openedFrom, request.id]);
+
   const point = meetup?.meetingPoint ?? null;
   const target = point?.latitude != null && point.longitude != null ? { lat: point.latitude, lng: point.longitude } : null;
 
-  // Guidance: the phone's own position, read whenever there is a meeting point to walk to.
-  const ownLocation = useOwnLocation(meetup != null && !rideStarted && !timedOut);
+  // Guidance: the phone's own position, read whenever there is a meeting point to walk to - once
+  // the passenger has landed.
+  const ownLocation = useOwnLocation(meetup != null && locationAllowed && !rideStarted && !timedOut);
   const hasLocation = ownLocation.access === 'granted';
 
   const handleArrival = useCallback(
@@ -221,6 +250,13 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
   // over what their location sharing says.
   const memberStatus = (member: MeetupMember): { text: string; live: boolean } => {
     if (member.arrivedAt != null) return { text: t('guidance.memberArrived'), live: true };
+    // Still in the air: when they land. And while this passenger hasn't landed themselves, the
+    // others' flight status is all there is to say - nobody shares a location yet.
+    if (member.expectedLandingAt && !hasLanded(member.expectedLandingAt, now)) {
+      const { hour, minute } = barcelonaDateParts(member.expectedLandingAt);
+      return { text: t('findGroup.memberLands', { time: `${hour}:${minute}` }), live: false };
+    }
+    if (isPreview) return { text: t('findGroup.memberLanded'), live: true };
     if (member.isMe) {
       if (!sharing.isSharing) return { text: t('findGroup.youNotSharing'), live: false };
       const accuracy = ownLocation.fix?.accuracy;
@@ -269,7 +305,8 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
           : null;
 
   // The arrow and its states: only with a meeting point to walk to and a location to walk from.
-  const showGuidance = meetup != null && point != null && target != null && hasLocation && !rideStarted && !timedOut;
+  const showGuidance =
+    meetup != null && point != null && target != null && locationAllowed && hasLocation && !rideStarted && !timedOut;
   const face = guidanceFace(guidance, arrived);
 
   return (
@@ -327,11 +364,13 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
                       ? t('findGroup.groupFound')
                       : timedOut
                         ? t('findGroup.timedOut')
-                        : !windowOpen
-                          ? t('findGroup.windowClosed', {
-                              time: new Date(meetup.windowOpensAt).toLocaleTimeString([], { timeStyle: 'short' }),
-                            })
-                          : t('findGroup.subtitle')}
+                        : isPreview
+                          ? t('guidance_starts_on_landing')
+                          : !windowOpen
+                            ? t('findGroup.windowClosed', {
+                                time: new Date(meetup.windowOpensAt).toLocaleTimeString([], { timeStyle: 'short' }),
+                              })
+                            : t('findGroup.subtitle')}
                 </Text>
 
                 {showGuidance && point ? (
@@ -382,7 +421,7 @@ export default function GroupDetailsScreen({ request, onBack }: Props) {
 
                 {/* No location yet: offer the arrow, or say why there is none. Nothing here is
                     needed to meet - the card above and the badge are enough. */}
-                {target != null && !rideStarted && !timedOut && !hasLocation ? (
+                {target != null && locationAllowed && !rideStarted && !timedOut && !hasLocation ? (
                   ownLocation.access === 'undetermined' ? (
                     <Card style={styles.card}>
                       <Text style={styles.noticeText}>{t('guidance.locationStaysLocal')}</Text>
