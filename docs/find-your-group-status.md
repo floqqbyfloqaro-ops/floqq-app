@@ -10,7 +10,7 @@ Last updated 2026-10-09. Everything below is built and its server side is **live
   the admin screens follow it.
 - **Request form.** Flight number optional, terminal required when the flight gives none, typed
   times read as Barcelona time, terminal prefilled from location near a verified meeting point.
-- **Flight refresh schedule.** Lookups at 48 / 24 / 6 / 2 h before landing, then every 10 min
+- **Flight refresh schedule.** Lookups at 48 / 24 / 6 / 2 h before landing, then every 30 min
   from scheduled departure until landed; one lookup per flight.
 - **Meeting points.** Table, nine inactive BCN candidates, admin "capture on site" tool (GPS or
   map pin, photo, wording in EN/FR/ES, verify, activate), automatic assignment per confirmed

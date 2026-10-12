@@ -1,7 +1,7 @@
 // Follows the flights of active rides after the passenger entered them - the automatic follow-up
 // to the lookup done in the request form (src/services/flightStatus.ts). Runs every 5 minutes, but
 // only looks a flight up when it is due (_shared/flightRefresh.ts): nothing earlier than 48 hours
-// before landing, a few checkpoints after that, then about every 10 minutes from the scheduled
+// before landing, a few checkpoints after that, then about every 30 minutes from the scheduled
 // departure until the flight has landed. Each lookup is a paid FlightAware call, so rides on the
 // same flight share one.
 //
