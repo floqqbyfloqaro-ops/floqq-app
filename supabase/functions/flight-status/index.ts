@@ -1,16 +1,22 @@
 // Looks up a flight's real-time status via FlightAware AeroAPI so the flight entry screen
 // (src/screens/NewRequestScreen.tsx) can prefill the estimated landing time instead of relying
-// solely on whatever arrival time the passenger guesses.
+// solely on whatever arrival time the passenger guesses - and tells it the arrival terminal: the
+// one the flight data names, otherwise the one the flight's airline lands at (airline_terminals).
 //
 // The AeroAPI key has no app-identity restriction option (unlike the Google Maps key), so it
 // must never reach the client bundle - it lives only as this function's FLIGHTAWARE_API_KEY
-// secret. Deployed with the default JWT verification (any logged-in app user may call this);
-// unlike match-and-group, there's no cron path and no need for a service-role client here.
+// secret. Deployed with the default JWT verification (any logged-in app user may call this).
+// The service-role client is only for the kept lookups and the airline table.
 //
 // expectedArrivalAt (the passenger's currently-selected arrival date) anchors which occurrence of
-// a reused flight number/ident gets picked - see _shared/flightLookup.ts.
+// a reused flight number/ident gets picked - see _shared/flightLookup.ts. Each lookup is paid, so
+// one is kept per flight and day and reused.
 
-import { AEROAPI_BASE_URL, flightSnapshot, pickBestFlight } from '../_shared/flightLookup.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
+import { airlineCodeOf, airlineTerminal } from '../_shared/airlineTerminalRule.ts';
+import { loadAirlineTerminals, recordTerminalMismatch } from '../_shared/airlineTerminals.ts';
+import { airportDayKey, cachedLookupFlight, formCacheMaxAgeMs } from '../_shared/flightLookup.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -54,27 +60,47 @@ Deno.serve(async (req) => {
   const anchorDate = expectedArrivalAt ? new Date(expectedArrivalAt) : null;
   const anchorMs = anchorDate && !Number.isNaN(anchorDate.getTime()) ? anchorDate.getTime() : Date.now();
 
-  const response = await fetch(`${AEROAPI_BASE_URL}/flights/${encodeURIComponent(flightNumber)}`, {
-    headers: { 'x-apikey': apiKey },
-  });
+  const adminClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-  if (!response.ok) {
-    return jsonResponse({ found: false });
+  const [snapshot, airlines] = await Promise.all([
+    cachedLookupFlight(adminClient, flightNumber, anchorMs, apiKey, formCacheMaxAgeMs(anchorMs, Date.now())).catch(
+      (err) => {
+        console.error('flight lookup failed', err);
+        return null;
+      }
+    ),
+    loadAirlineTerminals(adminClient),
+  ]);
+
+  // Another day's flight under the same number (the ride is further ahead than flight data
+  // reaches) says which airline flies it, not when or where this one lands.
+  const thisFlight = snapshot?.onExpectedDay ? snapshot : null;
+  const airline = airlineTerminal(airlines, [snapshot?.operatorIata, airlineCodeOf(flightNumber)]);
+
+  if (thisFlight?.terminal && airline && thisFlight.terminal !== airline.terminal) {
+    await recordTerminalMismatch(adminClient, {
+      airlineIata: airline.airline_iata,
+      flightNumber,
+      flightDate: airportDayKey(anchorMs),
+      tableTerminal: airline.terminal,
+      reportedTerminal: thisFlight.terminal,
+    });
   }
 
-  const data = await response.json();
-  const flight = pickBestFlight(data?.flights, anchorMs);
-  const snapshot = flight ? flightSnapshot(flight) : null;
-
-  if (!snapshot?.estimatedLanding) {
-    return jsonResponse({ found: false });
-  }
+  // Flight data wins over the airline table.
+  const arrivalTerminal = thisFlight?.terminal ?? airline?.terminal ?? null;
 
   return jsonResponse({
-    found: true,
-    estimatedLandingUtc: snapshot.estimatedLanding,
-    scheduledLandingUtc: snapshot.scheduledLanding,
-    // 'T1' / 'T2', or null while the flight data names no terminal (the passenger then chooses).
-    arrivalTerminal: snapshot.terminal,
+    // A landing time for the passenger's own flight.
+    found: Boolean(thisFlight?.estimatedLanding),
+    // The flight number exists, whether or not its landing time for that day is known yet.
+    flightKnown: Boolean(snapshot),
+    estimatedLandingUtc: thisFlight?.estimatedLanding ?? null,
+    scheduledLandingUtc: thisFlight?.scheduledLanding ?? null,
+    // 'T1' / 'T2', or null when neither the flight data nor the airline table names one (the
+    // passenger then chooses).
+    arrivalTerminal,
+    arrivalTerminalSource: thisFlight?.terminal ? 'flight' : airline ? 'airline' : null,
+    operatorIata: snapshot?.operatorIata ?? null,
   });
 });

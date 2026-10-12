@@ -118,7 +118,13 @@
     "terminalHelper": "Consulta tu reserva o tu tarjeta de embarque.",
     "terminalFromFlightNote": "Según el vuelo {{flightNumber}}",
     "terminalFromLocationNote": "Rellenado según tu ubicación. Cámbialo si no es correcto.",
-    "terminalRequiredError": "Elige tu terminal de llegada."
+    "terminalRequiredError": "Elige tu terminal de llegada.",
+    "flightLookupNoTimeYet": "La hora de aterrizaje de este vuelo aún no está disponible para esa fecha. Indica tú la hora de llegada; la actualizaremos automáticamente cuando se acerque la fecha.",
+    "arrivingAt": {
+      "T1": "Llegada a la Terminal 1",
+      "T2": "Llegada a la Terminal 2"
+    },
+    "terminalNotCorrect": "¿No es correcto?"
   },
   "admin": {
     "title": "Solicitudes pendientes",
@@ -323,6 +329,28 @@
     "cancelConfirmDismiss": "Seguir buscando",
     "cancelConfirmAction": "Cancelar trayecto",
     "cancelError": "No pudimos cancelar tu trayecto. Inténtalo de nuevo."
+  },
+  "adminAirlines": {
+    "tab": "Aerolíneas",
+    "title": "Terminales de las aerolíneas",
+    "intro": "Qué aerolínea aterriza en qué terminal. Un pasajero que introduce un número de vuelo obtiene su terminal de esta lista; los datos del vuelo la confirman o la corrigen después.",
+    "empty": "Aún no hay aerolíneas.",
+    "loadError": "No pudimos cargar las aerolíneas.",
+    "saveError": "No se pudo guardar. Inténtalo de nuevo.",
+    "codeError": "El código de la aerolínea tiene 2 caracteres (por ejemplo VY); el código opcional del billete tiene 3 letras (por ejemplo VLG).",
+    "terminalError": "Elige la terminal de la aerolínea.",
+    "addTitle": "Añadir una aerolínea",
+    "codePlaceholder": "Código de la aerolínea (p. ej. VY)",
+    "icaoPlaceholder": "Código de 3 letras del billete (opcional, p. ej. VLG)",
+    "namePlaceholder": "Nombre de la aerolínea",
+    "terminalLabel": "Terminal",
+    "add": "Añadir aerolínea",
+    "terminalHeader": "Terminal {{terminal}} ({{total}})",
+    "remove": "Eliminar",
+    "removeConfirm": "Sí, eliminar {{code}}",
+    "keep": "Conservar",
+    "checkTitle": "Revisar la terminal de la aerolínea: {{code}}",
+    "checkDetail": "Los datos de vuelo indicaron {{reported}} en {{flights}} vuelos de {{name}} en los últimos {{days}} días. Esta lista indica {{table}}."
   },
   "adminMeetingPoints": {
     "tab": "Puntos",

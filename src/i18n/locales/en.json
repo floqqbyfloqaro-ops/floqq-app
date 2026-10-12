@@ -122,7 +122,13 @@
     "terminalHelper": "Check your booking or boarding pass.",
     "terminalFromFlightNote": "From flight {{flightNumber}}",
     "terminalFromLocationNote": "Prefilled from your location. Change it if it's wrong.",
-    "terminalRequiredError": "Please choose your arrival terminal."
+    "terminalRequiredError": "Please choose your arrival terminal.",
+    "flightLookupNoTimeYet": "This flight's landing time for that date isn't available yet. Set the arrival time yourself; we'll update it automatically closer to the date.",
+    "arrivingAt": {
+      "T1": "Arriving at Terminal 1",
+      "T2": "Arriving at Terminal 2"
+    },
+    "terminalNotCorrect": "Not correct?"
   },
   "admin": {
     "title": "Pending requests",
@@ -327,6 +333,28 @@
     "cancelConfirmDismiss": "Keep searching",
     "cancelConfirmAction": "Cancel ride",
     "cancelError": "We couldn't cancel your ride. Please try again."
+  },
+  "adminAirlines": {
+    "tab": "Airlines",
+    "title": "Airline terminals",
+    "intro": "Which airline lands at which terminal. A passenger who enters a flight number gets their terminal from this list; flight data confirms or corrects it later.",
+    "empty": "There are no airlines yet.",
+    "loadError": "We couldn't load the airlines.",
+    "saveError": "That couldn't be saved. Please try again.",
+    "codeError": "The airline code is 2 characters (for example VY); the optional ticket code is 3 letters (for example VLG).",
+    "terminalError": "Choose the airline's terminal.",
+    "addTitle": "Add an airline",
+    "codePlaceholder": "Airline code (e.g. VY)",
+    "icaoPlaceholder": "3-letter ticket code (optional, e.g. VLG)",
+    "namePlaceholder": "Airline name",
+    "terminalLabel": "Terminal",
+    "add": "Add airline",
+    "terminalHeader": "Terminal {{terminal}} ({{total}})",
+    "remove": "Remove",
+    "removeConfirm": "Yes, remove {{code}}",
+    "keep": "Keep",
+    "checkTitle": "Check airline terminal: {{code}}",
+    "checkDetail": "Flight data reported {{reported}} for {{flights}} {{name}} flights in the last {{days}} days. This list says {{table}}."
   },
   "adminMeetingPoints": {
     "tab": "Points",

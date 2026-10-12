@@ -122,7 +122,13 @@
     "terminalHelper": "Vérifiez votre réservation ou votre carte d'embarquement.",
     "terminalFromFlightNote": "D'après le vol {{flightNumber}}",
     "terminalFromLocationNote": "Prérempli d'après votre position. Modifiez-le s'il est incorrect.",
-    "terminalRequiredError": "Veuillez choisir votre terminal d'arrivée."
+    "terminalRequiredError": "Veuillez choisir votre terminal d'arrivée.",
+    "flightLookupNoTimeYet": "L'heure d'atterrissage de ce vol n'est pas encore disponible pour cette date. Indiquez l'heure d'arrivée vous-même ; nous la mettrons à jour automatiquement à l'approche de la date.",
+    "arrivingAt": {
+      "T1": "Arrivée au Terminal 1",
+      "T2": "Arrivée au Terminal 2"
+    },
+    "terminalNotCorrect": "Ce n'est pas correct ?"
   },
   "admin": {
     "title": "Demandes en attente",
@@ -327,6 +333,28 @@
     "cancelConfirmDismiss": "Continuer la recherche",
     "cancelConfirmAction": "Annuler le trajet",
     "cancelError": "Impossible d'annuler votre trajet. Veuillez réessayer."
+  },
+  "adminAirlines": {
+    "tab": "Compagnies",
+    "title": "Terminaux des compagnies",
+    "intro": "Quelle compagnie atterrit à quel terminal. Un passager qui saisit un numéro de vol obtient son terminal grâce à cette liste ; les données de vol le confirment ou le corrigent ensuite.",
+    "empty": "Il n'y a pas encore de compagnies.",
+    "loadError": "Impossible de charger les compagnies.",
+    "saveError": "Impossible d'enregistrer. Veuillez réessayer.",
+    "codeError": "Le code de la compagnie comporte 2 caractères (par exemple VY) ; le code facultatif du billet comporte 3 lettres (par exemple VLG).",
+    "terminalError": "Choisissez le terminal de la compagnie.",
+    "addTitle": "Ajouter une compagnie",
+    "codePlaceholder": "Code de la compagnie (ex. VY)",
+    "icaoPlaceholder": "Code à 3 lettres du billet (facultatif, ex. VLG)",
+    "namePlaceholder": "Nom de la compagnie",
+    "terminalLabel": "Terminal",
+    "add": "Ajouter la compagnie",
+    "terminalHeader": "Terminal {{terminal}} ({{total}})",
+    "remove": "Supprimer",
+    "removeConfirm": "Oui, supprimer {{code}}",
+    "keep": "Conserver",
+    "checkTitle": "Vérifier le terminal de la compagnie : {{code}}",
+    "checkDetail": "Les données de vol ont indiqué {{reported}} pour {{flights}} vols {{name}} au cours des {{days}} derniers jours. Cette liste indique {{table}}."
   },
   "adminMeetingPoints": {
     "tab": "Points",

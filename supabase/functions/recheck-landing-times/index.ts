@@ -5,6 +5,10 @@
 // departure until the flight has landed. Each lookup is a paid FlightAware call, so rides on the
 // same flight share one.
 //
+// The terminal a lookup gives is the one the flight data names; while it names none, the one the
+// operating airline lands at (airline_terminals) - which only ever replaces a terminal that came
+// from that table, never the passenger's own choice.
+//
 // What a lookup changes depends on where the ride is:
 //   - Still waiting (no group): its landing time and its terminal follow the flight data.
 //   - In an offer (unconfirmed group): the landing time follows the flight and the group is
@@ -18,9 +22,12 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+import { airlineCodeOf, airlineTerminal } from '../_shared/airlineTerminalRule.ts';
+import { loadAirlineTerminals, recordTerminalMismatch } from '../_shared/airlineTerminals.ts';
 import { isAuthorized } from '../_shared/auth.ts';
 import { ADMIN_EMAIL, FLIGHT_REFRESH_SCHEDULE } from '../_shared/constants.ts';
-import { FlightSnapshot, lookupFlight } from '../_shared/flightLookup.ts';
+import { airportDayKey, cachedLookupFlight, JOB_CACHE_MAX_AGE_MS } from '../_shared/flightLookup.ts';
+import type { FlightSnapshot } from '../_shared/flightLookup.ts';
 import { isFlightCheckDue } from '../_shared/flightRefresh.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { computeGroupScore, PendingPassengerRequest } from '../_shared/matchingEngine.ts';
@@ -43,11 +50,12 @@ type RideRow = PendingPassengerRequest & {
   arrival_terminal_source: string | null;
   flight_checked_at: string | null;
   flight_scheduled_departure_at: string | null;
+  flight_operator_iata: string | null;
   terminal_conflict: string | null;
 };
 
 const RIDE_COLUMNS =
-  'id, user_id, group_id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, scheduled_arrival_at, arrival_terminal, arrival_terminal_source, flight_checked_at, flight_scheduled_departure_at, terminal_conflict';
+  'id, user_id, group_id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, scheduled_arrival_at, arrival_terminal, arrival_terminal_source, flight_checked_at, flight_scheduled_departure_at, flight_operator_iata, terminal_conflict';
 
 const MEMBER_COLUMNS =
   'id, flight_number, arrival_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng';
@@ -118,14 +126,16 @@ Deno.serve(async (req) => {
       : { data: [] };
     const groupStatus = new Map((groupRows ?? []).map((g) => [g.id as string, g.status as string]));
 
-    // One lookup per flight and day, shared by every ride on it.
+    // One lookup per flight and day, shared by every ride on it - and with the request form, when
+    // it looked the same flight up moments ago.
     const lookups = new Map<string, Promise<FlightSnapshot | null>>();
     const lookupFor = (ride: RideRow) => {
       const flight = ride.flight_number.trim().toUpperCase();
-      const key = `${flight}|${ride.arrival_at.slice(0, 10)}`;
+      const arrivalMs = new Date(ride.arrival_at).getTime();
+      const key = `${flight}|${airportDayKey(arrivalMs)}`;
       let pending = lookups.get(key);
       if (!pending) {
-        pending = lookupFlight(flight, new Date(ride.arrival_at).getTime(), apiKey).catch((err) => {
+        pending = cachedLookupFlight(adminClient, flight, arrivalMs, apiKey, JOB_CACHE_MAX_AGE_MS).catch((err) => {
           console.error('flight lookup failed', err);
           return null;
         });
@@ -134,6 +144,8 @@ Deno.serve(async (req) => {
       return pending;
     };
 
+    const airlines = await loadAirlineTerminals(adminClient);
+
     const stripe = stripeForOffers();
     const groupsToRescore = new Set<string>();
     let terminalsUpdated = 0;
@@ -141,12 +153,16 @@ Deno.serve(async (req) => {
     let conflictsFlagged = 0;
 
     for (const ride of due) {
-      const snapshot = await lookupFor(ride);
+      const found = await lookupFor(ride);
+      // Another day's flight under the same number says which airline flies it, nothing more.
+      const snapshot = found?.onExpectedDay ? found : null;
+      const operatorIata = found?.operatorIata ?? ride.flight_operator_iata;
       const status = ride.group_id ? (groupStatus.get(ride.group_id) ?? null) : null;
 
       // Remember that this flight was looked up now, whatever it said - also when it said nothing,
       // so an unknown flight number isn't asked about again on every run.
       const update: Record<string, unknown> = { flight_checked_at: now.toISOString() };
+      if (operatorIata !== ride.flight_operator_iata) update.flight_operator_iata = operatorIata;
 
       if (snapshot) {
         if (snapshot.scheduledDeparture) update.flight_scheduled_departure_at = snapshot.scheduledDeparture;
@@ -168,15 +184,45 @@ Deno.serve(async (req) => {
         }
       }
 
-      const terminal = snapshot?.terminal ?? null;
+      // The operating airline first: on a codeshare it is not the airline in the flight number.
+      const airline = airlineTerminal(airlines, [operatorIata, airlineCodeOf(ride.flight_number)]);
+      const flightTerminal = snapshot?.terminal ?? null;
+      if (flightTerminal && airline && flightTerminal !== airline.terminal) {
+        await recordTerminalMismatch(adminClient, {
+          airlineIata: airline.airline_iata,
+          flightNumber: ride.flight_number,
+          flightDate: airportDayKey(new Date(ride.arrival_at).getTime()),
+          tableTerminal: airline.terminal,
+          reportedTerminal: flightTerminal,
+        });
+      }
+
+      // Flight data wins over everything. The airline table only stands in while flight data
+      // names no terminal, and only for a terminal that came from that table in the first place
+      // (or a ride without one) - not over the passenger's own choice or earlier flight data.
+      const airlineApplies =
+        airline != null && (ride.arrival_terminal == null || ride.arrival_terminal_source === 'airline');
+      const terminal = flightTerminal ?? (airlineApplies ? (airline?.terminal ?? null) : null);
+      const terminalSource = flightTerminal ? 'flight' : 'airline';
+
       let removed = false;
       if (terminal) {
         if (terminal === ride.arrival_terminal || ride.arrival_terminal == null || !ride.group_id) {
-          // Flight data confirms the terminal, or replaces the passenger's own choice while the
-          // ride is still waiting.
-          if (terminal !== ride.arrival_terminal) terminalsUpdated += 1;
+          // Confirms the terminal, or replaces it while the ride is still waiting.
+          if (terminal !== ride.arrival_terminal) {
+            terminalsUpdated += 1;
+            if (ride.arrival_terminal != null) {
+              await adminClient.from('group_events').insert({
+                group_id: null,
+                request_id: ride.id,
+                event_type: 'terminal_changed',
+                details: { from: ride.arrival_terminal, to: terminal, source: terminalSource },
+                actor_type: 'system',
+              });
+            }
+          }
           update.arrival_terminal = terminal;
-          update.arrival_terminal_source = 'flight';
+          update.arrival_terminal_source = terminalSource;
           if (ride.terminal_conflict) update.terminal_conflict = null;
         } else if (status === 'unconfirmed') {
           // Another terminal than the offer's: out of the group, back to searching at the new one.
@@ -185,7 +231,7 @@ Deno.serve(async (req) => {
             removed = true;
             removedForTerminal += 1;
             update.arrival_terminal = terminal;
-            update.arrival_terminal_source = 'flight';
+            update.arrival_terminal_source = terminalSource;
             groupsToRescore.delete(ride.group_id);
             if (ride.user_id) await sendPush(adminClient, { userId: ride.user_id, key: 'terminalChanged' });
           }
@@ -200,7 +246,7 @@ Deno.serve(async (req) => {
               group_id: ride.group_id,
               request_id: ride.id,
               event_type: 'terminal_conflict',
-              details: { group_terminal: ride.arrival_terminal, flight_terminal: terminal },
+              details: { group_terminal: ride.arrival_terminal, flight_terminal: terminal, source: terminalSource },
               actor_type: 'system',
             });
           }

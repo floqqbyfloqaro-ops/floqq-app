@@ -79,6 +79,19 @@ export const FLIGHT_REFRESH_SCHEDULE = {
   giveUpHours: 6,
 } as const;
 
+// A flight lookup is kept per flight and day and reused instead of paying for the same one again
+// (the passenger leaving the flight number field twice, two passengers on one flight). How old a
+// kept lookup may be - see _shared/flightLookup.ts.
+export const FLIGHT_LOOKUP_CACHE = {
+  // In the request form, for a flight landing within nearWindowHours of now...
+  nearMinutes: 30,
+  nearWindowHours: 48,
+  // ...and for one further away, where the data hardly moves.
+  farHours: 24,
+  // In the re-check job, which only asks about flights that are due for a fresh look.
+  jobMinutes: 10,
+} as const;
+
 // Meeting points: two groups whose meeting times are no further apart than this are not sent to
 // the same point (unless every point at the terminal is taken).
 export const MEETING_WINDOW_MINUTES = 20;
