@@ -74,7 +74,7 @@ export const FLIGHT_REFRESH_SCHEDULE = {
   // Once at each of these many hours before the expected landing; nothing earlier than the first.
   checkpointHours: [48, 24, 6, 2],
   // From the scheduled departure until the flight has landed.
-  inFlightMinutes: 10,
+  inFlightMinutes: 30,
   // A flight that never reports landing is dropped this long after its expected landing.
   giveUpHours: 6,
 } as const;

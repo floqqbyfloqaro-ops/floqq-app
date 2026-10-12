@@ -24,7 +24,7 @@ const due = (nowMs: number, overrides: Partial<FlightCheckState> = {}) =>
 
 test('the shipped schedule is the agreed one', () => {
   assert.deepEqual([...FLIGHT_REFRESH_SCHEDULE.checkpointHours], [48, 24, 6, 2]);
-  assert.equal(FLIGHT_REFRESH_SCHEDULE.inFlightMinutes, 10);
+  assert.equal(FLIGHT_REFRESH_SCHEDULE.inFlightMinutes, 30);
   assert.equal(FLIGHT_REFRESH_SCHEDULE.giveUpHours, 6);
 });
 
