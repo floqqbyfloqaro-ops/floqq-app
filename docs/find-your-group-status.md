@@ -81,6 +81,18 @@ the test project has no passengers and no Google Routes key).
   It refuses to run against the live project and needs the test project's settings in
   `.env.test.local`.
 
+## Matching every 5 minutes, with a countdown (branch `feat/matching-interval-5`, 2026-10-12)
+
+- **Schedule.** The matcher runs every 5 minutes again (`MATCHING_INTERVAL_MINUTES`, in the app
+  and the server; a test fails when the schedule and the constants disagree). The rejection
+  memory re-asks after 4 minutes, so it is dormant at this interval; the dashboard warns about
+  the matcher after 15 minutes without a successful run.
+- **"Finding your match".** A line saying how often matches are checked, and "Next check in
+  3:12" / "Checking now...", from the server's own schedule and clock (`get_matching_schedule`).
+- **Verified on `floqq-test`:** runs recorded at 10:25:03 and 10:30:06 UTC, 5 minutes apart, and
+  the countdown switched to "Checking now..." at each and restarted when the run finished. The
+  look on screen needs a build.
+
 ## Before anything can be tested
 
 - [ ] A development build. iPhone: EAS has no iOS credentials for this project yet, so run

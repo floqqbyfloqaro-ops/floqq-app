@@ -10,7 +10,8 @@ import { jobHealth, jobNeedsAttention, overdueAfterMinutes, SCHEDULED_JOBS } fro
 
 const MINUTE = 60_000;
 const NOW = Date.parse('2026-10-12T12:00:00Z');
-const MATCHER = { job: 'match-and-group', everyMinutes: 1 };
+const MATCHER = { job: 'match-and-group', everyMinutes: 5 };
+const SWEEP = { job: 'match-offer-sweep', everyMinutes: 1 };
 const RECHECK = { job: 'recheck-landing-times', everyMinutes: 5 };
 
 const ago = (minutes) => new Date(NOW - minutes * MINUTE).toISOString();
@@ -29,15 +30,16 @@ test('all five scheduled jobs are watched', () => {
   );
 });
 
-test('the matcher is overdue after five minutes without a successful run', () => {
+test('an every-minute job is overdue after five minutes without a successful run', () => {
   assert.equal(overdueAfterMinutes(1), 5);
-  assert.equal(jobHealth(MATCHER, run({ last_success_at: ago(5) }), NOW).state, 'ok');
-  assert.equal(jobHealth(MATCHER, run({ last_success_at: ago(6) }), NOW).state, 'overdue');
+  assert.equal(jobHealth(SWEEP, run({ last_success_at: ago(5) }), NOW).state, 'ok');
+  assert.equal(jobHealth(SWEEP, run({ last_success_at: ago(6) }), NOW).state, 'overdue');
 });
 
-test('a five-minute job is given three of its intervals', () => {
+test('a five-minute job, like the matcher, is given three of its intervals', () => {
   assert.equal(overdueAfterMinutes(5), 15);
-  assert.equal(jobHealth(RECHECK, run({ last_success_at: ago(12) }), NOW).state, 'ok');
+  assert.equal(jobHealth(MATCHER, run({ last_success_at: ago(12) }), NOW).state, 'ok');
+  assert.equal(jobHealth(MATCHER, run({ last_success_at: ago(16) }), NOW).state, 'overdue');
   assert.equal(jobHealth(RECHECK, run({ last_success_at: ago(16) }), NOW).state, 'overdue');
 });
 
@@ -55,7 +57,7 @@ test('a job that never recorded a run needs attention', () => {
 
 test('a job that stopped silently is noticed by its missing success', () => {
   // No error was ever recorded - it simply stopped running.
-  const health = jobHealth(MATCHER, run({ last_success_at: ago(30) }), NOW);
+  const health = jobHealth(MATCHER, run({ last_success_at: ago(40) }), NOW);
   assert.equal(health.lastError, null);
   assert.equal(jobNeedsAttention(health), true);
 });

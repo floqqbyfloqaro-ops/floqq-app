@@ -3,8 +3,8 @@
 // (src/screens/AdminScreen.tsx), which is untouched and keeps working independently.
 //
 // Invoked in two ways, both handled below:
-//   1. On a schedule (every minute), by a pg_cron job calling this URL with the `x-cron-secret`
-//      header.
+//   1. On a schedule (every MATCHING_INTERVAL_MINUTES), by a pg_cron job calling this URL with
+//      the `x-cron-secret` header.
 //   2. On demand, by an admin (or curl, for testing) with a Supabase user JWT.
 // Deployed with --no-verify-jwt since this file does its own auth check instead.
 
@@ -58,8 +58,8 @@ Deno.serve(monitored('match-and-group', async (req) => {
 
     // First fill free seats in groups that are still an offer; whoever fits nowhere goes on to
     // form new groups.
-    // This runs every minute; scoring a combination is a paid route lookup. What was turned down
-    // recently and hasn't changed since is skipped (_shared/matchRejectionRule.ts).
+    // Scoring a combination is a paid route lookup. What was turned down recently and hasn't
+    // changed since is skipped (_shared/matchRejectionRule.ts).
     const now = new Date();
     const memory = await loadRejectionMemory(adminClient, now);
 

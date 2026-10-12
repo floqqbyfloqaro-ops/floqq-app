@@ -1,10 +1,10 @@
 // The matching job's memory of combinations it already turned down. Scoring a combination of
-// passengers is a paid Google Routes lookup, and the job runs every minute: without a memory a
-// pair that is close but doesn't fit would be paid for again on every run.
+// passengers is a paid Google Routes lookup: if the job runs more often than a rejection is worth
+// re-asking, a pair that is close but doesn't fit would be paid for again on every run.
 //
 // A rejected combination is not asked about again until
 //   - MATCH_REJECTION_RECHECK_MINUTES have passed (routes are traffic-aware, so the answer can
-//     change - this is how often the job asked before it ran every minute), or
+//     change), or
 //   - something about it changed: a member's arrival time, destination or luggage, or (for a
 //     passenger joining an open offer) the offer itself.
 // Only real rejections are remembered - never a lookup that failed.
