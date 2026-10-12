@@ -339,6 +339,27 @@
   "matching_interval_explainer": "Buscamos coincidencias cada {{minutes}} minutos para agruparte con los viajeros más compatibles y conseguirte la tarifa más baja.",
   "matching_next_check": "Próxima búsqueda en {{time}}",
   "matching_checking_now": "Buscando ahora...",
+  "meeting_time_label": "Hora de encuentro: {{time}}",
+  "meeting_time_explainer": "Incluye el tiempo para salir del avión, el control de pasaportes y el equipaje.",
+  "ready_around": "Listo hacia las {{time}}",
+  "adminCalibration": {
+    "title": "Calibración de la hora de disponibilidad",
+    "intro": "Diferencia entre la hora de disponibilidad calculada y el momento en que los pasajeros llegaron realmente al punto de encuentro, por tipo de viaje.",
+    "empty": "Aún no hay viajes con una llegada registrada al punto de encuentro.",
+    "loadError": "No pudimos cargar la calibración.",
+    "basis": "{{rides}} viajes · margen {{buffer}} min",
+    "verdict": {
+      "later": "De media {{minutes}} min más tarde de lo calculado",
+      "earlier": "De media {{minutes}} min antes de lo calculado",
+      "onTime": "De media según lo calculado"
+    },
+    "category": {
+      "schengen": { "bag": "Vuelo Schengen, equipaje facturado", "noBag": "Vuelo Schengen, sin equipaje facturado" },
+      "non_schengen": { "bag": "Vuelo no Schengen, equipaje facturado", "noBag": "Vuelo no Schengen, sin equipaje facturado" },
+      "unknown": { "bag": "Origen desconocido, equipaje facturado", "noBag": "Origen desconocido, sin equipaje facturado" },
+      "no_flight": { "bag": "Sin número de vuelo, equipaje por recoger", "noBag": "Sin número de vuelo, nada que recoger" }
+    }
+  },
   "find_my_group_button": "Encontrar a mi grupo",
   "find_my_group_landed": "Has aterrizado - vamos a encontrar a tu grupo",
   "guidance_starts_on_landing": "La guía empieza cuando aterrices",

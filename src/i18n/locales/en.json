@@ -343,6 +343,27 @@
   "matching_interval_explainer": "We check for matches every {{minutes}} minutes to group you with the most compatible travelers and get you the lowest fare.",
   "matching_next_check": "Next check in {{time}}",
   "matching_checking_now": "Checking now...",
+  "meeting_time_label": "Meeting time: {{time}}",
+  "meeting_time_explainer": "Includes time to leave the plane, passport control and luggage.",
+  "ready_around": "Ready around {{time}}",
+  "adminCalibration": {
+    "title": "Ready time calibration",
+    "intro": "How far the calculated ready time is from when passengers really reached the meeting point, per kind of ride.",
+    "empty": "No rides with a recorded arrival at the meeting point yet.",
+    "loadError": "We couldn't load the calibration.",
+    "basis": "{{rides}} rides · buffer {{buffer}} min",
+    "verdict": {
+      "later": "On average {{minutes}} min later than calculated",
+      "earlier": "On average {{minutes}} min earlier than calculated",
+      "onTime": "On average as calculated"
+    },
+    "category": {
+      "schengen": { "bag": "Schengen flight, checked bag", "noBag": "Schengen flight, no checked bag" },
+      "non_schengen": { "bag": "Non-Schengen flight, checked bag", "noBag": "Non-Schengen flight, no checked bag" },
+      "unknown": { "bag": "Origin unknown, checked bag", "noBag": "Origin unknown, no checked bag" },
+      "no_flight": { "bag": "No flight number, luggage to collect", "noBag": "No flight number, nothing to collect" }
+    }
+  },
   "find_my_group_button": "Find my group",
   "find_my_group_landed": "You've landed - let's find your group",
   "guidance_starts_on_landing": "Guidance starts when you land",

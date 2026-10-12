@@ -77,6 +77,13 @@ function arrivalStatus(member: MatchOfferMember, t: (key: string, options?: Reco
   return { label: t('matchFound.lands', { time: clockTime(member.arrivalAt) }), delayed: false };
 }
 
+// When the group meets: the moment its last member is ready. Null while a member's ready time
+// isn't known to the app.
+function meetingTime(members: MatchOfferMember[]): string | null {
+  if (members.length === 0 || members.some((member) => !member.readyAt)) return null;
+  return members.reduce((latest, member) => (member.readyAt! > latest ? member.readyAt! : latest), members[0].readyAt!);
+}
+
 // Time left to answer the offer, ticking by itself so the rest of the screen (the map) doesn't
 // redraw every second.
 function OfferCountdown({ expiresAt }: { expiresAt: string }) {
@@ -273,6 +280,7 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
   };
 
   const isConfirmed = offer?.groupStatus === 'confirmed';
+  const meetingAt = offer ? meetingTime(offer.members) : null;
   const mySpotSecured = members[0]?.isMe === true && members[0].secured;
 
   // A card hold can only be placed close enough to the ride; before that, securing reserves nothing.
@@ -324,6 +332,14 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
             {/* No match percentage: the matching engine's score is a cost, not a percentage. */}
             <Text style={styles.summary}>{t('matchFound.passengers', { count: offer.members.length })}</Text>
 
+            {/* The group leaves when its last member is ready - not when the last plane arrives. */}
+            {meetingAt ? (
+              <View style={styles.meeting} accessible>
+                <Text style={styles.meetingTime}>{t('meeting_time_label', { time: clockTime(meetingAt) })}</Text>
+                <Text style={styles.meetingExplainer}>{t('meeting_time_explainer')}</Text>
+              </View>
+            ) : null}
+
             {groupChange ? (
               <Text style={styles.groupChange} accessibilityLiveRegion="polite">
                 {t(groupChange === 'joined' ? 'matchFound.memberJoined' : 'group_member_left')}
@@ -347,12 +363,13 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
                 const status = arrivalStatus(member, t);
                 const name = member.isMe ? t('matchFound.you') : member.firstName ?? t('matchFound.traveler');
                 const destination = member.destination ?? t('matchFound.destinationHidden');
+                const readyLabel = member.readyAt ? t('ready_around', { time: clockTime(member.readyAt) }) : null;
                 return (
                   <View
                     key={member.order}
                     style={[styles.memberRow, index > 0 && styles.memberRowDivider]}
                     accessible
-                    accessibilityLabel={`${name}, ${destination}, ${status.label}`}
+                    accessibilityLabel={[name, destination, status.label, readyLabel].filter(Boolean).join(', ')}
                   >
                     <Avatar index={member.order - 1} size={AVATAR_SIZE} />
                     <View style={styles.memberText}>
@@ -364,7 +381,10 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
                         {destination}
                       </Text>
                     </View>
-                    <Text style={[styles.memberStatus, status.delayed && styles.memberStatusDelayed]}>{status.label}</Text>
+                    <View style={styles.memberTimes}>
+                      <Text style={[styles.memberStatus, status.delayed && styles.memberStatusDelayed]}>{status.label}</Text>
+                      {readyLabel ? <Text style={styles.memberReady}>{readyLabel}</Text> : null}
+                    </View>
                   </View>
                 );
               })}
@@ -561,7 +581,7 @@ const styles = StyleSheet.create({
     ...baseText.body,
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: spacing.x6,
+    marginBottom: spacing.x4,
   },
   groupChange: {
     ...baseText.bodySmall,
@@ -636,6 +656,29 @@ const styles = StyleSheet.create({
   memberStatusDelayed: {
     color: colors.warning,
     fontWeight: '700',
+  },
+  memberTimes: {
+    alignItems: 'flex-end',
+  },
+  memberReady: {
+    ...baseText.caption,
+    color: colors.textPrimary,
+    fontWeight: '600',
+    marginTop: spacing.x1,
+  },
+  meeting: {
+    alignItems: 'center',
+    marginBottom: spacing.x6,
+  },
+  meetingTime: {
+    ...baseText.h3,
+    textAlign: 'center',
+    marginBottom: spacing.x1,
+  },
+  meetingExplainer: {
+    ...baseText.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   fareCard: {
     marginBottom: spacing.x6,
