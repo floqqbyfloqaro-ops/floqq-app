@@ -11,17 +11,19 @@ export type JobRun = {
   last_error: string | null;
 };
 
-// The jobs and how often each is scheduled to run, in minutes.
+// The jobs and how often each is scheduled to run, in minutes. The matcher's is
+// MATCHING_INTERVAL_MINUTES (constants.ts), written out here because this file takes no imports -
+// the same test that guards that constant checks this number too.
 export const SCHEDULED_JOBS: { job: string; everyMinutes: number }[] = [
-  { job: 'match-and-group', everyMinutes: 1 },
+  { job: 'match-and-group', everyMinutes: 5 },
   { job: 'match-offer-sweep', everyMinutes: 1 },
   { job: 'recheck-landing-times', everyMinutes: 5 },
   { job: 'payments-sync-holds', everyMinutes: 5 },
   { job: 'payments-settle-rides', everyMinutes: 5 },
 ];
 
-// A job is overdue once it hasn't succeeded for three of its own intervals - and never sooner
-// than five minutes, so one slow run doesn't raise a warning.
+// A job is overdue once it hasn't succeeded for three of its own intervals (15 minutes for the
+// matcher) - and never sooner than five minutes, so one slow run doesn't raise a warning.
 export function overdueAfterMinutes(everyMinutes: number): number {
   return Math.max(5, everyMinutes * 3);
 }

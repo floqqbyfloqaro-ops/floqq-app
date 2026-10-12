@@ -6,6 +6,7 @@ import { Alert, Animated, Image, Pressable, ScrollView, StyleSheet, Text, View }
 import Avatar, { AVATAR_COUNT } from '../components/Avatar';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
+import MatchingCountdown from '../components/MatchingCountdown';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import { cancelPassengerRequest, MyPassengerRequest } from '../services/passengerRequests';
@@ -122,6 +123,8 @@ export default function FindingMatchScreen({ request, onBack, onEdit, onCancelle
 
         <Text style={styles.title}>{t('findingMatch.title')}</Text>
         <Text style={styles.subtitle}>{t('findingMatch.subtitle')}</Text>
+        {/* Ticks every second inside its own component: this screen, and its animations, don't. */}
+        <MatchingCountdown />
 
         <View style={styles.avatarRow}>
           {AVATAR_INDICES.map((index) => (
@@ -209,7 +212,7 @@ const styles = StyleSheet.create({
     ...baseText.body,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: spacing.x8,
+    marginBottom: spacing.x3,
   },
   avatarRow: {
     flexDirection: 'row',

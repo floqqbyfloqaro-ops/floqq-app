@@ -330,6 +330,9 @@
     "cancelConfirmAction": "Cancelar trayecto",
     "cancelError": "No pudimos cancelar tu trayecto. Inténtalo de nuevo."
   },
+  "matching_interval_explainer": "Buscamos coincidencias cada {{minutes}} minutos para agruparte con los viajeros más compatibles y conseguirte la tarifa más baja.",
+  "matching_next_check": "Próxima búsqueda en {{time}}",
+  "matching_checking_now": "Buscando ahora...",
   "find_my_group_button": "Encontrar a mi grupo",
   "find_my_group_landed": "Has aterrizado - vamos a encontrar a tu grupo",
   "guidance_starts_on_landing": "La guía empieza cuando aterrices",

@@ -334,6 +334,9 @@
     "cancelConfirmAction": "Cancel ride",
     "cancelError": "We couldn't cancel your ride. Please try again."
   },
+  "matching_interval_explainer": "We check for matches every {{minutes}} minutes to group you with the most compatible travelers and get you the lowest fare.",
+  "matching_next_check": "Next check in {{time}}",
+  "matching_checking_now": "Checking now...",
   "find_my_group_button": "Find my group",
   "find_my_group_landed": "You've landed - let's find your group",
   "guidance_starts_on_landing": "Guidance starts when you land",

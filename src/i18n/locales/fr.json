@@ -334,6 +334,9 @@
     "cancelConfirmAction": "Annuler le trajet",
     "cancelError": "Impossible d'annuler votre trajet. Veuillez réessayer."
   },
+  "matching_interval_explainer": "Nous recherchons des correspondances toutes les {{minutes}} minutes pour vous associer aux voyageurs les plus compatibles et vous offrir le meilleur prix.",
+  "matching_next_check": "Prochaine recherche dans {{time}}",
+  "matching_checking_now": "Recherche en cours...",
   "find_my_group_button": "Trouver mon groupe",
   "find_my_group_landed": "Vous avez atterri - retrouvons votre groupe",
   "guidance_starts_on_landing": "Le guidage commence à votre atterrissage",

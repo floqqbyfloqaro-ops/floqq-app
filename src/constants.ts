@@ -6,6 +6,11 @@ export const MAX_PASSENGERS_PER_TAXI = 3;
 // most 2 per passenger, see the request form) always fits and doesn't count.
 export const MAX_LARGE_LUGGAGE_PER_TAXI = 4;
 
+// How often the matching job runs - kept in sync with supabase/functions/_shared/constants.ts and
+// with the job's schedule in the database (a test fails when they disagree). The "Finding your
+// match" screen shows the schedule the server reports; this is what it falls back to.
+export const MATCHING_INTERVAL_MINUTES = 5;
+
 // Single fixed airport for the MVP matching engine.
 export const AIRPORT = {
   code: 'BCN',
