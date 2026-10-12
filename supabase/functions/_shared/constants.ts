@@ -68,6 +68,11 @@ export const MATCH_OFFER_TIMEOUT_MINUTES = 60;
 // this far in the future, so they still have time to answer (and reserve) before it does.
 export const LATE_JOIN_MIN_MINUTES_BEFORE_RIDE = 45;
 
+// The matching job runs every minute, but a combination of passengers it turned down is only
+// asked about again (a paid Google Routes lookup) after this long, or when something about it
+// changed - see _shared/matchRejectionRule.ts. Five minutes is how often the job ran before.
+export const MATCH_REJECTION_RECHECK_MINUTES = 5;
+
 // When a ride's flight is looked up again after the passenger entered it - each lookup is a paid
 // FlightAware call. See _shared/flightRefresh.ts for the rule these feed.
 export const FLIGHT_REFRESH_SCHEDULE = {
