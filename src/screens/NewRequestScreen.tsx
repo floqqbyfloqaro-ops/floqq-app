@@ -12,7 +12,9 @@ import ScreenBackground from '../components/ScreenBackground';
 import SelectField from '../components/SelectField';
 import Skeleton from '../components/Skeleton';
 import { TERMINAL_PREFILL_WINDOW_HOURS } from '../constants';
-import { fetchEstimatedLandingTime } from '../services/flightStatus';
+import { airlineCodeOf, airlineTerminal, AirlineTerminalRow } from '../services/airlineTerminalRules';
+import { fetchAirlineTerminals } from '../services/airlineTerminals';
+import { fetchFlightLookup } from '../services/flightStatus';
 import { geocodeAddress } from '../services/geocoding';
 import { PlaceDetails } from '../services/placesAutocomplete';
 import {
@@ -56,10 +58,17 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
   // time at the airport, whatever zone the phone is in.
   const [arrivalDate, setArrivalDate] = useState(() => toBarcelonaWallClock(new Date()));
   const [arrivalTime, setArrivalTime] = useState(() => toBarcelonaWallClock(new Date()));
-  // The ride's terminal: from the flight data when it names one (not editable), otherwise the
-  // passenger's own choice.
+  // The ride's terminal: from the flight data when it names one (not editable), otherwise from
+  // the flight's airline (shown read-only, with a "Not correct?" link), otherwise the passenger's
+  // own choice.
   const [flightTerminal, setFlightTerminal] = useState<ArrivalTerminal | null>(null);
   const [chosenTerminal, setChosenTerminal] = useState<ArrivalTerminal | null>(null);
+  // Which airline lands at which terminal, and the airline the flight lookup says operates this
+  // flight (on a codeshare not the one in the flight number).
+  const [airlineRows, setAirlineRows] = useState<AirlineTerminalRow[]>([]);
+  const [operatorIata, setOperatorIata] = useState<string | null>(null);
+  // The passenger said the airline's terminal is not theirs: they choose instead.
+  const [isAirlineTerminalRejected, setIsAirlineTerminalRejected] = useState(false);
   // The choice was prefilled from where the phone is, and the passenger hasn't changed it.
   const [isTerminalFromLocation, setIsTerminalFromLocation] = useState(false);
   const chosenTerminalRef = useRef(chosenTerminal);
@@ -102,7 +111,10 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
     if (data.arrival_terminal_source === 'flight' && data.flight_number.trim()) {
       setFlightTerminal(data.arrival_terminal);
     } else {
+      // Also for a terminal from the airline table: it is what the form falls back to.
       setChosenTerminal(data.arrival_terminal);
+      // Their own choice stands, whatever the airline table says about the flight.
+      setIsAirlineTerminalRejected(data.arrival_terminal_source === 'passenger');
     }
     // Same rule as a fresh flight lookup: a flight number present on the stored ride means the
     // arrival time came from (or should stay pinned to) that flight, so it loads read-only.
@@ -123,6 +135,22 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
   useEffect(() => {
     loadExistingRequest();
   }, [loadExistingRequest]);
+
+  // Without the table the form still works: the passenger chooses the terminal.
+  useEffect(() => {
+    let cancelled = false;
+    fetchAirlineTerminals().then(({ data, error }) => {
+      if (error) console.warn('fetchAirlineTerminals failed', error);
+      if (!cancelled && data) setAirlineRows(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // The terminal of the flight's airline, known the moment the flight number is typed.
+  const airlineRow = airlineTerminal(airlineRows, [operatorIata, airlineCodeOf(flightNumber)]);
+  const airlineTerminalShown = !flightTerminal && airlineRow && !isAirlineTerminalRejected ? airlineRow.terminal : null;
 
   // The form's date and time as one Barcelona wall-clock date.
   const arrivalWallClock = () => {
@@ -176,25 +204,28 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
     setIsLookingUpFlight(true);
     setFlightLookupNote(null);
 
-    const estimate = await fetchEstimatedLandingTime(flightNumber, fromBarcelonaWallClock(arrivalWallClock()));
+    const lookup = await fetchFlightLookup(flightNumber, fromBarcelonaWallClock(arrivalWallClock()));
     setIsLookingUpFlight(false);
 
-    if (!estimate) {
+    setOperatorIata(lookup?.operatorIata ?? null);
+    // Null when the flight data names no terminal yet: the airline's terminal (or the passenger's
+    // choice) stands until the flight's own terminal is known.
+    setFlightTerminal(lookup?.flightTerminal ?? null);
+
+    if (!lookup?.estimatedLandingAt) {
       setHasFlightEstimate(false);
       setIsArrivalFromLookup(false);
-      setFlightTerminal(null);
-      setFlightLookupNote(t('newRequest.flightLookupNotFound'));
+      // A flight further ahead than flight data reaches is known, but not yet for that day: the
+      // date and time stay as the passenger set them.
+      setFlightLookupNote(t(lookup?.flightKnown ? 'newRequest.flightLookupNoTimeYet' : 'newRequest.flightLookupNotFound'));
       return;
     }
 
-    const landing = toBarcelonaWallClock(estimate.estimatedLandingAt);
+    const landing = toBarcelonaWallClock(lookup.estimatedLandingAt);
     setArrivalDate(landing);
     setArrivalTime(landing);
     setHasFlightEstimate(true);
     setIsArrivalFromLookup(true);
-    // Null when the flight data names no terminal yet: the passenger chooses below, and the
-    // flight's own terminal replaces that choice once it is known.
-    setFlightTerminal(estimate.arrivalTerminal);
     setFlightLookupNote(
       t('newRequest.flightLookupFound', {
         time: landing.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -221,7 +252,7 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
       setErrorMessage(t('newRequest.missingFieldsError'));
       return;
     }
-    const arrivalTerminal = flightTerminal ?? chosenTerminal;
+    const arrivalTerminal = flightTerminal ?? airlineTerminalShown ?? chosenTerminal;
     if (!arrivalTerminal) {
       setErrorMessage(t('newRequest.terminalRequiredError'));
       return;
@@ -251,7 +282,11 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
     const payload = {
       flightNumber: flightNumber.trim(),
       arrivalTerminal,
-      arrivalTerminalSource: flightTerminal ? ('flight' as const) : ('passenger' as const),
+      arrivalTerminalSource: flightTerminal
+        ? ('flight' as const)
+        : airlineTerminalShown
+          ? ('airline' as const)
+          : ('passenger' as const),
       arrivalAt,
       destinationAddress: destinationAddress.trim(),
       destinationLat: resolvedDestination.lat,
@@ -383,6 +418,8 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
           setHasFlightEstimate(false);
           setIsArrivalFromLookup(false);
           setFlightTerminal(null);
+          setOperatorIata(null);
+          setIsAirlineTerminalRejected(false);
         }}
         onBlur={handleFlightNumberBlur}
         autoCapitalize="characters"
@@ -461,6 +498,29 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
           <Text style={styles.flightLookupNote}>
             {t('newRequest.terminalFromFlightNote', { flightNumber: flightNumber.trim() })}
           </Text>
+        </>
+      ) : airlineTerminalShown ? (
+        <>
+          <View style={[styles.pickerField, styles.pickerFieldDisabled]}>
+            <Ionicons name="business-outline" size={20} color={colors.textDisabled} />
+            <Text style={[styles.pickerValue, styles.pickerValueDisabled]}>
+              {t(`newRequest.arrivingAt.${airlineTerminalShown}`)}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => {
+              // With two terminals, "not this one" is most likely the other: preselected, and
+              // theirs to change.
+              setIsAirlineTerminalRejected(true);
+              setChosenTerminal(airlineTerminalShown === 'T1' ? 'T2' : 'T1');
+              setIsTerminalFromLocation(false);
+            }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('newRequest.terminalNotCorrect')}
+          >
+            <Text style={styles.notCorrectText}>{t('newRequest.terminalNotCorrect')}</Text>
+          </Pressable>
         </>
       ) : (
         <>
@@ -661,6 +721,14 @@ const styles = StyleSheet.create({
   },
   terminalOptionLabelSelected: {
     color: colors.textPrimary,
+  },
+  notCorrectText: {
+    ...baseText.caption,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+    marginTop: -spacing.x2,
+    marginBottom: spacing.x4,
   },
   doneText: {
     color: colors.textPrimary,

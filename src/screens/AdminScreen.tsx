@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import AdminAirlineTerminals from '../components/AdminAirlineTerminals';
 import AdminMeetingPoints from '../components/AdminMeetingPoints';
 import AdminPaymentIssues from '../components/AdminPaymentIssues';
 import Card from '../components/Card';
@@ -128,12 +129,13 @@ export default function AdminScreen({ session, onBack }: Props) {
   const [suggestions, setSuggestions] = useState<MatchSuggestion[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [creatingSuggestionKey, setCreatingSuggestionKey] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'active' | 'history' | 'meetingPoints'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'history' | 'meetingPoints' | 'airlines'>('active');
   const [openMeetingPoint, setOpenMeetingPoint] = useState<MeetingPoint | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [rideDateFilter, setRideDateFilter] = useState<RideDateFilter>('all');
   const hasLoadedOnce = useRef(false);
-  // Payments prototype, phase 7: reloads the payment problems list together with the dashboard.
+  // Payments prototype, phase 7: reloads the payment problems list together with the dashboard
+  // (and the airline terminal warnings).
   const [paymentIssuesKey, setPaymentIssuesKey] = useState(0);
 
   const loadData = useCallback(async () => {
@@ -459,12 +461,24 @@ export default function AdminScreen({ session, onBack }: Props) {
               {t('adminMeetingPoints.tab')}
             </Text>
           </Pressable>
+          <Pressable
+            onPress={() => setActiveTab('airlines')}
+            style={[styles.tab, activeTab === 'airlines' && styles.tabActive]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'airlines' }}
+            accessibilityLabel={t('adminAirlines.title')}
+          >
+            <Text style={[styles.tabText, activeTab === 'airlines' && styles.tabTextActive]}>
+              {t('adminAirlines.tab')}
+            </Text>
+          </Pressable>
         </View>
 
         {errorMessage ? <ErrorNotice message={errorMessage} onRetry={loadData} retryLabel={t('common.retry')} /> : null}
 
         {activeTab === 'active' ? (
           <>
+        <AdminAirlineTerminals warningsOnly refreshKey={paymentIssuesKey} />
         {PAYMENTS_ENABLED ? <AdminPaymentIssues onOpenGroup={setOpenGroupId} refreshKey={paymentIssuesKey} /> : null}
         <View style={styles.suggestionsSection}>
           <PrimaryButton
@@ -720,6 +734,8 @@ export default function AdminScreen({ session, onBack }: Props) {
           </>
         ) : activeTab === 'meetingPoints' ? (
           <AdminMeetingPoints onOpen={setOpenMeetingPoint} />
+        ) : activeTab === 'airlines' ? (
+          <AdminAirlineTerminals refreshKey={paymentIssuesKey} />
         ) : (
           <>
             <View style={styles.groupsSection}>

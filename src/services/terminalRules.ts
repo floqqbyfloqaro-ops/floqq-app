@@ -5,7 +5,9 @@ import { distanceMeters } from './locationSharingRules';
 // same terminal. T2A, T2B and T2C are one terminal here (T2).
 
 export type ArrivalTerminal = 'T1' | 'T2';
-export type ArrivalTerminalSource = 'flight' | 'passenger';
+// 'flight': from flight data. 'airline': from the airline_terminals table. 'passenger': chosen in
+// the request form.
+export type ArrivalTerminalSource = 'flight' | 'airline' | 'passenger';
 
 export const ARRIVAL_TERMINALS: ArrivalTerminal[] = ['T1', 'T2'];
 

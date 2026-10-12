@@ -23,6 +23,26 @@ Last updated 2026-10-09. Everything below is built and its server side is **live
 - **Admin flags.** Terminal conflict, no meeting point, group never met (blocks its payment
   steps until "The ride took place"), no-show passenger, meeting points closer than 30 m.
 
+## Automatic arrival terminal (branch `feat/automatic-arrival-terminal`, 2026-10-12)
+
+Built, not yet deployed or tried on a phone; `npm test` passes (167 tests).
+
+- **Airline table.** `airline_terminals` (87 airlines from the airport operator's list), editable
+  in the admin's "Airlines" tab. A typed flight number shows "Arriving at Terminal 1" at once,
+  with a "Not correct?" link that opens the selector.
+- **Flight data confirms.** The lookups already made also give the operating airline (codeshares)
+  and, from about a day ahead, the terminal. Flight data wins; a waiting ride's terminal change is
+  now recorded as an event too.
+- **"Check airline terminal: VY".** Shown in the admin once flight data has contradicted the table
+  on 3 different flights of an airline within 30 days.
+- **Lookups are kept** per flight and day (`flight_lookups`) and reused: 30 min for a flight
+  landing within 48 h, 24 h otherwise.
+- **Fixed:** for a flight more than about two days ahead the form used to take another day's
+  flight and move the passenger's date to it. It now leaves the date and time alone.
+
+Still to test: a known airline, an unknown airline, a codeshare number, "Not correct?", editing a
+ride, a flight more than two days ahead, the Airlines tab (change, add, remove), and the warning.
+
 ## Before anything can be tested
 
 - [ ] A development build. iPhone: EAS has no iOS credentials for this project yet, so run

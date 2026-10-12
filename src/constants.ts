@@ -155,5 +155,12 @@ export const MEETING_POINT_MIN_SEPARATION_METERS = 30;
 // poor when saving a meeting point's coordinates (the admin may retake it or place the pin by hand).
 export const MEETING_POINT_CAPTURE_MAX_ACCURACY_METERS = 15;
 
+// Admin "Check airline terminal": shown for an airline once flight data has named another terminal
+// than the airline table on this many different flights within this many days.
+export const AIRLINE_TERMINAL_CHECK = {
+  minFlights: 3,
+  windowDays: 30,
+} as const;
+
 export const LOCATION_SEND_INTERVAL_MS = 5000;
 export const LOCATION_SEND_DISTANCE_METERS = 5;

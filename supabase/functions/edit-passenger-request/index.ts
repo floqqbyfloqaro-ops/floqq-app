@@ -35,9 +35,10 @@ type EditBody = {
   // Omitted when the passenger didn't touch the arrival time (it stayed pinned to the stored
   // flight estimate), so the stored source is kept as-is.
   arrivalTimeSource?: 'flight' | 'manual';
-  // The ride's terminal as the form has it now: from the flight lookup, or chosen by the passenger.
+  // The ride's terminal as the form has it now: from the flight lookup, from the flight's airline
+  // (airline_terminals), or chosen by the passenger.
   arrivalTerminal: 'T1' | 'T2';
-  arrivalTerminalSource: 'flight' | 'passenger';
+  arrivalTerminalSource: 'flight' | 'airline' | 'passenger';
 };
 
 function jsonResponse(body: unknown, status: number) {
@@ -59,7 +60,9 @@ function isEditBody(value: unknown): value is EditBody {
     typeof b.maxWaitMinutes === 'number' &&
     (b.arrivalTimeSource === undefined || b.arrivalTimeSource === 'flight' || b.arrivalTimeSource === 'manual') &&
     (b.arrivalTerminal === 'T1' || b.arrivalTerminal === 'T2') &&
-    (b.arrivalTerminalSource === 'flight' || b.arrivalTerminalSource === 'passenger')
+    (b.arrivalTerminalSource === 'flight' ||
+      b.arrivalTerminalSource === 'airline' ||
+      b.arrivalTerminalSource === 'passenger')
   );
 }
 
