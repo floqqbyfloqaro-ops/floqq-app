@@ -340,6 +340,21 @@
   "find_my_group_helper": "Terminal {{terminal}} - {{name}} à {{time}}",
   "find_my_group_helper_terminal": "Terminal {{terminal}} à {{time}}",
   "find_my_group_helper_time": "Rendez-vous à {{time}}",
+  "adminJobs": {
+    "title": "Tâches en arrière-plan",
+    "loadError": "Impossible de charger l'état des tâches en arrière-plan.",
+    "job": {
+      "match-and-group": "Mise en relation des passagers",
+      "match-offer-sweep": "Offres de groupe et rencontres",
+      "recheck-landing-times": "Mises à jour des vols",
+      "payments-sync-holds": "Réservations de place",
+      "payments-settle-rides": "Paiements des trajets"
+    },
+    "lastSuccess": "Dernière exécution réussie : {{date}}",
+    "overdue": "Aucune exécution réussie depuis plus de {{minutes}} minutes. La dernière : {{date}}",
+    "never": "Aucune exécution réussie enregistrée pour l'instant",
+    "lastError": "Dernière erreur ({{date}}) : {{error}}"
+  },
   "adminAirlines": {
     "tab": "Compagnies",
     "title": "Terminaux des compagnies",

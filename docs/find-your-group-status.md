@@ -62,6 +62,25 @@ Built, not yet deployed or tried on a phone; `npm test` passes (187 tests).
 Still to test on a phone: a group confirmed the day before (preview, no location prompt), then a
 landing (highlight, notification, direct opening, back to the confirmed group).
 
+## Admin role and job monitoring (branch `feat/admin-role-and-job-monitoring`, 2026-10-12)
+
+Built, not yet deployed to live; `npm test` passes (213 tests). Run on the test project
+`floqq-test` on 2026-10-12: all 45 migrations applied to an empty database, and all 18 checks of
+`scripts/admin-role-test.mjs` passed (the matcher forming a real group was not exercised there:
+the test project has no passengers and no Google Routes key).
+
+- **The matcher needs no account.** Groups it forms have no `created_by`; it never reads the
+  user list. Deleting an account no longer deletes the groups it created.
+- **Admin is a role.** `user_roles` + `is_admin()`, checked for the current user. The email
+  address is no longer in any access rule, database function, server function or the app.
+  To make someone an admin: Supabase dashboard > Table Editor > `user_roles` > Insert row
+  (`user_id` = their id from Authentication > Users, `role` = `admin`). Delete the row to undo.
+- **Job monitoring.** `job_runs` holds each scheduled job's last successful run and last error;
+  the admin dashboard shows them and warns when a job hasn't succeeded for a while.
+- **Test script:** `scripts/admin-role-test.mjs` (60+ users, no admin at all, admin-only checks).
+  It refuses to run against the live project and needs the test project's settings in
+  `.env.test.local`.
+
 ## Before anything can be tested
 
 - [ ] A development build. iPhone: EAS has no iOS credentials for this project yet, so run

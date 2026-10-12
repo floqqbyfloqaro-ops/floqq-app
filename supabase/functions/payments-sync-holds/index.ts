@@ -15,7 +15,7 @@ import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import type Stripe from 'npm:stripe@17';
 
 import { isAuthorized } from '../_shared/auth.ts';
-import { ADMIN_EMAIL } from '../_shared/constants.ts';
+import { monitored } from '../_shared/jobRuns.ts';
 import {
   cancelHold,
   markNotified,
@@ -135,7 +135,8 @@ async function groupsToSweep(adminClient: SupabaseClient, now: Date): Promise<Se
   return groupIds;
 }
 
-Deno.serve(async (req) => {
+// Every run leaves a trace for the admin dashboard (_shared/jobRuns.ts).
+Deno.serve(monitored('payments-sync-holds', async (req) => {
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
@@ -144,7 +145,7 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-  if (!(await isAuthorized(req, adminClient, ADMIN_EMAIL))) {
+  if (!(await isAuthorized(req, adminClient))) {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
   if (!paymentsEnabled()) {
@@ -198,4 +199,4 @@ Deno.serve(async (req) => {
   } finally {
     await releaseLock(adminClient, LOCK_ID);
   }
-});
+}));

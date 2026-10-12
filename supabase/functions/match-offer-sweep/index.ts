@@ -16,7 +16,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { isAuthorized } from '../_shared/auth.ts';
-import { ADMIN_EMAIL } from '../_shared/constants.ts';
+import { monitored } from '../_shared/jobRuns.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { runMeetupUpkeep } from '../_shared/meetingPoints.ts';
 import { announceOffer, confirmOfferIfComplete, offerExpiresAt, removeFromOffer, stripeForOffers } from '../_shared/offers.ts';
@@ -28,7 +28,8 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
-Deno.serve(async (req) => {
+// Every run leaves a trace for the admin dashboard (_shared/jobRuns.ts).
+Deno.serve(monitored('match-offer-sweep', async (req) => {
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
@@ -37,7 +38,7 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-  if (!(await isAuthorized(req, adminClient, ADMIN_EMAIL))) {
+  if (!(await isAuthorized(req, adminClient))) {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
@@ -106,4 +107,4 @@ Deno.serve(async (req) => {
   } finally {
     await releaseLock(adminClient, LOCK_ID);
   }
-});
+}));

@@ -340,6 +340,21 @@
   "find_my_group_helper": "Terminal {{terminal}} - {{name}} at {{time}}",
   "find_my_group_helper_terminal": "Terminal {{terminal}} at {{time}}",
   "find_my_group_helper_time": "Meeting at {{time}}",
+  "adminJobs": {
+    "title": "Background jobs",
+    "loadError": "We couldn't load the status of the background jobs.",
+    "job": {
+      "match-and-group": "Matching passengers",
+      "match-offer-sweep": "Match offers and meetups",
+      "recheck-landing-times": "Flight updates",
+      "payments-sync-holds": "Seat reservations",
+      "payments-settle-rides": "Ride payments"
+    },
+    "lastSuccess": "Last successful run: {{date}}",
+    "overdue": "No successful run for more than {{minutes}} minutes. Last one: {{date}}",
+    "never": "No successful run recorded yet",
+    "lastError": "Last error ({{date}}): {{error}}"
+  },
   "adminAirlines": {
     "tab": "Airlines",
     "title": "Airline terminals",

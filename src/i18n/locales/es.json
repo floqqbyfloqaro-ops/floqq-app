@@ -336,6 +336,21 @@
   "find_my_group_helper": "Terminal {{terminal}} - {{name}} a las {{time}}",
   "find_my_group_helper_terminal": "Terminal {{terminal}} a las {{time}}",
   "find_my_group_helper_time": "Encuentro a las {{time}}",
+  "adminJobs": {
+    "title": "Tareas en segundo plano",
+    "loadError": "No pudimos cargar el estado de las tareas en segundo plano.",
+    "job": {
+      "match-and-group": "Emparejamiento de pasajeros",
+      "match-offer-sweep": "Ofertas de grupo y encuentros",
+      "recheck-landing-times": "Actualizaciones de vuelos",
+      "payments-sync-holds": "Reservas de plaza",
+      "payments-settle-rides": "Pagos de viajes"
+    },
+    "lastSuccess": "Última ejecución correcta: {{date}}",
+    "overdue": "Ninguna ejecución correcta desde hace más de {{minutes}} minutos. La última: {{date}}",
+    "never": "Aún no se ha registrado ninguna ejecución correcta",
+    "lastError": "Último error ({{date}}): {{error}}"
+  },
   "adminAirlines": {
     "tab": "Aerolíneas",
     "title": "Terminales de las aerolíneas",
