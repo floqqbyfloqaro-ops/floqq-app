@@ -14,7 +14,7 @@ import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
-import { MAX_PASSENGERS_PER_TAXI, PAYMENTS_ENABLED } from '../constants';
+import { MAX_PASSENGERS_PER_TAXI, PAYMENTS_ENABLED, READY_TIME_FLAG_MINUTES } from '../constants';
 import {
   addGroupMember,
   confirmRideTookPlace,
@@ -38,8 +38,10 @@ import { calculateFareSplit, FareSplitResult } from '../services/fareSplit';
 import { fetchRideReceipt, formatCents, RideReceipt, syncGroupHolds } from '../services/payments';
 import { MeetingPoint, meetingPointText } from '../services/meetingPointRules';
 import { fetchMeetingPoints, shippedText } from '../services/meetingPoints';
+import { flightTimeChange } from '../services/readyTimeRules';
 import { sameTerminal, terminalOfMeetingPoint } from '../services/terminalRules';
 import { BadgeColor, baseText, colors, overlays, radii, spacing } from '../theme/colors';
+import { formatBarcelonaDateTime } from '../utils/formatDateTime';
 
 type Props = {
   groupId: string;
@@ -108,6 +110,11 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   const [isConfirmingRide, setIsConfirmingRide] = useState(false);
 
   const canCorrect = groupStatus === 'unconfirmed';
+
+  // A confirmed group's times don't follow flight data: a member whose flight has moved is
+  // pointed out instead.
+  const memberTimeChange = (member: TaxiGroupMember) =>
+    groupStatus === 'confirmed' ? flightTimeChange(member, READY_TIME_FLAG_MINUTES) : null;
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -559,6 +566,13 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 {member.terminal_conflict ? (
                   <Text style={styles.guaranteeNote}>
                     {t('groupDetail.terminalConflictNote', { terminal: member.terminal_conflict })}
+                  </Text>
+                ) : null}
+                {memberTimeChange(member) ? (
+                  <Text style={styles.guaranteeNote}>
+                    {t('groupDetail.flightTimeChangedNote', {
+                      time: formatBarcelonaDateTime(memberTimeChange(member)!.estimatedAt),
+                    })}
                   </Text>
                 ) : null}
                 {payer?.requestId === member.id ? (

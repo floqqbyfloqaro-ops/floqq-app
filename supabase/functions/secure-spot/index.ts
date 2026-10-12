@@ -17,6 +17,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { estimatedSharesCents, holdAmountCents, holdWindow, PLATFORM_FEE_CENTS, rideDepartureMs } from '../_shared/holdMath.ts';
 import { markSpotSecured } from '../_shared/holds.ts';
+import { readyIso } from '../_shared/readyTimeRule.ts';
 import { confirmOfferIfComplete, stripeForOffers } from '../_shared/offers.ts';
 import { freeCancelUntilMs } from '../_shared/settlementMath.ts';
 import { paymentsEnabled } from '../_shared/stripe.ts';
@@ -105,14 +106,14 @@ Deno.serve(async (req) => {
 
   const { data: members } = await adminClient
     .from('passenger_requests')
-    .select('id, distance_km, arrival_at')
+    .select('id, distance_km, arrival_at, ready_at')
     .eq('group_id', group.id);
   if (!members?.length || group.total_fare == null || members.some((m) => m.distance_km == null)) {
     return jsonResponse({ error: 'fare_not_ready' }, 409);
   }
 
   const now = new Date();
-  const rideMs = rideDepartureMs(members.map((m) => m.arrival_at));
+  const rideMs = rideDepartureMs(members.map(readyIso));
   const { opensAt, deadlineAt } = holdWindow(rideMs, now.getTime());
 
   // Too early for a card hold: accepting is enough for now.

@@ -34,8 +34,6 @@ export const BARCELONA_TAXI_TARIFFS = {
   minimumFareEur: 7.5,
 } as const;
 
-export const GROUP_DEPARTURE_BUFFER_MINUTES = 10;
-
 export const SCORE_WEIGHTS = {
   detourMinute: 1,
   waitMinute: 1,
@@ -116,6 +114,10 @@ export const NO_SHOW_WAIT_MINUTES = 10;
 // "Find your group": live location sharing switches itself off this long after the ride's planned
 // departure, whatever else happens. Server-side only; the app is given the resulting moment.
 export const MEETUP_SHARING_TIMEOUT_MINUTES = 45;
+
+// A member of a confirmed group whose flight now arrives this many minutes or more off the time
+// the group was formed on is flagged for the admin (the group itself is never changed).
+export const READY_TIME_FLAG_MINUTES = 10;
 
 // The "You've landed" notification is sent at a passenger's expected landing, and no longer once
 // that is this long ago - see _shared/landedRule.ts.

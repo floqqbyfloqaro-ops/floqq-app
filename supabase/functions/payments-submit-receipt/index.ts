@@ -13,6 +13,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { rideDepartureMs } from '../_shared/holdMath.ts';
+import { readyIso } from '../_shared/readyTimeRule.ts';
 import { evaluateReceipt } from '../_shared/receiptChecks.ts';
 import { recordReceipt } from '../_shared/receipts.ts';
 import { ReceiptScanError, RECEIPT_SCAN_MODEL, scanReceipt, sniffImageType } from '../_shared/receiptScan.ts';
@@ -105,7 +106,7 @@ Deno.serve(async (req) => {
 
   const { data: members } = await adminClient
     .from('passenger_requests')
-    .select('id, user_id, arrival_at')
+    .select('id, user_id, arrival_at, ready_at')
     .eq('group_id', groupId);
   const payer = members?.find((m) => m.id === group.payer_request_id);
   if (!members?.length || !payer || payer.user_id !== user.id) {
@@ -114,7 +115,7 @@ Deno.serve(async (req) => {
 
   // A receipt only exists once the taxi has left.
   const nowMs = Date.now();
-  const departureMs = rideDepartureMs(members.map((m) => m.arrival_at));
+  const departureMs = rideDepartureMs(members.map(readyIso));
   if (nowMs < departureMs) {
     return jsonResponse({ error: 'ride_not_started', rideAt: new Date(departureMs).toISOString() }, 409);
   }

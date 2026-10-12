@@ -10,7 +10,6 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import {
   AIRPORT,
   CORRIDOR_METERS,
-  GROUP_DEPARTURE_BUFFER_MINUTES,
   MAX_LARGE_LUGGAGE_PER_TAXI,
   DETOUR_LIMITS,
   MAX_PASSENGERS_PER_TAXI,
@@ -21,12 +20,17 @@ import { calculateBarcelonaTaxiFare, calculateFareSplit } from './fareSplit.ts';
 import { computeRouteMatrix, LatLng, RouteMatrixCell } from './googleRoutes.ts';
 import { rejectionFingerprint, rejectionKey } from './matchRejectionRule.ts';
 import type { RejectionMemory } from './matchRejectionRule.ts';
+import { meetingTimeMs, waitMinutes, waitsFit } from './readyTimeRule.ts';
 import { sameTerminal } from './terminalRule.ts';
 
 export type PendingPassengerRequest = {
   id: string;
   flight_number: string;
   arrival_at: string;
+  // When the passenger can leave the airport (arrival at the gate plus passport control and
+  // luggage - the database calculates it). All timing in matching goes by this: see
+  // readyTimeRule.ts. Wherever groups are formed or rescored it must be read.
+  ready_at?: string | null;
   destination_address: string;
   bags_count: number;
   // Only large luggage counts towards the taxi's limit; hand luggage (at most 2 each) always fits.
@@ -65,19 +69,20 @@ function hasCoordinates(request: PendingPassengerRequest): request is GeoRequest
   return request.destination_lat != null && request.destination_lng != null;
 }
 
-function isArrivalWindowCompatible(a: PendingPassengerRequest, b: PendingPassengerRequest): boolean {
-  const diffMinutes = Math.abs(new Date(a.arrival_at).getTime() - new Date(b.arrival_at).getTime()) / 60000;
-  return diffMinutes <= Math.min(a.max_wait_minutes, b.max_wait_minutes);
+// Could these two share a taxi as far as timing goes: whoever is ready first would wait for the
+// other no longer than their own maximum wait.
+function isReadyWindowCompatible(a: PendingPassengerRequest, b: PendingPassengerRequest): boolean {
+  return waitsFit([a, b]);
 }
 
-// Layer 1: same terminal (a hard rule - T1 and T2 passengers never share a group) and a
-// compatible arrival window.
+// Layer 1: same terminal (a hard rule - T1 and T2 passengers never share a group) and ready
+// times that fit each other.
 function filterHardConstraints(anchor: PendingPassengerRequest, pool: GeoRequest[]): GeoRequest[] {
   return pool.filter(
     (candidate) =>
       candidate.id !== anchor.id &&
       sameTerminal(anchor.arrival_terminal, candidate.arrival_terminal) &&
-      isArrivalWindowCompatible(anchor, candidate)
+      isReadyWindowCompatible(anchor, candidate)
   );
 }
 
@@ -186,8 +191,8 @@ export async function computeGroupScore(group: GeoRequest[]): Promise<MatchSugge
 
   const totalRouteDistanceKm = cumulativeMeters / 1000;
 
-  const latestArrivalMs = Math.max(...group.map((r) => new Date(r.arrival_at).getTime()));
-  const groupDepartureMs = latestArrivalMs + GROUP_DEPARTURE_BUFFER_MINUTES * 60000;
+  // The group meets, and leaves, when its last member is ready.
+  const groupDepartureMs = meetingTimeMs(group);
 
   const estimatedTotalFare = calculateBarcelonaTaxiFare(totalRouteDistanceKm, new Date(groupDepartureMs));
 
@@ -201,7 +206,7 @@ export async function computeGroupScore(group: GeoRequest[]): Promise<MatchSugge
     const cumulative = cumulativeByPassengerIndex.get(index);
     const solo = soloDurationSec(index);
     const extraDetourMinutes = cumulative && solo != null ? (cumulative.sec - solo) / 60 : 0;
-    const waitingMinutes = Math.max(0, (groupDepartureMs - new Date(request.arrival_at).getTime()) / 60000);
+    const waitingMinutes = waitMinutes(request, groupDepartureMs);
     const distanceKm = (cumulative?.meters ?? 0) / 1000;
     const fareAmount = fareById.get(request.id) ?? 0;
     const individualScore =
@@ -268,6 +273,10 @@ export async function suggestTaxiGroups(
 
         const totalLargeLuggage = group.reduce((sum, r) => sum + r.large_luggage_count, 0);
         if (totalLargeLuggage > MAX_LARGE_LUGGAGE_PER_TAXI) continue;
+
+        // Every member's own wait must fit their own maximum - for the group as a whole, which
+        // each pair fitting does not guarantee. Checked before the (paid) route lookup.
+        if (!waitsFit(group)) continue;
 
         const groupKey = group
           .map((r) => r.id)

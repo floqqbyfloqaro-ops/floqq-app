@@ -6,6 +6,9 @@ export type PendingPassengerRequest = {
   passenger_name: string | null;
   flight_number: string;
   arrival_at: string;
+  // When the passenger can leave the airport (arrival at the gate plus passport control and
+  // luggage). Matching goes by this - see readyTimeRules.ts.
+  ready_at: string | null;
   arrival_time_source: ArrivalTimeSource | null;
   created_at: string;
   destination_address: string;
@@ -29,7 +32,7 @@ export function fetchPendingRequests() {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, arrival_terminal, no_show_at'
+      'id, passenger_name, flight_number, arrival_at, ready_at, arrival_time_source, created_at, destination_address, bags_count, large_luggage_count, max_wait_minutes, destination_lat, destination_lng, arrival_terminal, no_show_at'
     )
     .eq('status', 'pending')
     .order('arrival_at', { ascending: true });
@@ -224,13 +227,17 @@ export type TaxiGroupMember = {
   arrival_terminal: string | null;
   // The other terminal flight data now reports for this member of a confirmed group; null: none.
   terminal_conflict: string | null;
+  // When they can leave the airport, and what flight data now says about their arrival (which a
+  // confirmed group's own times don't follow).
+  ready_at: string | null;
+  flight_estimated_arrival_at: string | null;
 };
 
 export function fetchGroupMembers(groupId: string) {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, distance_km, extra_detour_minutes, waiting_minutes, individual_score, arrival_terminal, terminal_conflict'
+      'id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, distance_km, extra_detour_minutes, waiting_minutes, individual_score, arrival_terminal, terminal_conflict, ready_at, flight_estimated_arrival_at'
     )
     .eq('group_id', groupId);
 }
@@ -240,6 +247,7 @@ export type GroupMemberArrival = {
   arrival_at: string;
   arrival_terminal: string | null;
   terminal_conflict: string | null;
+  flight_estimated_arrival_at: string | null;
 };
 
 // The admin dashboard's Groups list shows each group's ride date/time (its earliest member's
@@ -252,7 +260,7 @@ export function fetchGroupMemberArrivals(groupIds: string[]) {
   }
   return supabase
     .from('passenger_requests')
-    .select('group_id, arrival_at, arrival_terminal, terminal_conflict')
+    .select('group_id, arrival_at, arrival_terminal, terminal_conflict, flight_estimated_arrival_at')
     .in('group_id', groupIds)
     .returns<GroupMemberArrival[]>();
 }

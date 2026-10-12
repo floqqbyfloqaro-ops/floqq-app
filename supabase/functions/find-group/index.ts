@@ -17,6 +17,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { MEETUP_SHARING_TIMEOUT_MINUTES, NO_SHOW_WAIT_MINUTES } from '../_shared/constants.ts';
 import { rideDepartureMs } from '../_shared/holdMath.ts';
 import { expectedLandingIso } from '../_shared/landedRule.ts';
+import { readyIso } from '../_shared/readyTimeRule.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -95,7 +96,7 @@ Deno.serve(async (req) => {
   const { data: memberRows } = await adminClient
     .from('passenger_requests')
     .select(
-      'id, passenger_name, arrival_at, flight_estimated_arrival_at, arrival_terminal, found_group_at, meeting_point_arrived_at'
+      'id, passenger_name, arrival_at, ready_at, flight_estimated_arrival_at, arrival_terminal, found_group_at, meeting_point_arrived_at'
     )
     .eq('group_id', group.id)
     .order('arrival_at', { ascending: true })
@@ -107,7 +108,8 @@ Deno.serve(async (req) => {
 
   const arrivals = members.map((m) => m.arrival_at as string);
   const firstArrivalMs = Math.min(...arrivals.map((a) => new Date(a).getTime()));
-  const departureMs = rideDepartureMs(arrivals);
+  // The group meets when its last member is ready - not when the last plane arrives.
+  const departureMs = rideDepartureMs(members.map(readyIso));
 
   // Where the group meets: assigned within a minute of confirmation (_shared/meetingPoints.ts),
   // so it can still be missing - the app then shows the terminal alone. The wording travels as the

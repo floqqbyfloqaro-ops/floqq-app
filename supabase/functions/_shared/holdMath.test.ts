@@ -35,9 +35,9 @@ test('shares are integer cents and add up to the total fare', () => {
   assert.ok(shares.get('b')! > shares.get('a')!);
 });
 
-test('ride departure is the latest arrival plus the curb buffer', () => {
-  const ride = rideDepartureMs(['2026-10-01T10:00:00Z', '2026-10-01T10:20:00Z']);
-  assert.equal(ride, new Date('2026-10-01T10:30:00Z').getTime());
+test('ride departure is the moment the last member is ready', () => {
+  const ride = rideDepartureMs(['2026-10-01T10:25:00Z', '2026-10-01T11:00:00Z']);
+  assert.equal(ride, new Date('2026-10-01T11:00:00Z').getTime());
 });
 
 test('window opens now with a 60 min deadline for a ride tomorrow', () => {

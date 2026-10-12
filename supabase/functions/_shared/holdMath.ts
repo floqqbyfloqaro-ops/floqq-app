@@ -2,7 +2,7 @@
 // imports, so it runs under the plain Node test in holdMath.test.ts. All amounts are integer
 // cents, EUR.
 
-import { GROUP_DEPARTURE_BUFFER_MINUTES, SERVICE_FEE_EUR } from './constants.ts';
+import { SERVICE_FEE_EUR } from './constants.ts';
 import { calculateFareSplit } from './fareSplit.ts';
 
 // FLOQQ platform fee, included in every hold and captured with the passenger's share after the
@@ -40,10 +40,10 @@ export function estimatedSharesCents(members: HoldMember[], totalFareEur: number
   return new Map(shares.map((s) => [s.id, Math.round(s.amount * 100)]));
 }
 
-// Same departure the matching engine assumes: the last member's arrival plus the curb buffer.
-export function rideDepartureMs(arrivalTimes: string[]): number {
-  const latestArrivalMs = Math.max(...arrivalTimes.map((a) => new Date(a).getTime()));
-  return latestArrivalMs + GROUP_DEPARTURE_BUFFER_MINUTES * MINUTE_MS;
+// Same departure the matching engine assumes: the moment the last member is ready (their READY
+// times go in here - readyIso() in readyTimeRule.ts - not their arrivals).
+export function rideDepartureMs(readyTimes: string[]): number {
+  return Math.max(...readyTimes.map((t) => new Date(t).getTime()));
 }
 
 export function holdWindow(rideMs: number, nowMs: number): { opensAt: Date; deadlineAt: Date } {
