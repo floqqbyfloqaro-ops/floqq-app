@@ -128,7 +128,10 @@
       "T1": "Arrivée au Terminal 1",
       "T2": "Arrivée au Terminal 2"
     },
-    "terminalNotCorrect": "Ce n'est pas correct ?"
+    "terminalNotCorrect": "Ce n'est pas correct ?",
+    "luggageToCollectLabel": "Devez-vous encore récupérer des bagages en soute ?",
+    "luggageToCollectYes": "Oui",
+    "luggageToCollectNo": "Non"
   },
   "admin": {
     "title": "Demandes en attente",

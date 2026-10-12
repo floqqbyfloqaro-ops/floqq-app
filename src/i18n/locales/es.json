@@ -124,7 +124,10 @@
       "T1": "Llegada a la Terminal 1",
       "T2": "Llegada a la Terminal 2"
     },
-    "terminalNotCorrect": "¿No es correcto?"
+    "terminalNotCorrect": "¿No es correcto?",
+    "luggageToCollectLabel": "¿Todavía tienes que recoger equipaje facturado?",
+    "luggageToCollectYes": "Sí",
+    "luggageToCollectNo": "No"
   },
   "admin": {
     "title": "Solicitudes pendientes",

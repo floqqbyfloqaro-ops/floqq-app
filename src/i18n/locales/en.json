@@ -128,7 +128,10 @@
       "T1": "Arriving at Terminal 1",
       "T2": "Arriving at Terminal 2"
     },
-    "terminalNotCorrect": "Not correct?"
+    "terminalNotCorrect": "Not correct?",
+    "luggageToCollectLabel": "Do you still need to collect checked luggage?",
+    "luggageToCollectYes": "Yes",
+    "luggageToCollectNo": "No"
   },
   "admin": {
     "title": "Pending requests",

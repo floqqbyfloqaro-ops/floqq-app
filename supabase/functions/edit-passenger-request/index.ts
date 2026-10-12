@@ -39,7 +39,14 @@ type EditBody = {
   // (airline_terminals), or chosen by the passenger.
   arrivalTerminal: 'T1' | 'T2';
   arrivalTerminalSource: 'flight' | 'airline' | 'passenger';
+  // For the ride's ready time (the database calculates it). All three are absent from an app
+  // that doesn't know them yet: what is stored then stays as it is.
+  flightOriginIata?: string | null;
+  flightOriginIcao?: string | null;
+  luggageToCollect?: boolean | null;
 };
+
+const isOptional = (value: unknown, check: (v: unknown) => boolean) => value === undefined || value === null || check(value);
 
 function jsonResponse(body: unknown, status: number) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -62,7 +69,10 @@ function isEditBody(value: unknown): value is EditBody {
     (b.arrivalTerminal === 'T1' || b.arrivalTerminal === 'T2') &&
     (b.arrivalTerminalSource === 'flight' ||
       b.arrivalTerminalSource === 'airline' ||
-      b.arrivalTerminalSource === 'passenger')
+      b.arrivalTerminalSource === 'passenger') &&
+    isOptional(b.flightOriginIata, (v) => typeof v === 'string' && /^[A-Z0-9]{3}$/.test(v)) &&
+    isOptional(b.flightOriginIcao, (v) => typeof v === 'string' && /^[A-Z0-9]{4}$/.test(v)) &&
+    isOptional(b.luggageToCollect, (v) => typeof v === 'boolean')
   );
 }
 
@@ -130,6 +140,10 @@ Deno.serve(async (req) => {
       ...(body.arrivalTimeSource ? { arrival_time_source: body.arrivalTimeSource } : {}),
       arrival_terminal: body.arrivalTerminal,
       arrival_terminal_source: body.arrivalTerminalSource,
+      ...(body.flightOriginIcao !== undefined
+        ? { flight_origin_icao: body.flightOriginIcao, flight_origin_iata: body.flightOriginIata ?? null }
+        : {}),
+      ...(body.luggageToCollect !== undefined ? { luggage_to_collect: body.luggageToCollect } : {}),
     })
     .eq('id', body.requestId);
   if (detailsError) {

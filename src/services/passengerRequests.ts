@@ -10,6 +10,12 @@ export type PassengerRequestInput = {
   // From the flight lookup when it names one, otherwise chosen by the passenger.
   arrivalTerminal: ArrivalTerminal;
   arrivalTerminalSource: ArrivalTerminalSource;
+  // Where the flight comes from, from the flight lookup ("BOS" / "KBOS"); null when unknown or
+  // when there is no flight number. The server works the ride's ready time out from it.
+  flightOriginIata: string | null;
+  flightOriginIcao: string | null;
+  // Without a flight number: "Do you still need to collect checked luggage?" Null with one.
+  luggageToCollect: boolean | null;
   arrivalAt: Date;
   destinationAddress: string;
   destinationLat: number;
@@ -43,6 +49,9 @@ export async function createPassengerRequest(input: PassengerRequestInput) {
     arrival_time_source: input.arrivalTimeSource ?? 'manual',
     arrival_terminal: input.arrivalTerminal,
     arrival_terminal_source: input.arrivalTerminalSource,
+    flight_origin_iata: input.flightOriginIata,
+    flight_origin_icao: input.flightOriginIcao,
+    luggage_to_collect: input.luggageToCollect,
     destination_address: input.destinationAddress,
     destination_lat: input.destinationLat,
     destination_lng: input.destinationLng,
@@ -68,6 +77,9 @@ export type EditablePassengerRequest = {
   // Null only on rides from before terminals existed.
   arrival_terminal: ArrivalTerminal | null;
   arrival_terminal_source: ArrivalTerminalSource | null;
+  flight_origin_iata: string | null;
+  flight_origin_icao: string | null;
+  luggage_to_collect: boolean | null;
 };
 
 // Used by NewRequestScreen to prefill the form in edit mode. Scoped to the caller's own row by
@@ -84,7 +96,7 @@ export async function fetchPassengerRequestById(requestId: string) {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, status, flight_number, arrival_at, destination_address, destination_lat, destination_lng, large_luggage_count, hand_luggage_count, max_wait_minutes, arrival_terminal, arrival_terminal_source'
+      'id, status, flight_number, arrival_at, destination_address, destination_lat, destination_lng, large_luggage_count, hand_luggage_count, max_wait_minutes, arrival_terminal, arrival_terminal_source, flight_origin_iata, flight_origin_icao, luggage_to_collect'
     )
     .eq('id', requestId)
     .eq('user_id', user.id)
@@ -122,6 +134,9 @@ export async function updatePassengerRequest(
       arrivalTimeSource: input.arrivalTimeSource,
       arrivalTerminal: input.arrivalTerminal,
       arrivalTerminalSource: input.arrivalTerminalSource,
+      flightOriginIata: input.flightOriginIata,
+      flightOriginIcao: input.flightOriginIcao,
+      luggageToCollect: input.luggageToCollect,
     },
   });
 

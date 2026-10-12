@@ -102,5 +102,8 @@ Deno.serve(async (req) => {
     arrivalTerminal,
     arrivalTerminalSource: thisFlight?.terminal ? 'flight' : airline ? 'airline' : null,
     operatorIata: snapshot?.operatorIata ?? null,
+    // Where the flight comes from - for the ride's ready time (passport control or not).
+    originIata: snapshot?.originIata ?? null,
+    originIcao: snapshot?.originIcao ?? null,
   });
 });
