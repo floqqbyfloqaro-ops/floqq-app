@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FLOQQ – Email change</title>
+<link rel="icon" href="floqq-logo.png" />
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0B0F19;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 360px;
+    background: #1E293B;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 32px 24px;
+    text-align: center;
+  }
+  img.logo { width: 64px; height: 64px; border-radius: 14px; }
+  h1 { color: #F8FAFC; font-size: 22px; margin: 16px 0 8px; }
+  h1.success { color: #22C55E; }
+  h1.error { color: #F87171; }
+  p { color: #94A3B8; font-size: 15px; line-height: 1.5; margin: 0 0 20px; }
+  a.button {
+    display: block;
+    background: #7C3AED;
+    border-radius: 999px;
+    padding: 14px;
+    color: #FFFFFF;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <img class="logo" src="floqq-logo.png" alt="FLOQQ" />
+    <h1 id="title"></h1>
+    <p id="body"></p>
+    <a id="open-app" class="button" href="floqq://" hidden></a>
+  </div>
+  <script>
+    (function () {
+      // Landing page for the links in the "Confirm your new email" emails (emailRedirectTo in
+      // src/services/profile.ts). With Supabase's secure email change a link goes to the current
+      // AND the new address: after the first one Supabase sends a "message" here, after the
+      // second the change is done (and it sends a session, which this page doesn't need - the
+      // app reads the new email from the server when it opens).
+      var TEXT = {
+        en: {
+          doneTitle: 'Email changed ✓',
+          doneBody: 'Your FLOQQ account now uses your new email address. Use it to sign in from now on.',
+          halfTitle: 'One more step',
+          halfBody: 'Now open the confirmation link we sent to your other email address. The change is done once both are confirmed.',
+          open: 'Open FLOQQ',
+          errorTitle: 'This link has expired',
+          errorBody: 'Open FLOQQ, go to Profile and tap “Resend link”, or change your email again.'
+        },
+        es: {
+          doneTitle: 'Correo cambiado ✓',
+          doneBody: 'Tu cuenta de FLOQQ ya usa tu nuevo correo. Úsalo para iniciar sesión a partir de ahora.',
+          halfTitle: 'Un paso más',
+          halfBody: 'Ahora abre el enlace de confirmación que hemos enviado a tu otro correo. El cambio se completa cuando ambos estén confirmados.',
+          open: 'Abrir FLOQQ',
+          errorTitle: 'Este enlace ha caducado',
+          errorBody: 'Abre FLOQQ, ve a Perfil y pulsa «Reenviar enlace», o vuelve a cambiar tu correo.'
+        },
+        fr: {
+          doneTitle: 'E-mail modifié ✓',
+          doneBody: 'Votre compte FLOQQ utilise désormais votre nouvelle adresse. Utilisez-la pour vous connecter.',
+          halfTitle: 'Encore une étape',
+          halfBody: 'Ouvrez maintenant le lien de confirmation envoyé à votre autre adresse e-mail. Le changement est terminé une fois les deux confirmés.',
+          open: 'Ouvrir FLOQQ',
+          errorTitle: 'Ce lien a expiré',
+          errorBody: 'Ouvrez FLOQQ, allez dans Profil et touchez « Renvoyer le lien », ou modifiez à nouveau votre e-mail.'
+        }
+      };
+
+      var hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      var query = new URLSearchParams(window.location.search);
+      var hasError = hash.get('error') || query.get('error');
+      var done = hash.get('access_token') || hash.get('type') === 'email_change';
+      var halfway = hash.get('message') || query.get('message');
+
+      var lang = (navigator.language || 'en').slice(0, 2);
+      var t = TEXT[lang] || TEXT.en;
+      document.documentElement.lang = TEXT[lang] ? lang : 'en';
+
+      var title = document.getElementById('title');
+      var body = document.getElementById('body');
+      var open = document.getElementById('open-app');
+
+      if (hasError) {
+        title.textContent = t.errorTitle;
+        title.className = 'error';
+        body.textContent = t.errorBody;
+      } else if (done) {
+        title.textContent = t.doneTitle;
+        title.className = 'success';
+        body.textContent = t.doneBody;
+      } else if (halfway) {
+        title.textContent = t.halfTitle;
+        body.textContent = t.halfBody;
+      } else {
+        title.textContent = t.errorTitle;
+        title.className = 'error';
+        body.textContent = t.errorBody;
+      }
+      open.textContent = t.open;
+      open.hidden = false;
+
+      // Keep any tokens out of the browser history.
+      history.replaceState(null, '', window.location.pathname);
+    })();
+  </script>
+</body>
+</html>

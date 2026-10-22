@@ -15,13 +15,23 @@ export const EMAIL_VERIFIED_APP_PATH = 'email-verified';
 export const RESEND_COOLDOWN_SECONDS = 60;
 
 // The language is stored on the account so the (single, per-project) Supabase email template can
-// pick EN/ES/FR via {{ .Data.language }} - see supabase/templates/confirm-signup.html.
-export function signUpWithEmail(fullName: string, email: string, password: string) {
+// pick EN/ES/FR via {{ .Data.language }} - see supabase/templates/confirm-signup.html. First name,
+// last name and date of birth ('YYYY-MM-DD') become the account's profile; the server refuses the
+// sign-up outright for a date of birth under 18 (profiles migration).
+export type SignUpDetails = { firstName: string; lastName: string; email: string; password: string; dateOfBirth: string };
+
+export function signUpWithEmail({ firstName, lastName, email, password, dateOfBirth }: SignUpDetails) {
   return supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { full_name: fullName, language: i18n.language },
+      data: {
+        first_name: firstName,
+        last_name: lastName,
+        full_name: `${firstName} ${lastName}`,
+        date_of_birth: dateOfBirth,
+        language: i18n.language,
+      },
       emailRedirectTo: EMAIL_VERIFIED_PAGE_URL,
     },
   });

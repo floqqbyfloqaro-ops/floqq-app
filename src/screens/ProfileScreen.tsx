@@ -1,14 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import Avatar from '../components/Avatar';
 import Card from '../components/Card';
+import { formatDateOfBirth } from '../components/DateOfBirthField';
+import EditProfileForm from '../components/EditProfileForm';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import { CARD_SETUP_SUPPORTED, presentCardSetupSheet } from '../services/cardSetup';
+import { RESEND_COOLDOWN_SECONDS } from '../services/emailVerification';
+import {
+  cancelEmailChange,
+  fetchMyAccount,
+  fetchMyProfile,
+  MyAccount,
+  MyProfile,
+  resendEmailChange,
+} from '../services/profile';
 import { createCardSetupSession, fetchSavedCard, SavedCard } from '../services/payments';
 import { baseText, colors, overlays, spacing } from '../theme/colors';
 
@@ -39,7 +51,73 @@ function capitalize(value: string) {
 }
 
 export default function ProfileScreen({ onBack }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  // The passenger's own details: name and date of birth (profile), email and how they sign in
+  // (account).
+  const [profile, setProfile] = useState<MyProfile | null>(null);
+  const [account, setAccount] = useState<MyAccount | null>(null);
+  const [isAccountLoading, setIsAccountLoading] = useState(true);
+  const [accountLoadFailed, setAccountLoadFailed] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileNotice, setProfileNotice] = useState<string | null>(null);
+  const [emailAction, setEmailAction] = useState<'resend' | 'cancel' | null>(null);
+  const [emailActionMessage, setEmailActionMessage] = useState<string | null>(null);
+  const [resendBlockedUntil, setResendBlockedUntil] = useState(0);
+
+  const loadAccount = useCallback(async () => {
+    const [profileResult, accountResult] = await Promise.all([fetchMyProfile(), fetchMyAccount()]);
+    setIsAccountLoading(false);
+    if (profileResult.error || accountResult.error || !accountResult.account) {
+      console.warn('loading the profile failed', profileResult.error ?? accountResult.error);
+      setAccountLoadFailed(true);
+      return;
+    }
+    setAccountLoadFailed(false);
+    setProfile(profileResult.profile ?? { firstName: '', lastName: '', dateOfBirth: null, underAgeAt: null });
+    setAccount(accountResult.account);
+  }, []);
+
+  // Read again on every return to the app: an email change may just have been confirmed in the
+  // browser.
+  useEffect(() => {
+    loadAccount();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') loadAccount();
+    });
+    return () => subscription.remove();
+  }, [loadAccount]);
+
+  const handleResendEmail = async () => {
+    if (!account?.pendingEmail) return;
+    setEmailActionMessage(null);
+    if (Date.now() < resendBlockedUntil) {
+      setEmailActionMessage(t('profile.resendWait', { seconds: Math.ceil((resendBlockedUntil - Date.now()) / 1000) }));
+      return;
+    }
+    setEmailAction('resend');
+    const { error } = await resendEmailChange(account.pendingEmail);
+    setEmailAction(null);
+    if (error) {
+      setEmailActionMessage(t(error === 'rate_limited' ? 'profileEdit.emailRateLimited' : 'profile.resendError'));
+      return;
+    }
+    setResendBlockedUntil(Date.now() + RESEND_COOLDOWN_SECONDS * 1000);
+    setEmailActionMessage(t('profile.resendDone', { email: account.pendingEmail }));
+  };
+
+  const handleCancelEmailChange = async () => {
+    setEmailActionMessage(null);
+    setEmailAction('cancel');
+    const { error } = await cancelEmailChange();
+    setEmailAction(null);
+    if (error) {
+      setEmailActionMessage(t('profile.cancelEmailError'));
+      return;
+    }
+    setEmailActionMessage(t('profile.cancelEmailDone'));
+    await loadAccount();
+  };
 
   const [card, setCard] = useState<SavedCard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,6 +146,7 @@ export default function ProfileScreen({ onBack }: Props) {
   const handleRefresh = () => {
     setIsRefreshing(true);
     loadCard();
+    loadAccount();
   };
 
   const handleSetupCard = async () => {
@@ -136,51 +215,149 @@ export default function ProfileScreen({ onBack }: Props) {
         >
           <Text style={styles.backText}>{t('admin.back')}</Text>
         </Pressable>
-        <Text style={styles.title}>{t('profile.title')}</Text>
-
-        <Text style={styles.sectionTitle}>{t('profile.paymentMethodsTitle')}</Text>
-        <Text style={styles.intro}>{t('profile.paymentMethodsIntro')}</Text>
-
-        {errorMessage ? <ErrorNotice message={errorMessage} onRetry={loadCard} retryLabel={t('common.retry')} /> : null}
-
-        {isLoading ? (
-          <Card accessible accessibilityLabel={t('admin.loading')}>
-            <Skeleton width={160} height={22} style={styles.skeletonGap} />
-            <Skeleton width={100} height={14} />
-          </Card>
+        {isEditing && profile && account ? (
+          <EditProfileForm
+            profile={profile}
+            account={account}
+            onCancel={() => setIsEditing(false)}
+            onSaved={(message) => {
+              setIsEditing(false);
+              setProfileNotice(message);
+              setEmailActionMessage(null);
+              loadAccount();
+            }}
+          />
         ) : (
-          <Card>
-            {card ? (
-              <View style={styles.cardDetails}>
-                {walletKey ? <Text style={styles.walletText}>{t(walletKey)}</Text> : null}
-                <Text style={styles.cardLine}>
-                  {t('profile.cardLine', { brand: capitalize(card.brand), last4: card.last4 })}
-                </Text>
-                <Text style={styles.expiryText}>
-                  {t('profile.cardExpiry', {
-                    month: String(card.expMonth).padStart(2, '0'),
-                    year: card.expYear,
-                  })}
-                </Text>
-              </View>
-            ) : (
-              <Text style={styles.noCardText}>{t('profile.noCard')}</Text>
-            )}
+          <>
+            <Text style={styles.title}>{t('profile.title')}</Text>
 
-            {notice ? (
-              <Text style={styles.noticeText} accessibilityLiveRegion="polite">
-                {notice}
-              </Text>
+            {accountLoadFailed ? (
+              <ErrorNotice message={t('profile.accountLoadError')} onRetry={loadAccount} retryLabel={t('common.retry')} />
             ) : null}
 
-            {!CARD_SETUP_SUPPORTED ? (
-              <Text style={styles.noticeText}>{t('profile.webNotSupported')}</Text>
-            ) : card ? (
-              <SecondaryButton label={t('profile.replaceCard')} onPress={handleSetupCard} disabled={isSaving} />
+            {isAccountLoading ? (
+              <Card style={styles.accountCard} accessible accessibilityLabel={t('admin.loading')}>
+                <Skeleton width={72} height={72} style={styles.skeletonGap} />
+                <Skeleton width={180} height={22} style={styles.skeletonGap} />
+                <Skeleton width={220} height={14} />
+              </Card>
+            ) : profile && account ? (
+              <Card style={styles.accountCard}>
+                <View style={styles.identity}>
+                  <Avatar index={0} size={72} />
+                  <Text style={styles.name}>
+                    {`${profile.firstName} ${profile.lastName}`.trim() || t('profile.nameMissing')}
+                  </Text>
+                </View>
+
+                {profileNotice ? (
+                  <Text style={styles.successText} accessibilityLiveRegion="polite">
+                    {profileNotice}
+                  </Text>
+                ) : null}
+
+                <Text style={styles.fieldLabel}>{t('profile.emailLabel')}</Text>
+                <Text style={styles.fieldValue} selectable>
+                  {account.email}
+                </Text>
+                {account.provider !== 'email' ? (
+                  <Text style={styles.fieldNote}>
+                    {t(account.provider === 'apple' ? 'profile.emailManagedApple' : 'profile.emailManagedGoogle')}
+                  </Text>
+                ) : account.pendingEmail ? (
+                  <View style={styles.pending}>
+                    <Text style={styles.pendingText}>{t('profile.emailPending', { email: account.pendingEmail })}</Text>
+                    <Text style={styles.fieldNote}>{t('profile.emailPendingHelp')}</Text>
+                    <View style={styles.pendingActions}>
+                      <Pressable
+                        onPress={handleResendEmail}
+                        disabled={emailAction != null}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.linkText}>{t('profile.resendEmail')}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={handleCancelEmailChange}
+                        disabled={emailAction != null}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.linkText}>{t('profile.cancelEmailChange')}</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : null}
+                {emailActionMessage ? (
+                  <Text style={styles.fieldNote} accessibilityLiveRegion="polite">
+                    {emailActionMessage}
+                  </Text>
+                ) : null}
+
+                <Text style={styles.fieldLabel}>{t('profile.dateOfBirthLabel')}</Text>
+                <Text style={styles.fieldValue}>
+                  {profile.dateOfBirth ? formatDateOfBirth(profile.dateOfBirth, i18n.language) : t('profile.dateOfBirthMissing')}
+                </Text>
+                {profile.dateOfBirth ? <Text style={styles.fieldNote}>{t('profile.dateOfBirthLocked')}</Text> : null}
+
+                <View style={styles.editButton}>
+                  <SecondaryButton
+                    label={t('profile.editButton')}
+                    icon="create-outline"
+                    onPress={() => {
+                      setProfileNotice(null);
+                      setIsEditing(true);
+                    }}
+                  />
+                </View>
+              </Card>
+            ) : null}
+
+            <Text style={styles.sectionTitle}>{t('profile.paymentMethodsTitle')}</Text>
+            <Text style={styles.intro}>{t('profile.paymentMethodsIntro')}</Text>
+
+            {errorMessage ? <ErrorNotice message={errorMessage} onRetry={loadCard} retryLabel={t('common.retry')} /> : null}
+
+            {isLoading ? (
+              <Card accessible accessibilityLabel={t('admin.loading')}>
+                <Skeleton width={160} height={22} style={styles.skeletonGap} />
+                <Skeleton width={100} height={14} />
+              </Card>
             ) : (
-              <PrimaryButton label={t('profile.addCard')} onPress={handleSetupCard} loading={isSaving} />
+              <Card>
+                {card ? (
+                  <View style={styles.cardDetails}>
+                    {walletKey ? <Text style={styles.walletText}>{t(walletKey)}</Text> : null}
+                    <Text style={styles.cardLine}>
+                      {t('profile.cardLine', { brand: capitalize(card.brand), last4: card.last4 })}
+                    </Text>
+                    <Text style={styles.expiryText}>
+                      {t('profile.cardExpiry', {
+                        month: String(card.expMonth).padStart(2, '0'),
+                        year: card.expYear,
+                      })}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.noCardText}>{t('profile.noCard')}</Text>
+                )}
+
+                {notice ? (
+                  <Text style={styles.noticeText} accessibilityLiveRegion="polite">
+                    {notice}
+                  </Text>
+                ) : null}
+
+                {!CARD_SETUP_SUPPORTED ? (
+                  <Text style={styles.noticeText}>{t('profile.webNotSupported')}</Text>
+                ) : card ? (
+                  <SecondaryButton label={t('profile.replaceCard')} onPress={handleSetupCard} disabled={isSaving} />
+                ) : (
+                  <PrimaryButton label={t('profile.addCard')} onPress={handleSetupCard} loading={isSaving} />
+                )}
+              </Card>
             )}
-          </Card>
+          </>
         )}
       </ScrollView>
     </ScreenBackground>
@@ -205,6 +382,58 @@ const styles = StyleSheet.create({
   title: {
     ...baseText.h2,
     marginBottom: spacing.x6,
+  },
+  accountCard: {
+    marginBottom: spacing.x8,
+  },
+  identity: {
+    alignItems: 'center',
+    gap: spacing.x3,
+    marginBottom: spacing.x4,
+  },
+  name: {
+    ...baseText.h3,
+    textAlign: 'center',
+  },
+  fieldLabel: {
+    ...baseText.label,
+    marginTop: spacing.x4,
+    marginBottom: spacing.x1,
+  },
+  fieldValue: {
+    ...baseText.body,
+  },
+  fieldNote: {
+    ...baseText.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.x1,
+  },
+  pending: {
+    marginTop: spacing.x2,
+  },
+  pendingText: {
+    ...baseText.bodySmall,
+    color: colors.warning,
+    fontWeight: '600',
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    gap: spacing.x6,
+    marginTop: spacing.x3,
+  },
+  linkText: {
+    ...baseText.bodySmall,
+    color: colors.textPrimary,
+    textDecorationLine: 'underline',
+  },
+  successText: {
+    ...baseText.bodySmall,
+    color: colors.success,
+    textAlign: 'center',
+    marginBottom: spacing.x2,
+  },
+  editButton: {
+    marginTop: spacing.x6,
   },
   sectionTitle: {
     ...baseText.h3,

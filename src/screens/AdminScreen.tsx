@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import AdminAccounts from '../components/AdminAccounts';
 import AdminAirlineTerminals from '../components/AdminAirlineTerminals';
 import AdminJobStatus from '../components/AdminJobStatus';
 import AdminMeetingPoints from '../components/AdminMeetingPoints';
@@ -139,7 +140,7 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
   const [suggestions, setSuggestions] = useState<MatchSuggestion[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [creatingSuggestionKey, setCreatingSuggestionKey] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'active' | 'history' | 'meetingPoints' | 'airlines'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'history' | 'meetingPoints' | 'airlines' | 'accounts'>('active');
   const [openMeetingPoint, setOpenMeetingPoint] = useState<MeetingPoint | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [rideDateFilter, setRideDateFilter] = useState<RideDateFilter>('all');
@@ -494,6 +495,17 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
               {t('adminAirlines.tab')}
             </Text>
           </Pressable>
+          <Pressable
+            onPress={() => setActiveTab('accounts')}
+            style={[styles.tab, activeTab === 'accounts' && styles.tabActive]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'accounts' }}
+            accessibilityLabel={t('adminAccounts.title')}
+          >
+            <Text style={[styles.tabText, activeTab === 'accounts' && styles.tabTextActive]}>
+              {t('adminAccounts.tab')}
+            </Text>
+          </Pressable>
         </View>
 
         {errorMessage ? <ErrorNotice message={errorMessage} onRetry={loadData} retryLabel={t('common.retry')} /> : null}
@@ -502,6 +514,7 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
           <>
         <AdminJobStatus refreshKey={paymentIssuesKey} />
         <AdminAirlineTerminals warningsOnly refreshKey={paymentIssuesKey} />
+        <AdminAccounts warningsOnly refreshKey={paymentIssuesKey} onOpenAccounts={() => setActiveTab('accounts')} />
         {PAYMENTS_ENABLED ? <AdminPaymentIssues onOpenGroup={setOpenGroupId} refreshKey={paymentIssuesKey} /> : null}
         <View style={styles.suggestionsSection}>
           <PrimaryButton
@@ -778,6 +791,8 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
           <AdminMeetingPoints onOpen={setOpenMeetingPoint} />
         ) : activeTab === 'airlines' ? (
           <AdminAirlineTerminals refreshKey={paymentIssuesKey} />
+        ) : activeTab === 'accounts' ? (
+          <AdminAccounts refreshKey={paymentIssuesKey} />
         ) : (
           <>
             {/* Looks back at finished rides: how well the calculated ready times held up. */}

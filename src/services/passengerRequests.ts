@@ -107,7 +107,7 @@ export type UpdatePassengerRequestResult = {
   error: Error | null;
   // Set when the edit was rejected because the request's group is already confirmed - the
   // caller should show findingMatch's edit-locked message instead of a generic error.
-  blockedReason?: 'group_confirmed';
+  blockedReason?: 'group_confirmed' | 'date_of_birth_required' | 'under_age';
 };
 
 // Routed through the edit-passenger-request Edge Function rather than a plain client-side
@@ -152,6 +152,10 @@ export async function updatePassengerRequest(
       const body = await context.json();
       if (body?.error === 'group_confirmed') {
         return { error, blockedReason: 'group_confirmed' };
+      }
+      // The age rule (no date of birth yet, or under 18): nothing was changed.
+      if (body?.error === 'date_of_birth_required' || body?.error === 'under_age') {
+        return { error, blockedReason: body.error };
       }
     } catch {
       // Fall through to the generic error below.
@@ -254,6 +258,14 @@ function hasPostgresErrorText(error: unknown, text: string) {
 // Postgres error raised by the enforce_one_active_request insert trigger.
 export function isActiveRideExistsError(error: unknown) {
   return hasPostgresErrorText(error, 'active_ride_exists');
+}
+
+// Postgres errors raised by the passenger_requests_require_adult trigger: no date of birth yet, or
+// under 18.
+export function ageRuleErrorOf(error: unknown): 'date_of_birth_required' | 'under_age' | null {
+  if (hasPostgresErrorText(error, 'date_of_birth_required')) return 'date_of_birth_required';
+  if (hasPostgresErrorText(error, 'under_age')) return 'under_age';
+  return null;
 }
 
 // Postgres error raised by the enforce_verified_email_for_request insert trigger.
