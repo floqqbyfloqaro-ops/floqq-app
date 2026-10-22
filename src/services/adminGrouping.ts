@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import type { MeetingPointKind } from './meetingPointRules';
 import type { ArrivalTimeSource } from './passengerRequests';
 
 export type PendingPassengerRequest = {
@@ -119,6 +120,8 @@ export type TaxiGroupSummary = {
   status: TaxiGroupStatus;
   // Where the group meets at the airport; assigned automatically once it is confirmed.
   meeting_point_id: string | null;
+  // What kind of point that is: 'fallback' means the admin should pick the group a real one.
+  meeting_point: { kind: MeetingPointKind } | null;
   // The group never met and its ride time is long past: it needs the admin's review, and until
   // then no payment step runs for it.
   meetup_flagged_at: string | null;
@@ -133,9 +136,10 @@ export const HISTORY_GROUP_STATUSES: TaxiGroupStatus[] = ['dissolved'];
 export function fetchTaxiGroups(statuses: TaxiGroupStatus[] = ACTIVE_GROUP_STATUSES) {
   return supabase
     .from('taxi_groups')
-    .select('id, created_at, total_fare, status, meeting_point_id, meetup_flagged_at')
+    .select('id, created_at, total_fare, status, meeting_point_id, meetup_flagged_at, meeting_point:meeting_points(kind)')
     .in('status', statuses)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .returns<TaxiGroupSummary[]>();
 }
 
 export function fetchGroupById(groupId: string) {

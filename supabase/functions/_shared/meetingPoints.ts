@@ -4,9 +4,11 @@
 // passengers securing their spots, or the admin by hand) has both within a minute.
 //
 //   1. A meeting point (meetingPointAssignment.ts decides which), with the meeting time kept in
-//      step with the ride. A group without one keeps being retried: that is what happens while
-//      its terminal has no active point yet. An assignment is never changed here once made - only
-//      the admin overrides it (admin_set_group_meeting_point).
+//      step with the ride. While its terminal has no verified point, a group gets the terminal's
+//      fallback (the arrivals hall), flagged for the admin to pick a real one. An assignment is
+//      never changed here once made - not even from a fallback to a point verified later, since
+//      passengers may already be on their way - only the admin overrides it
+//      (admin_set_group_meeting_point).
 //   2. A badge (badgeAssignment.ts): assigned once and never changed, not even when the meeting
 //      time shifts, because members may already have seen it.
 //   3. "You've landed": each member is told once, at their expected landing (landedRule.ts), to
@@ -124,7 +126,7 @@ async function assignMeetingPoints(adminClient: SupabaseClient, upcoming: Entry[
 
   const { data: pointRows } = await adminClient
     .from('meeting_points')
-    .select('id, terminal, short_code, sort_priority, is_active')
+    .select('id, terminal, short_code, sort_priority, is_active, kind')
     .eq('is_active', true);
   const points: AssignablePoint[] = (pointRows ?? []).map((p) => ({
     id: p.id,
@@ -132,6 +134,7 @@ async function assignMeetingPoints(adminClient: SupabaseClient, upcoming: Entry[
     shortCode: p.short_code,
     sortPriority: p.sort_priority,
     isActive: p.is_active,
+    kind: p.kind,
   }));
 
   for (const { group, members, terminal, meetingTimeMs } of unassigned) {
@@ -183,6 +186,8 @@ async function assignMeetingPoints(adminClient: SupabaseClient, upcoming: Entry[
         source: 'auto',
         // More than 0 only when every point at the terminal was taken around that time.
         overlapping_groups: choice.overlapping,
+        // The terminal had no other active point: the admin picks this group a real one.
+        fallback: choice.isFallback,
       },
       actor_type: 'system',
     });

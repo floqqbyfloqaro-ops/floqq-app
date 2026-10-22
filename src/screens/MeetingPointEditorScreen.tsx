@@ -23,6 +23,7 @@ import {
   meetingPointText,
   missingForActivation,
   missingForVerification,
+  needsOnSiteCheck,
   WordingField,
 } from '../services/meetingPointRules';
 import {
@@ -152,12 +153,17 @@ export default function MeetingPointEditorScreen({ point: initialPoint, onBack }
     });
   };
 
+  // A new location or photo voids an on-site check. A fallback or TEST point has none to void, and
+  // stays active: a fallback that switched itself off would leave its terminal's groups waiting.
+  const resetIfChecked = needsOnSiteCheck(point) ? RESET_VERIFICATION : {};
+  const kindLabel = point.kind === 'regular' ? null : t(`adminMeetingPoints.kind.${point.kind}`);
+
   const handleSaveLocation = async () => {
     if (!candidate) return;
     const saved = await save('location', {
       latitude: candidate.latitude,
       longitude: candidate.longitude,
-      ...RESET_VERIFICATION,
+      ...resetIfChecked,
     });
     if (saved) setCandidate(null);
   };
@@ -193,7 +199,7 @@ export default function MeetingPointEditorScreen({ point: initialPoint, onBack }
       return;
     }
     const previousPath = point.photo_path;
-    const saved = await save('photo', { photo_path: upload.path, ...RESET_VERIFICATION });
+    const saved = await save('photo', { photo_path: upload.path, ...resetIfChecked });
     if (saved && previousPath) removeMeetingPointPhoto(previousPath);
   };
 
@@ -267,6 +273,7 @@ export default function MeetingPointEditorScreen({ point: initialPoint, onBack }
         </Pressable>
         <Text style={styles.code}>
           {point.short_code} · {t('adminMeetingPoints.terminal', { terminal: point.terminal })}
+          {kindLabel ? ` · ${kindLabel}` : ''}
         </Text>
         <Text style={styles.title}>
           {meetingPointText(point, 'name', adminWordingLanguage(i18n.language), shippedText) || point.short_code}
@@ -414,13 +421,19 @@ export default function MeetingPointEditorScreen({ point: initialPoint, onBack }
               {warning}
             </Text>
           ))}
-          <Text style={[styles.body, styles.statusLine]}>
-            {point.verified_at
-              ? t('adminMeetingPoints.verifiedOn', { date: formatBarcelonaDateTime(point.verified_at) })
-              : t('adminMeetingPoints.notVerified')}
-          </Text>
+          {needsOnSiteCheck(point) ? (
+            <Text style={[styles.body, styles.statusLine]}>
+              {point.verified_at
+                ? t('adminMeetingPoints.verifiedOn', { date: formatBarcelonaDateTime(point.verified_at) })
+                : t('adminMeetingPoints.notVerified')}
+            </Text>
+          ) : (
+            <Text style={[styles.hint, styles.statusLine]}>
+              {t(point.kind === 'fallback' ? 'adminMeetingPoints.fallbackHint' : 'adminMeetingPoints.testPointHint')}
+            </Text>
+          )}
 
-          {!point.verified_at ? (
+          {!point.verified_at && needsOnSiteCheck(point) ? (
             <>
               <Text style={missingToVerify.length ? styles.warning : styles.hint}>
                 {missingToVerify.length ? missingLabel(missingToVerify) : t('adminMeetingPoints.verifyHint')}
@@ -444,7 +457,7 @@ export default function MeetingPointEditorScreen({ point: initialPoint, onBack }
             />
           ) : (
             <>
-              {point.verified_at && missingToActivate.length ? (
+              {(point.verified_at || !needsOnSiteCheck(point)) && missingToActivate.length ? (
                 <Text style={styles.warning}>{missingLabel(missingToActivate)}</Text>
               ) : null}
               <SecondaryButton

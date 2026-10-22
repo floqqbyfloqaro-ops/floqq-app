@@ -13,8 +13,13 @@ export function wordingLanguageFor(appLanguage: string): MeetingPointLanguage {
   return (MEETING_POINT_LANGUAGES as readonly string[]).includes(base) ? (base as MeetingPointLanguage) : 'en';
 }
 
+// 'regular': a landmark checked on site. 'fallback': the terminal's arrivals hall, used only when
+// no regular point is active there. 'test': for the test project only, never on the live one.
+export type MeetingPointKind = 'regular' | 'fallback' | 'test';
+
 export type MeetingPoint = {
   id: string;
+  kind: MeetingPointKind;
   airport_code: string;
   terminal: string;
   short_code: string;
@@ -40,7 +45,7 @@ export type WordedPoint = Pick<MeetingPoint, 'name_key' | 'directions_key' | 'na
 
 // A point as a passenger sees it: where it is and what it is called, nothing about its status.
 export type MeetingPointSummary = WordedPoint &
-  Pick<MeetingPoint, 'id' | 'terminal' | 'short_code' | 'latitude' | 'longitude' | 'photo_path'>;
+  Pick<MeetingPoint, 'id' | 'terminal' | 'short_code' | 'kind' | 'latitude' | 'longitude' | 'photo_path'>;
 
 // Looks up the wording shipped with the app for one language; null when there is none.
 export type ShippedText = (key: string, language: MeetingPointLanguage) => string | null;
@@ -68,20 +73,24 @@ export function hasAllWording(point: WordedPoint, shipped: ShippedText): boolean
 
 export type MissingDetail = 'coordinates' | 'photo' | 'wording' | 'verified';
 
+// Whether the point must be checked on site (with its photo) before it may be active. A fallback
+// is the arrivals hall itself and a TEST point never reaches real passengers: neither does.
+export const needsOnSiteCheck = (point: Pick<MeetingPoint, 'kind'>) => point.kind === 'regular';
+
 // What still stands between a point and being verified on site: everything a passenger would be
 // shown must be there first.
 export function missingForVerification(point: MeetingPoint, shipped: ShippedText): MissingDetail[] {
   const missing: MissingDetail[] = [];
   if (point.latitude == null || point.longitude == null) missing.push('coordinates');
-  if (!point.photo_path) missing.push('photo');
+  if (!point.photo_path && needsOnSiteCheck(point)) missing.push('photo');
   if (!hasAllWording(point, shipped)) missing.push('wording');
   return missing;
 }
 
 // A point can only be active with coordinates, a photo, wording in every language, and an admin's
-// on-site verification.
+// on-site verification - a fallback or TEST point with its coordinates and wording alone.
 export function missingForActivation(point: MeetingPoint, shipped: ShippedText): MissingDetail[] {
   const missing = missingForVerification(point, shipped);
-  if (!point.verified_at) missing.push('verified');
+  if (!point.verified_at && needsOnSiteCheck(point)) missing.push('verified');
   return missing;
 }

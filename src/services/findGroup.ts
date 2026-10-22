@@ -21,9 +21,11 @@ export type Meetup = {
   groupId: string;
   // 'T1' / 'T2' - the one terminal everyone in the group arrives at. Null only on old groups.
   terminal: string | null;
-  // Where the group meets. Null until one is assigned (within a minute of confirmation, provided
-  // the terminal has an active point).
+  // Where the group meets: its own point, or until that is saved (within a minute of
+  // confirmation) the terminal's fallback. Null only when the terminal is unknown.
   meetingPoint: MeetingPointSummary | null;
+  // The point above is the terminal's fallback, handed out before the group's own was saved.
+  meetingPointProvisional: boolean;
   meetingTime: string;
   // The group's badge: assigned within a minute of confirmation and never changed after.
   badge: MeetupBadge | null;

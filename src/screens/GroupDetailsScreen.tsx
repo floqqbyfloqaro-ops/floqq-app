@@ -45,6 +45,8 @@ type Props = {
 // how often the clock-driven parts ("last seen", the window opening, the timeout) are refreshed.
 const RECHECK_MS = 15_000;
 const CLOCK_TICK_MS = 10_000;
+// The longest the meeting point shows as loading before the terminal's fallback is shown instead.
+const POINT_WAIT_MS = 60_000;
 
 // Remembered per group, on this phone only: the passenger agreed to share their location with
 // this group (our own explanation, shown before any system prompt), and their badge was already
@@ -73,6 +75,7 @@ function KeepScreenAwake() {
 export default function GroupDetailsScreen({ request, onBack, openedFrom = 'button' }: Props) {
   const { t } = useTranslation();
 
+  const openedAt = useRef(Date.now());
   const [meetup, setMeetup] = useState<Meetup | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -147,7 +150,11 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
     logFindGroupOpened(request.id, entryState, openedFrom);
   }, [entryState, openedFrom, request.id]);
 
-  const point = meetup?.meetingPoint ?? null;
+  // The group's own point is normally saved within a minute of confirmation; until then the server
+  // hands out the terminal's fallback. Wait that minute for the real one (it is likely the same
+  // point, and the passenger shouldn't be sent one way and then another), then show the fallback.
+  const waitingForPoint = meetup?.meetingPointProvisional === true && now - openedAt.current < POINT_WAIT_MS;
+  const point = waitingForPoint ? null : (meetup?.meetingPoint ?? null);
   const target = point?.latitude != null && point.longitude != null ? { lat: point.latitude, lng: point.longitude } : null;
 
   // Guidance: the phone's own position, read whenever there is a meeting point to walk to - once
@@ -414,7 +421,8 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
 
                 <MeetingPointCard
                   terminal={meetup.terminal}
-                  point={meetup.meetingPoint}
+                  point={point}
+                  loading={waitingForPoint}
                   meetingTime={meetup.meetingTime}
                   hidePhoto={showGuidance && guidanceShowsPhoto(face)}
                 />

@@ -194,6 +194,7 @@
     "flightLaterFlag": "Horaire de vol modifié : un membre arrive maintenant {{minutes}} min plus tard",
     "flightEarlierFlag": "Horaire de vol modifié : un membre arrive maintenant {{minutes}} min plus tôt",
     "noMeetingPointFlag": "Aucun point de rencontre attribué",
+    "fallbackMeetingPointFlag": "Groupe au point de rencontre de secours",
     "meetupFlaggedFlag": "À vérifier : ce groupe ne s'est jamais retrouvé. Rien n'est débité tant que vous n'avez pas confirmé le trajet.",
     "noShowFlag": "Absent : son groupe a continué sans cette personne ({{date}})"
   },
@@ -281,6 +282,7 @@
     "flightTimeChangedNote": "Les données de vol indiquent maintenant une arrivée de ce passager à {{time}}. Le groupe est confirmé, donc son heure de rendez-vous n'a pas été modifiée automatiquement.",
     "meetingPointTitle": "Point de rencontre",
     "meetingPointNone": "Pas encore de point de rencontre. Il est attribué automatiquement en moins d'une minute, dès que ce terminal a un point actif.",
+    "meetingPointFallbackNote": "Ce groupe a reçu le point de rencontre de secours de son terminal (le hall des arrivées), faute de point vérifié actif. Choisissez-en un vrai ci-dessous.",
     "meetingTimeLabel": "Heure de rendez-vous : {{time}}",
     "meetingPointChange": "Changer de point de rencontre",
     "meetingPointAuto": "Revenir à l’attribution automatique",
@@ -408,6 +410,16 @@
     "checkDetail": "Les données de vol ont indiqué {{reported}} pour {{flights}} vols {{name}} au cours des {{days}} derniers jours. Cette liste indique {{table}}."
   },
   "adminMeetingPoints": {
+    "kind": {
+      "regular": "Normal",
+      "fallback": "De secours",
+      "test": "TEST"
+    },
+    "testTitle": "Points de rencontre TEST (projet de test uniquement)",
+    "testHint": "Créez un point marqué TEST, placez-le et activez-le - sans photo ni vérification sur place. La base de données en production les refuse.",
+    "newTestPoint": "Nouveau point TEST à {{terminal}}",
+    "fallbackHint": "Point de secours : le hall des arrivées lui-même. Un groupe ne le reçoit que si aucun point vérifié n'est actif à ce terminal, et il vous est signalé. Gardez-le actif et bien placé.",
+    "testPointHint": "Point TEST : peut être actif sans photo ni vérification sur place. Possible uniquement sur le projet de test.",
     "tab": "Points",
     "title": "Points de rencontre",
     "empty": "Il n'y a pas encore de point de rencontre.",
@@ -474,6 +486,18 @@
     "tooClose": "À seulement {{meters}} m de {{code}} : la flèche ne peut pas les distinguer de façon fiable."
   },
   "meetingPoints": {
+    "T1-FALLBACK": {
+      "name": "Hall des arrivées du Terminal 1",
+      "directions": "Sortez de la zone de récupération des bagages vers le hall des arrivées et attendez juste après les portes de sortie."
+    },
+    "T2-FALLBACK": {
+      "name": "Hall des arrivées du Terminal 2B",
+      "directions": "Sortez de la zone de récupération des bagages vers le hall des arrivées du T2B et attendez juste après les portes de sortie."
+    },
+    "TEST": {
+      "name": "Point de rencontre TEST",
+      "directions": "Un point de test pour essayer l'application - pas un vrai point de rencontre."
+    },
     "T1-A": {
       "name": "Office de tourisme",
       "directions": "Niveau 0, juste après l'entrée dans le hall des arrivées."
@@ -760,7 +784,9 @@
   "meetingPointCard": {
     "title": "Votre point de rencontre",
     "terminal": "Terminal {{terminal}}",
-    "pending": "Votre point de rencontre apparaîtra ici dans un instant.",
+    "pending": "Retrouvez votre groupe dans le hall des arrivées de votre terminal, juste après la sortie des bagages.",
+    "loading": "Recherche de votre point de rencontre…",
+    "testMark": "TEST",
     "meetingTime": "Heure de rendez-vous : {{time}} (heure de Barcelone)",
     "openInMaps": "Ouvrir dans Google Maps",
     "photoLabel": "Photo du point de rencontre : {{name}}"

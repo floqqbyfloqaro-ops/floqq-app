@@ -21,6 +21,7 @@ const shippedNowhere = () => null;
 
 const point = (overrides = {}) => ({
   id: 'p1',
+  kind: 'regular',
   airport_code: 'BCN',
   terminal: 'T1',
   short_code: 'T1-A',
@@ -97,4 +98,17 @@ test('points are read in the app language when it is supported, otherwise in Eng
   assert.equal(wordingLanguageFor('en-GB'), 'en');
   assert.equal(wordingLanguageFor('nl'), 'en');
   assert.equal(wordingLanguageFor('de-DE'), 'en');
+});
+
+test('a fallback or TEST point needs its coordinates and wording, but no photo or on-site check', () => {
+  for (const kind of ['fallback', 'test']) {
+    assert.deepEqual(missingForActivation(point({ kind }), shippedEverywhere), ['coordinates']);
+    assert.deepEqual(missingForActivation(point({ kind, latitude: 41.29, longitude: 2.07 }), shippedEverywhere), []);
+    assert.deepEqual(missingForActivation(point({ kind, latitude: 41.29, longitude: 2.07 }), shippedNowhere), ['wording']);
+  }
+});
+
+test('a regular point still needs its photo and the on-site check', () => {
+  assert.deepEqual(missingForActivation(point(complete), shippedEverywhere), ['verified']);
+  assert.deepEqual(missingForActivation(point({ latitude: 41.29, longitude: 2.07 }), shippedEverywhere), ['photo', 'verified']);
 });

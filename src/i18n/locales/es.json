@@ -190,6 +190,7 @@
     "flightLaterFlag": "Horario de vuelo modificado: un miembro llega ahora {{minutes}} min más tarde",
     "flightEarlierFlag": "Horario de vuelo modificado: un miembro llega ahora {{minutes}} min antes",
     "noMeetingPointFlag": "Sin punto de encuentro asignado",
+    "fallbackMeetingPointFlag": "Grupo con punto de encuentro de reserva",
     "meetupFlaggedFlag": "Por revisar: este grupo nunca se encontró. No se cobra nada hasta que confirmes el trayecto.",
     "noShowFlag": "No presentado: su grupo continuó sin esta persona ({{date}})"
   },
@@ -277,6 +278,7 @@
     "flightTimeChangedNote": "Los datos del vuelo indican ahora que este pasajero llega a las {{time}}. El grupo está confirmado, así que su hora de encuentro no se ha cambiado automáticamente.",
     "meetingPointTitle": "Punto de encuentro",
     "meetingPointNone": "Aún no hay punto de encuentro. Se asigna automáticamente en menos de un minuto, en cuanto esta terminal tenga un punto activo.",
+    "meetingPointFallbackNote": "A este grupo se le asignó el punto de encuentro de reserva de su terminal (el vestíbulo de llegadas) porque no había ningún punto verificado activo. Elige uno real abajo.",
     "meetingTimeLabel": "Hora de encuentro: {{time}}",
     "meetingPointChange": "Cambiar punto de encuentro",
     "meetingPointAuto": "Volver a la asignación automática",
@@ -404,6 +406,16 @@
     "checkDetail": "Los datos de vuelo indicaron {{reported}} en {{flights}} vuelos de {{name}} en los últimos {{days}} días. Esta lista indica {{table}}."
   },
   "adminMeetingPoints": {
+    "kind": {
+      "regular": "Normal",
+      "fallback": "De reserva",
+      "test": "TEST"
+    },
+    "testTitle": "Puntos de encuentro TEST (solo proyecto de prueba)",
+    "testHint": "Crea un punto marcado como TEST, fija su ubicación y actívalo, sin foto ni verificación in situ. La base de datos en producción los rechaza.",
+    "newTestPoint": "Nuevo punto TEST en {{terminal}}",
+    "fallbackHint": "Punto de reserva: el propio vestíbulo de llegadas. Un grupo solo lo recibe si no hay ningún punto verificado activo en esta terminal, y se te señala. Mantenlo activo y bien ubicado.",
+    "testPointHint": "Punto TEST: puede estar activo sin foto ni verificación in situ. Solo es posible en el proyecto de prueba.",
     "tab": "Puntos",
     "title": "Puntos de encuentro",
     "empty": "Todavía no hay puntos de encuentro.",
@@ -470,6 +482,18 @@
     "tooClose": "A solo {{meters}} m de {{code}}: la flecha no puede distinguirlos con fiabilidad."
   },
   "meetingPoints": {
+    "T1-FALLBACK": {
+      "name": "Vestíbulo de llegadas de la Terminal 1",
+      "directions": "Sal de la zona de recogida de equipajes al vestíbulo de llegadas y espera justo después de las puertas de salida."
+    },
+    "T2-FALLBACK": {
+      "name": "Vestíbulo de llegadas de la Terminal 2B",
+      "directions": "Sal de la zona de recogida de equipajes al vestíbulo de llegadas de la T2B y espera justo después de las puertas de salida."
+    },
+    "TEST": {
+      "name": "Punto de encuentro TEST",
+      "directions": "Un punto de prueba para probar la app, no un punto de encuentro real."
+    },
     "T1-A": {
       "name": "Oficina de información turística",
       "directions": "Planta 0, justo al entrar en el vestíbulo de llegadas."
@@ -756,7 +780,9 @@
   "meetingPointCard": {
     "title": "Tu punto de encuentro",
     "terminal": "Terminal {{terminal}}",
-    "pending": "Tu punto de encuentro aparecerá aquí en breve.",
+    "pending": "Encuéntrate con tu grupo en el vestíbulo de llegadas de tu terminal, justo después de la salida de equipajes.",
+    "loading": "Buscando tu punto de encuentro…",
+    "testMark": "TEST",
     "meetingTime": "Hora de encuentro: {{time}} (hora de Barcelona)",
     "openInMaps": "Abrir en Google Maps",
     "photoLabel": "Foto del punto de encuentro: {{name}}"
