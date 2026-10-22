@@ -4,6 +4,7 @@ import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View
 
 import Avatar from '../components/Avatar';
 import Card from '../components/Card';
+import { formatDateOfBirth } from '../components/DateOfBirthField';
 import EditProfileForm from '../components/EditProfileForm';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
@@ -47,12 +48,6 @@ function newAttemptId() {
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-// A date of birth ('YYYY-MM-DD') written the way the passenger's language writes dates. Read as
-// UTC midnight so no time zone can move it to the day before.
-function formatDateOfBirth(isoDate: string, language: string) {
-  return new Intl.DateTimeFormat(language, { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${isoDate}T00:00:00Z`));
 }
 
 export default function ProfileScreen({ onBack }: Props) {

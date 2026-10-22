@@ -14,6 +14,7 @@ import MyRideScreen from './src/screens/MyRideScreen';
 import NewRequestScreen from './src/screens/NewRequestScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import DateOfBirthGate from './src/screens/DateOfBirthGate';
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeSplashScreen from './src/screens/WelcomeSplashScreen';
 import { PAYMENTS_ENABLED } from './src/constants';
@@ -202,18 +203,15 @@ function AppContent() {
     }
 
     if (mainScreen === 'newRequest') {
+      const closeRequest = () => {
+        setEditingRequestId(null);
+        setMainScreen('home');
+      };
+      // Creating or editing a ride needs a date of birth showing 18 or older: asked for once.
       return (
-        <NewRequestScreen
-          requestId={editingRequestId ?? undefined}
-          onSubmitted={() => {
-            setEditingRequestId(null);
-            setMainScreen('home');
-          }}
-          onCancel={() => {
-            setEditingRequestId(null);
-            setMainScreen('home');
-          }}
-        />
+        <DateOfBirthGate onBack={closeRequest}>
+          <NewRequestScreen requestId={editingRequestId ?? undefined} onSubmitted={closeRequest} onCancel={closeRequest} />
+        </DateOfBirthGate>
       );
     }
 

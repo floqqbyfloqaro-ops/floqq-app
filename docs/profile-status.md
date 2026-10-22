@@ -46,4 +46,31 @@ App only, plus a web page and an email template.
   email change with both links (31 checks). Where the app's links land is checked on a phone:
   links made by the admin API ignore the requested destination.
 
-## Step C: date of birth at sign-up and before rides; admin "Accounts" tab (not started)
+## Step C: date of birth at sign-up and before rides; admin "Accounts" tab (branch `feat/profile-phase-c`, on top of B, 2026-10-22)
+
+App only.
+
+- **Sign-up**: first name, last name, date of birth (required; `DateOfBirthField` - the phone's
+  date picker in the user's language, day/month/year fields on the web). Under 18: "FLOQQ is
+  only available to users aged 18 and over." and nothing is sent.
+- **Before creating or editing a ride** (`DateOfBirthGate`, wraps the request form): no date of
+  birth - asked once; under 18 - the same kind message, with a Back button. The request form
+  also maps the server's `date_of_birth_required` / `under_age` refusals.
+- **Admin "Accounts" tab** (`AdminAccounts`): accounts flagged under 18 (still under 18, or 18
+  by now); find an account by email - its date of birth, history, and a correction with a
+  required reason and a confirmation. The Active tab shows "Accounts under 18: N" while any is.
+- **Tested**: `scripts/profile-age-test.mjs` now also tries the app's own sign-up call with an
+  under-18 date (32 checks).
+
+## Go-live checklist (all three steps together)
+
+1. Merge the step C pull request (it contains A and B).
+2. Supabase (live) dashboard:
+   - Authentication → URL Configuration → Redirect URLs: add
+     `https://floqqbyfloqaro-ops.github.io/floqq-app/email-changed.html`.
+   - Authentication → Emails → Change email address: paste `supabase/templates/change-email.html`.
+   - Authentication → Sign In / Providers → Email: "Secure email change" on.
+3. Server: `npx supabase db push`, then deploy `find-group`, `match-offer` and
+   `edit-passenger-request` (default JWT verification).
+4. Release the new app build at the same time: from step 3 on, accounts without a date of birth
+   can't create rides, and the old app has no screen to enter one.

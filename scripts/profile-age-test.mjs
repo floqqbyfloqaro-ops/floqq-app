@@ -109,6 +109,21 @@ try {
     !(youngLookup?.users ?? []).some((u) => u.email === young.email)
   );
 
+  // The app's own sign-up call (public key, no special rights), with an under-18 date.
+  const appSignUpEmail = emailOf('app-young');
+  const { data: appSignUp, error: appSignUpError } = await createClient(url, anonKey, options).auth.signUp({
+    email: appSignUpEmail,
+    password,
+    options: { data: { first_name: 'Young', last_name: 'App', full_name: 'Young App', date_of_birth: ONE_DAY_SHORT } },
+  });
+  if (appSignUp?.user) createdUsers.push(appSignUp.user);
+  const { data: appLookup } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  check(
+    "the app's sign-up with an under-18 date is refused, and no account exists",
+    appSignUpError != null && !(appLookup?.users ?? []).some((u) => u.email === appSignUpEmail),
+    appSignUpError?.message ?? 'accepted'
+  );
+
   const adult = await createUser('adult', { first_name: 'Anna', last_name: 'Adult', date_of_birth: EXACTLY_18 });
   check('sign-up exactly 18 today is accepted', adult.user != null, adult.error?.message ?? EXACTLY_18);
   const adultProfile = adult.user ? await profileOf(adult.user.id) : null;

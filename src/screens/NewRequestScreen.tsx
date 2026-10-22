@@ -18,6 +18,7 @@ import { fetchFlightLookup } from '../services/flightStatus';
 import { geocodeAddress } from '../services/geocoding';
 import { PlaceDetails } from '../services/placesAutocomplete';
 import {
+  ageRuleErrorOf,
   createPassengerRequest,
   fetchPassengerRequestById,
   isActiveRideExistsError,
@@ -325,6 +326,10 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
         setErrorMessage(t('edit_locked_group_message'));
         return;
       }
+      if (blockedReason === 'date_of_birth_required' || blockedReason === 'under_age') {
+        setErrorMessage(t(blockedReason === 'under_age' ? 'dateOfBirth.underAge' : 'dateOfBirth.requiredForRide'));
+        return;
+      }
       if (error) {
         console.warn('updatePassengerRequest failed', error);
         setErrorMessage(t('newRequest.updateError'));
@@ -336,17 +341,20 @@ export default function NewRequestScreen({ requestId, onSubmitted, onCancel }: P
 
       if (error) {
         console.warn('createPassengerRequest failed', error);
-        // The one-active-ride insert trigger caught what the Home screen check missed (e.g. a
-        // ride created from another device in the meantime).
-        setErrorMessage(
-          t(
-            isActiveRideExistsError(error)
-              ? 'active_ride_exists'
-              : isEmailNotVerifiedError(error)
-                ? 'auth.emailNotVerifiedError'
-                : 'newRequest.submitError'
-          )
-        );
+        // The insert triggers caught what the app's own checks missed: the one-active-ride rule
+        // (e.g. a ride created from another device in the meantime), a verified email, the age rule.
+        const ageRule = ageRuleErrorOf(error);
+        const messageKey =
+          ageRule === 'under_age'
+            ? 'dateOfBirth.underAge'
+            : ageRule === 'date_of_birth_required'
+              ? 'dateOfBirth.requiredForRide'
+              : isActiveRideExistsError(error)
+                ? 'active_ride_exists'
+                : isEmailNotVerifiedError(error)
+                  ? 'auth.emailNotVerifiedError'
+                  : 'newRequest.submitError';
+        setErrorMessage(t(messageKey));
         return;
       }
     }

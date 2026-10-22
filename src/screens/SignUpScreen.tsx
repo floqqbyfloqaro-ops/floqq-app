@@ -1,13 +1,22 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AuthTextInput from '../components/AuthTextInput';
+import DateOfBirthField from '../components/DateOfBirthField';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import VerifyEmailNotice from '../components/VerifyEmailNotice';
 import { signUpWithEmail } from '../services/emailVerification';
+import {
+  barcelonaToday,
+  cleanPersonName,
+  isAdultOn,
+  isValidPersonName,
+  NAME_MAX_LENGTH,
+  parseIsoDate,
+} from '../services/profileRules';
 import { baseText, colors, overlays, spacing } from '../theme/colors';
 
 type Props = {
@@ -16,7 +25,10 @@ type Props = {
 
 export default function SignUpScreen({ onSwitchToLogin }: Props) {
   const { t } = useTranslation();
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ firstName?: string; lastName?: string; dateOfBirth?: string }>({});
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -27,13 +39,28 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
   const handleSignUp = async () => {
     setErrorMessage(null);
 
-    if (!fullName.trim()) {
-      setErrorMessage(t('auth.missingNameError'));
+    const errors: typeof fieldErrors = {};
+    if (!isValidPersonName(firstName)) errors.firstName = t('profileEdit.nameInvalid', { max: NAME_MAX_LENGTH });
+    if (!isValidPersonName(lastName)) errors.lastName = t('profileEdit.nameInvalid', { max: NAME_MAX_LENGTH });
+    if (!dateOfBirth) errors.dateOfBirth = t('dateOfBirth.required');
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    // Under 18: said kindly, and nothing is sent - no account, no data. (The server refuses it too.)
+    const born = dateOfBirth ? parseIsoDate(dateOfBirth) : null;
+    if (!born || !isAdultOn(born, barcelonaToday())) {
+      setFieldErrors({ dateOfBirth: t('dateOfBirth.underAge') });
       return;
     }
 
     setIsSubmitting(true);
-    const { data, error } = await signUpWithEmail(fullName.trim(), email.trim(), password);
+    const { data, error } = await signUpWithEmail({
+      firstName: cleanPersonName(firstName),
+      lastName: cleanPersonName(lastName),
+      email: email.trim(),
+      password,
+      dateOfBirth: dateOfBirth!,
+    });
     setIsSubmitting(false);
 
     if (error) {
@@ -69,13 +96,30 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
             <AuthTextInput
               variant="card"
               leadingIcon="person-outline"
-              placeholder={t('auth.fullNamePlaceholder')}
-              value={fullName}
-              onChangeText={setFullName}
+              placeholder={t('profileEdit.firstName')}
+              value={firstName}
+              onChangeText={setFirstName}
               autoCapitalize="words"
               autoCorrect={false}
-              textContentType="name"
+              textContentType="givenName"
+              errorText={fieldErrors.firstName}
             />
+            <AuthTextInput
+              variant="card"
+              leadingIcon="person-outline"
+              placeholder={t('profileEdit.lastName')}
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+              autoCorrect={false}
+              textContentType="familyName"
+              errorText={fieldErrors.lastName}
+            />
+            <View style={styles.dateOfBirth}>
+              <Text style={styles.label}>{t('dateOfBirth.label')}</Text>
+              <DateOfBirthField value={dateOfBirth} onChange={setDateOfBirth} errorText={fieldErrors.dateOfBirth} />
+              <Text style={styles.hint}>{t('dateOfBirth.signUpHint')}</Text>
+            </View>
             <AuthTextInput
               variant="card"
               leadingIcon="mail-outline"
@@ -143,6 +187,18 @@ const styles = StyleSheet.create({
     ...baseText.h1,
     textAlign: 'center',
     marginBottom: spacing.x8,
+  },
+  dateOfBirth: {
+    alignSelf: 'stretch',
+    marginBottom: spacing.x4,
+  },
+  label: {
+    ...baseText.label,
+    marginBottom: spacing.x2,
+  },
+  hint: {
+    ...baseText.caption,
+    color: colors.textSecondary,
   },
   switchText: {
     ...baseText.bodySmall,

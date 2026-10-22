@@ -60,6 +60,18 @@ export async function updateMyName(firstName: string, lastName: string): Promise
   return { error: 'failed' };
 }
 
+export type DateOfBirthResult = { status: 'saved' | 'under_age' | null; error: 'locked' | 'invalid' | 'failed' | null };
+
+// Once per account: the server keeps it, checks the age, and flags an under-18 date.
+export async function setMyDateOfBirth(isoDate: string): Promise<DateOfBirthResult> {
+  const { data, error } = await supabase.rpc('set_my_date_of_birth', { p_date_of_birth: isoDate });
+  if (!error) return { status: (data as { status: 'saved' | 'under_age' }).status, error: null };
+  if (error.message === 'date_of_birth_locked') return { status: null, error: 'locked' };
+  if (error.message === 'invalid_date_of_birth') return { status: null, error: 'invalid' };
+  console.warn('set_my_date_of_birth failed', error);
+  return { status: null, error: 'failed' };
+}
+
 export type EmailChangeError = 'email_exists' | 'invalid' | 'rate_limited' | 'failed';
 
 function emailChangeError(error: { code?: string; status?: number; message: string }): EmailChangeError {
