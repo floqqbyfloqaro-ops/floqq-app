@@ -120,6 +120,10 @@ Deno.serve(async (req) => {
   });
 
   if (error) {
+    // The age rule (profiles migration): no date of birth yet, or under 18. Nothing was changed.
+    if (error.message === 'date_of_birth_required' || error.message === 'under_age') {
+      return jsonResponse({ error: error.message }, 403);
+    }
     console.warn('begin_passenger_request_edit failed', error);
     return jsonResponse({ error: 'update_failed' }, 500);
   }

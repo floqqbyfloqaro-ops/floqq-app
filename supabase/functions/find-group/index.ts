@@ -16,6 +16,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { MEETUP_SHARING_TIMEOUT_MINUTES, NO_SHOW_WAIT_MINUTES } from '../_shared/constants.ts';
 import { rideDepartureMs } from '../_shared/holdMath.ts';
+import { profileFirstNames, shownFirstName } from '../_shared/firstNames.ts';
 import { expectedLandingIso } from '../_shared/landedRule.ts';
 import { meetingTerminalFor } from '../_shared/meetingPointAssignment.ts';
 import { readyIso } from '../_shared/readyTimeRule.ts';
@@ -32,11 +33,6 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
-}
-
-function firstName(name: string | null): string | null {
-  const first = name?.trim().split(/\s+/)[0];
-  return first ? first : null;
 }
 
 Deno.serve(async (req) => {
@@ -97,7 +93,7 @@ Deno.serve(async (req) => {
   const { data: memberRows } = await adminClient
     .from('passenger_requests')
     .select(
-      'id, passenger_name, arrival_at, ready_at, flight_estimated_arrival_at, arrival_terminal, found_group_at, meeting_point_arrived_at'
+      'id, user_id, passenger_name, arrival_at, ready_at, flight_estimated_arrival_at, arrival_terminal, found_group_at, meeting_point_arrived_at'
     )
     .eq('group_id', group.id)
     .order('arrival_at', { ascending: true })
@@ -106,6 +102,7 @@ Deno.serve(async (req) => {
   if (!members.some((m) => m.id === requestId)) {
     return jsonResponse({ meetup: null, reason: 'no_group' });
   }
+  const firstNames = await profileFirstNames(adminClient, members.map((m) => m.user_id));
 
   const arrivals = members.map((m) => m.arrival_at as string);
   const firstArrivalMs = Math.min(...arrivals.map((a) => new Date(a).getTime()));
@@ -162,7 +159,7 @@ Deno.serve(async (req) => {
         // The member's ride id: what their live position is labelled with on the group's channel.
         requestId: member.id,
         isMe: member.id === requestId,
-        firstName: firstName(member.passenger_name),
+        firstName: shownFirstName(firstNames, member),
         // When this member lands: their flight's latest estimate, otherwise their ride's own
         // arrival time. A time only - no flight number.
         expectedLandingAt: expectedLandingIso(member),

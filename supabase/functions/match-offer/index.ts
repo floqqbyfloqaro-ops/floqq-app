@@ -14,6 +14,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { AIRPORT } from '../_shared/constants.ts';
+import { profileFirstNames, shownFirstName } from '../_shared/firstNames.ts';
 import { computeRoutePolyline, lookupNeighborhood } from '../_shared/googleRoutes.ts';
 import { estimatedSharesCents, holdAmountCents, holdWindow, PLATFORM_FEE_CENTS, rideDepartureMs } from '../_shared/holdMath.ts';
 import { readyIso } from '../_shared/readyTimeRule.ts';
@@ -53,11 +54,6 @@ const MEMBER_COLUMNS =
 
 // About 100 m: enough for a dot on a city-wide map, not enough to find a front door.
 const roundCoordinate = (value: number) => Math.round(value * 1000) / 1000;
-
-function firstName(name: string | null): string | null {
-  const first = name?.trim().split(/\s+/)[0];
-  return first ? first : null;
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -122,6 +118,7 @@ Deno.serve(async (req) => {
   if (!members.some((m) => m.id === requestId)) {
     return jsonResponse({ offer: null, reason: 'no_group' });
   }
+  const firstNames = await profileFirstNames(adminClient, members.map((m) => m.user_id));
 
   // Neighbourhoods the others will see, looked up once per destination.
   await Promise.all(
@@ -194,7 +191,7 @@ Deno.serve(async (req) => {
         return {
           isMe,
           order: index + 1,
-          firstName: firstName(member.passenger_name),
+          firstName: shownFirstName(firstNames, member),
           destination: isMe ? member.destination_address : member.destination_neighborhood,
           lat: !hasPoint ? null : isMe ? member.destination_lat : roundCoordinate(member.destination_lat!),
           lng: !hasPoint ? null : isMe ? member.destination_lng : roundCoordinate(member.destination_lng!),
