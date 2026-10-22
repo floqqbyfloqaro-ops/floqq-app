@@ -155,7 +155,8 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
   // (Supabase Realtime on their own ride and group)...
   const requestId = request?.id;
   const groupId = request?.group_id ?? null;
-  const isWatchingMatch = subScreen === 'findingMatch' || subScreen === 'matchFound';
+  // ...and while it's on its way, so "On the way" ends as soon as the taxi receipt is in.
+  const isWatchingMatch = subScreen === 'findingMatch' || subScreen === 'matchFound' || subScreen === 'onTheWay';
   useEffect(() => {
     if (!requestId || !isWatchingMatch) return;
     const unsubscribe = subscribeToRide('myride', requestId, groupId, loadData);
@@ -172,14 +173,23 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
   // ride's current one.
   const groupStatus = group && group.id === groupId ? group.status : null;
   const isActiveRide = request?.status === 'pending' || request?.status === 'matched';
-  // While the group's ride is in progress, My Ride opens on "On the way".
+  // While the group's ride is in progress, My Ride opens on "On the way" - and leaves it once it
+  // isn't any more: the taxi receipt came in, or the time is up. (Only once the loaded group says
+  // the ride started: right after "We're in the taxi" it may still be the copy from before.)
+  const currentGroup = group && group.id === groupId ? group : null;
   const isOnTheWay = rideInProgress(
-    { groupStatus, rideStartedAt: group && group.id === groupId ? group.ride_started_at : null },
+    {
+      groupStatus,
+      rideStartedAt: currentGroup?.ride_started_at ?? null,
+      receiptReceivedAt: currentGroup?.receipt_received_at ?? null,
+    },
     Date.now()
   );
+  const rideHasStarted = currentGroup?.ride_started_at != null;
   useEffect(() => {
     if (isOnTheWay && !showRideDetails && subScreen === null) setSubScreen('onTheWay');
-  }, [isOnTheWay, showRideDetails, subScreen]);
+    else if (subScreen === 'onTheWay' && rideHasStarted && !isOnTheWay) setSubScreen(null);
+  }, [isOnTheWay, rideHasStarted, showRideDetails, subScreen]);
 
   useEffect(() => {
     if (subScreen === 'findingMatch' && (groupStatus === 'unconfirmed' || groupStatus === 'confirmed')) {

@@ -63,3 +63,10 @@ test('the On the way screen uses no location, compass or other sensor', () => {
     assert.equal(screen.includes(forbidden), false, forbidden);
   }
 });
+
+test('the taxi receipt ends it, even within the 3 hours', () => {
+  const ride = { groupStatus: 'confirmed', rideStartedAt: STARTED, receiptReceivedAt: '2026-10-22T18:40:00Z' };
+  assert.equal(rideInProgress(ride, at('2026-10-22T18:45:00Z')), false);
+  // A rejected receipt is cleared on the server: until a new one comes in, it is on its way again.
+  assert.equal(rideInProgress({ ...ride, receiptReceivedAt: null }, at('2026-10-22T18:45:00Z')), true);
+});
