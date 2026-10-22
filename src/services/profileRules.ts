@@ -73,3 +73,15 @@ export function barcelonaToday(now: Date = new Date()): CalendarDate {
 export function isPlausibleEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 }
+
+// How an account signs in, from its app_metadata. An email managed by Google or Apple can't be
+// changed in FLOQQ (Apple's private relay addresses included).
+export type SignInProvider = 'email' | 'google' | 'apple';
+
+export function signInProviderFrom(appMetadata: { provider?: unknown; providers?: unknown } | null | undefined): SignInProvider {
+  const listed = Array.isArray(appMetadata?.providers) ? appMetadata.providers : [];
+  const providers = [appMetadata?.provider, ...listed];
+  if (providers.includes('apple')) return 'apple';
+  if (providers.includes('google')) return 'google';
+  return 'email';
+}

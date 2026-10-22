@@ -257,6 +257,37 @@ try {
     !cancelError && !cancelled?.user?.new_email && cancelled?.user?.email === adult.email,
     cancelError?.message ?? `new ${cancelled?.user?.new_email}`
   );
+
+  // Confirming: with secure email change, a link to the current and one to the new address. The
+  // links are generated here instead of emailed, and opened like a browser would. (Links made this
+  // way land on the project's site URL: where the app's own links land, set by the app's request,
+  // is checked on a phone.)
+  const changer = await createUser('changer', { full_name: 'Carla Changer' });
+  const changedEmail = emailOf('changer-new');
+  const { data: currentLink } = await service.auth.admin.generateLink({
+    type: 'email_change_current',
+    email: changer.email,
+    newEmail: changedEmail,
+  });
+  const { data: newLink } = await service.auth.admin.generateLink({
+    type: 'email_change_new',
+    email: changer.email,
+    newEmail: changedEmail,
+  });
+  const firstHop = await fetch(currentLink.properties.action_link, { redirect: 'manual' });
+  const { data: halfway } = await service.auth.admin.getUserById(changer.user.id);
+  check(
+    'after the first link only: the old email is still the active one',
+    halfway?.user?.email === changer.email,
+    `HTTP ${firstHop.status}, email ${halfway?.user?.email}`
+  );
+  await fetch(newLink.properties.action_link, { redirect: 'manual' });
+  const { data: changed } = await service.auth.admin.getUserById(changer.user.id);
+  check(
+    'after both links: the new email is the active one',
+    changed?.user?.email === changedEmail && !changed?.user?.new_email,
+    `email ${changed?.user?.email}`
+  );
 } catch (err) {
   failures += 1;
   console.error(`FAIL  ${err instanceof Error ? err.message : err}`);

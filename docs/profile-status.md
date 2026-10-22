@@ -25,6 +25,25 @@ Three steps, one pull request each, test project first.
 **Do not deploy step A to live on its own**: live accounts have no date of birth yet, so their
 rides would be refused before the app can ask for it (step C).
 
-## Step B: Profile screen and editing (not started)
+## Step B: Profile screen and editing (branch `feat/profile-phase-b`, on top of A, 2026-10-22)
+
+App only, plus a web page and an email template.
+
+- **Profile screen**: avatar, first + last name, email with its status, date of birth (read-only,
+  "Contact support to correct it"), "Edit name and email", then the payment method.
+- **Edit** (`EditProfileForm`): first name, last name, email; Save / Cancel; errors under the
+  field; a confirmation on the profile after saving.
+- **Email change**: Supabase's secure change (links to the current AND the new address; on in
+  floqq-test, the Supabase default). While pending: "Pending confirmation: new@...", Resend link
+  (60 s cooldown), Cancel change. Another account's email: "already used by another account".
+  Google/Apple accounts: read-only, "Managed by Google/Apple".
+- **Links land on** `docs/email-changed.html` (GitHub Pages - published once merged to main).
+  floqq-test's redirect allow-list now holds the email-verified, email-changed and reset-password
+  pages.
+- **Email template**: `supabase/templates/change-email.html` (EN/FR/ES) - paste into Supabase →
+  Authentication → Emails → Change email address.
+- **Tested**: unit tests (provider rule); `scripts/profile-age-test.mjs` now also confirms an
+  email change with both links (31 checks). Where the app's links land is checked on a phone:
+  links made by the admin API ignore the requested destination.
 
 ## Step C: date of birth at sign-up and before rides; admin "Accounts" tab (not started)

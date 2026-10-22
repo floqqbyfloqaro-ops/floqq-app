@@ -10,6 +10,7 @@ import {
   isPlausibleEmail,
   isValidPersonName,
   parseIsoDate,
+  signInProviderFrom,
   toIsoDate,
 } from './profileRules.ts';
 
@@ -65,4 +66,13 @@ test('email format is checked before anything is sent', () => {
   for (const email of ['', 'anna', 'anna@', 'anna@example', 'an na@example.com', '@example.com']) {
     assert.equal(isPlausibleEmail(email), false, email);
   }
+});
+
+test('Google and Apple accounts are recognised (their email is read-only); others are email accounts', () => {
+  assert.equal(signInProviderFrom({ provider: 'email', providers: ['email'] }), 'email');
+  assert.equal(signInProviderFrom({ provider: 'google', providers: ['google'] }), 'google');
+  assert.equal(signInProviderFrom({ provider: 'apple', providers: ['apple'] }), 'apple');
+  // An email account that later linked Google: Google manages the email.
+  assert.equal(signInProviderFrom({ provider: 'email', providers: ['email', 'google'] }), 'google');
+  assert.equal(signInProviderFrom(null), 'email');
 });
