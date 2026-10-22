@@ -122,3 +122,8 @@ export const READY_TIME_FLAG_MINUTES = 10;
 // The "You've landed" notification is sent at a passenger's expected landing, and no longer once
 // that is this long ago - see _shared/landedRule.ts.
 export const LANDED_PUSH_MAX_LATE_MINUTES = 60;
+
+// "Ride completed": a passenger who never taps "I've arrived" (and whose group sent no taxi
+// receipt) has their ride completed automatically this long after it started (match-offer-sweep).
+// The app's "On the way" screen uses the same number (src/services/onTheWayRules.ts).
+export const RIDE_AUTO_COMPLETE_HOURS = 3;
