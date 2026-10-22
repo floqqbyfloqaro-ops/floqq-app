@@ -150,3 +150,74 @@ export function pointsTooClose(points: PlacedPoint[], minMeters: number): CloseP
   }
   return pairs;
 }
+
+// What the distance reads: metres up close (rounded as above), kilometres from 1 km on - with one
+// decimal below 100 km, whole kilometres beyond.
+export type DistanceText = { unit: 'm'; value: number } | { unit: 'km'; value: number };
+
+export function distanceText(meters: number): DistanceText {
+  if (meters < 1000) return { unit: 'm', value: roundDistance(meters) };
+  const km = meters / 1000;
+  return { unit: 'km', value: km < 100 ? Math.round(km * 10) / 10 : Math.round(km) };
+}
+
+// What the guidance area at the top of "Find your group" shows - always one of these, never
+// nothing - in order of priority:
+//   preview       not landed yet: where to meet; the location is not used before landing
+//   loadingPoint  the meeting point is still being assigned (a minute at most)
+//   arrived       at the meeting point (the passenger's own word, or their phone's)
+//   permission    no usable location permission: ask for it, or say where to change it
+//   locating      waiting for the first position
+//   almostThere   within the zone around the meeting point
+//   far           further than `farMeters` (not at the airport yet): arrow and kilometres
+//   close         too close for the fix to trust an arrow: the photo and directions
+//   arrow         the arrow and the distance
+//   compass       as far/arrow, but the compass can't be trusted: a calibration hint instead of
+//                 the arrow, the distance still shown
+export type GuidanceState =
+  | 'preview'
+  | 'loadingPoint'
+  | 'arrived'
+  | 'permission'
+  | 'locating'
+  | 'almostThere'
+  | 'far'
+  | 'close'
+  | 'arrow'
+  | 'compass';
+
+export type GuidanceStateInput = {
+  preview: boolean;
+  hasPoint: boolean;
+  arrived: boolean;
+  // The location permission; null while it is still being read.
+  access: 'granted' | 'reduced' | 'denied' | 'unavailable' | 'undetermined' | null;
+  // Distance to the meeting point from the latest position; null while there is none.
+  distance: number | null;
+  display: DistanceDisplay['kind'] | null;
+  inZone: boolean;
+  // False once the compass turned out unusable (needs calibrating, or the phone has none); null
+  // until its first reading.
+  headingReliable: boolean | null;
+  farMeters: number;
+};
+
+export function guidanceState(input: GuidanceStateInput): GuidanceState {
+  if (input.preview) return 'preview';
+  if (!input.hasPoint) return 'loadingPoint';
+  if (input.arrived) return 'arrived';
+  if (input.access != null && input.access !== 'granted') return 'permission';
+  if (input.distance == null) return 'locating';
+  if (input.inZone) return 'almostThere';
+  // Far away the direction holds even with a rough fix: never swap the arrow for the photo there.
+  if (input.distance > input.farMeters) return input.headingReliable === false ? 'compass' : 'far';
+  if (input.display === 'close') return 'close';
+  return input.headingReliable === false ? 'compass' : 'arrow';
+}
+
+// Whether the arrow itself is on screen - the only time the header may say to follow it.
+export const arrowVisible = (state: GuidanceState) => state === 'arrow' || state === 'far';
+
+// Whether the guidance shows the meeting point's photo (so the card underneath leaves it out).
+export const guidanceShowsPhoto = (state: GuidanceState) =>
+  state === 'close' || state === 'almostThere' || state === 'arrived';

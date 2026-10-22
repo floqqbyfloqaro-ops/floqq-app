@@ -9,12 +9,13 @@ import Avatar from '../components/Avatar';
 import BadgeView from '../components/BadgeView';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
-import GuidancePanel, { guidanceFace, guidanceShowsPhoto } from '../components/GuidancePanel';
+import GuidancePanel from '../components/GuidancePanel';
 import MeetingPointCard from '../components/MeetingPointCard';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
+import { GUIDANCE } from '../constants';
 import { useGuidance } from '../hooks/useGuidance';
 import { useLocationSharing } from '../hooks/useLocationSharing';
 import { useOwnLocation } from '../hooks/useOwnLocation';
@@ -28,6 +29,7 @@ import {
   undoArrival,
 } from '../services/findGroup';
 import { findGroupEntryState, hasLanded, locationMayRun } from '../services/findGroupEntryRules';
+import { arrowVisible, guidanceShowsPhoto, guidanceState } from '../services/guidanceRules';
 import { memberSharingStatus } from '../services/locationSharingRules';
 import { subscribeToRide } from '../services/matchOffer';
 import { MyPassengerRequest } from '../services/passengerRequests';
@@ -89,6 +91,8 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
   // After an "Undo" the phone no longer marks the passenger as arrived by itself for the rest of
   // this visit to the screen - it would only do it again a moment later.
   const [autoArrivalOff, setAutoArrivalOff] = useState(false);
+  // Whether the compass can be trusted (GuidanceArrow finds out); null until its first reading.
+  const [headingReliable, setHeadingReliable] = useState<boolean | null>(null);
 
   const load = useCallback(async () => {
     const { meetup: next, error } = await fetchMeetup(request.id);
@@ -184,6 +188,21 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
     target,
     autoArrival: meetupRunning && !arrived && !autoArrivalOff,
     onAutoArrive: () => handleArrival('AUTO'),
+  });
+
+  // The guidance area at the top: there while the meetup is ahead or going on, and always saying
+  // something - the arrow, or whatever stands in its way (guidanceRules.ts).
+  const showGuidance = meetup != null && !rideStarted && !timedOut;
+  const guidanceView = guidanceState({
+    preview: isPreview,
+    hasPoint: target != null,
+    arrived,
+    access: ownLocation.access,
+    distance: guidance?.distance ?? null,
+    display: guidance?.display.kind ?? null,
+    inZone: guidance?.inZone ?? false,
+    headingReliable,
+    farMeters: GUIDANCE.farMeters,
   });
 
   const handleUndoArrival = async () => {
@@ -302,20 +321,6 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
     </Pressable>
   );
 
-  const accessNotice =
-    ownLocation.access === 'denied'
-      ? t('findGroup.accessDenied')
-      : ownLocation.access === 'reduced'
-        ? t('findGroup.accessReduced')
-        : ownLocation.access === 'unavailable'
-          ? t('findGroup.accessUnavailable')
-          : null;
-
-  // The arrow and its states: only with a meeting point to walk to and a location to walk from.
-  const showGuidance =
-    meetup != null && point != null && target != null && locationAllowed && hasLocation && !rideStarted && !timedOut;
-  const face = guidanceFace(guidance, arrived);
-
   return (
     <ScreenBackground
       source={require('../../assets/bg-content.png')}
@@ -323,7 +328,7 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
       naturalHeight={1536}
       scrimColor={overlays.scrimHeavy}
     >
-      {showGuidance ? <KeepScreenAwake /> : null}
+      {showGuidance && locationAllowed && hasLocation ? <KeepScreenAwake /> : null}
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         {backButton}
 
@@ -371,21 +376,39 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
                       ? t('findGroup.groupFound')
                       : timedOut
                         ? t('findGroup.timedOut')
-                        : isPreview
-                          ? t('guidance_starts_on_landing')
-                          : !windowOpen
-                            ? t('findGroup.windowClosed', {
-                                time: new Date(meetup.windowOpensAt).toLocaleTimeString([], { timeStyle: 'short' }),
-                              })
-                            : t('findGroup.subtitle')}
+                        : !isPreview && !windowOpen
+                          ? t('findGroup.windowClosed', {
+                              time: new Date(meetup.windowOpensAt).toLocaleTimeString([], { timeStyle: 'short' }),
+                            })
+                          : // "Follow the arrow" only while there is one to follow.
+                            showGuidance && arrowVisible(guidanceView)
+                            ? t('findGroup.subtitle')
+                            : t('findGroup.subtitleWhere')}
                 </Text>
 
-                {showGuidance && point ? (
-                  <GuidancePanel point={point} guidance={guidance} arrived={arrived} onShowBadge={() => setShowBadge(true)} />
+                {showGuidance ? (
+                  <GuidancePanel
+                    state={guidanceView}
+                    point={point}
+                    guidance={guidance}
+                    access={ownLocation.access}
+                    onAllowLocation={() => ownLocation.request()}
+                    onOpenSettings={() => Linking.openSettings()}
+                    onShowBadge={() => setShowBadge(true)}
+                    onHeadingReliability={setHeadingReliable}
+                  />
                 ) : null}
 
+                <MeetingPointCard
+                  terminal={meetup.terminal}
+                  point={point}
+                  loading={waitingForPoint}
+                  meetingTime={meetup.meetingTime}
+                  hidePhoto={showGuidance && guidanceShowsPhoto(guidanceView)}
+                />
+
                 {/* The primary arrival signal: one tap, whatever the GPS says - and without any
-                    location permission at all. */}
+                    location permission at all. Only once there is a meeting point to be at. */}
                 {meetupRunning ? (
                   <View style={styles.arrival}>
                     {arrived ? (
@@ -406,6 +429,7 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
                         label={t('guidance.atMeetingPoint')}
                         onPress={() => handleArrival('MANUAL')}
                         loading={isArrivalBusy}
+                        disabled={point == null}
                       />
                     )}
                     {arrivalError ? <Text style={styles.notice}>{arrivalError}</Text> : null}
@@ -417,40 +441,6 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
                   <View style={styles.badgeButton}>
                     <SecondaryButton label={t('badge.showButton')} icon="shapes-outline" onPress={() => setShowBadge(true)} />
                   </View>
-                ) : null}
-
-                <MeetingPointCard
-                  terminal={meetup.terminal}
-                  point={point}
-                  loading={waitingForPoint}
-                  meetingTime={meetup.meetingTime}
-                  hidePhoto={showGuidance && guidanceShowsPhoto(face)}
-                />
-
-                {/* No location yet: offer the arrow, or say why there is none. Nothing here is
-                    needed to meet - the card above and the badge are enough. */}
-                {target != null && locationAllowed && !rideStarted && !timedOut && !hasLocation ? (
-                  ownLocation.access === 'undetermined' ? (
-                    <Card style={styles.card}>
-                      <Text style={styles.noticeText}>{t('guidance.locationStaysLocal')}</Text>
-                      <SecondaryButton
-                        label={t('guidance.useLocation')}
-                        icon="navigate-outline"
-                        onPress={() => ownLocation.request()}
-                      />
-                    </Card>
-                  ) : accessNotice ? (
-                    <Card style={styles.card}>
-                      <Text style={styles.noticeText}>{accessNotice}</Text>
-                      {ownLocation.access !== 'unavailable' ? (
-                        <SecondaryButton
-                          label={t('findGroup.openSettings')}
-                          icon="settings-outline"
-                          onPress={() => Linking.openSettings()}
-                        />
-                      ) : null}
-                    </Card>
-                  ) : null
                 ) : null}
 
                 <Card style={styles.card}>
@@ -607,11 +597,6 @@ const styles = StyleSheet.create({
     color: colors.dangerStrong,
     marginTop: spacing.x3,
     marginBottom: spacing.x4,
-  },
-  noticeText: {
-    ...baseText.bodySmall,
-    color: colors.textPrimary,
-    marginBottom: spacing.x3,
   },
   footnote: {
     ...baseText.caption,

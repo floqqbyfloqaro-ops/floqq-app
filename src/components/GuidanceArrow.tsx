@@ -12,6 +12,8 @@ import { easingStandard } from '../utils/animation';
 type Props = {
   // Where the target lies from here: 0 = north, 90 = east.
   bearing: number;
+  // Told whenever the compass turns out usable or not, so the screen can say what is on it.
+  onReliabilityChange?: (reliable: boolean) => void;
 };
 
 // How long to wait for a first compass reading before saying there is none (a simulator, the web).
@@ -22,9 +24,14 @@ const NO_HEADING_AFTER_MS = 3000;
 // round, so the arrow never spins through 180 degrees when the heading crosses north. When the
 // compass can't be trusted - it needs calibrating, or the phone has none - a short hint is shown
 // instead of an arrow that may point the wrong way.
-export default function GuidanceArrow({ bearing }: Props) {
+export default function GuidanceArrow({ bearing, onReliabilityChange }: Props) {
   const { t } = useTranslation();
   const [isReliable, setIsReliable] = useState<boolean | null>(null);
+  const onReliabilityChangeRef = useRef(onReliabilityChange);
+  onReliabilityChangeRef.current = onReliabilityChange;
+  useEffect(() => {
+    if (isReliable != null) onReliabilityChangeRef.current?.(isReliable);
+  }, [isReliable]);
 
   const rotation = useRef(new Animated.Value(0)).current;
   const currentRotation = useRef(0);

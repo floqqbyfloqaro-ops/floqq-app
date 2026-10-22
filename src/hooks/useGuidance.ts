@@ -17,6 +17,8 @@ import { Fix } from '../services/locationSharingRules';
 export type Guidance = {
   // Where the meeting point lies from here: 0 = north, 90 = east.
   bearing: number;
+  // How far away it is, in metres (as measured; displays round it).
+  distance: number;
   // What to show for the distance - or that the fix is too rough this close to show an arrow.
   display: DistanceDisplay;
   // Within the "almost there" zone around the meeting point.
@@ -83,6 +85,7 @@ export function useGuidance({ fix, target, autoArrival, onAutoArrive }: Options)
   const distance = distanceMeters(fix, destination);
   return {
     bearing: bearingDegrees(fix, destination),
+    distance,
     display: distanceDisplay(distance, fix.accuracy, GUIDANCE),
     inZone,
   };

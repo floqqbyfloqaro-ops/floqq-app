@@ -5,10 +5,14 @@ import { test } from 'node:test';
 
 import {
   arrowRotation,
+  arrowVisible,
   bearingDegrees,
   continuousRotation,
   distanceDisplay,
   distanceMeters,
+  distanceText,
+  guidanceShowsPhoto,
+  guidanceState,
   hasArrived,
   nextArrivalStreak,
   nextZoneState,
@@ -209,4 +213,112 @@ test('points 30 m or more apart, in other terminals, inactive or without coordin
   assert.equal(pointsTooClose([placed('T1-A', 'T1', HERE), placed('T2-A', 'T2B', north(5))], 30).length, 0);
   assert.equal(pointsTooClose([placed('T1-A', 'T1', HERE), placed('T1-B', 'T1', north(5), false)], 30).length, 0);
   assert.equal(pointsTooClose([placed('T1-A', 'T1', HERE), placed('T1-B', 'T1', null)], 30).length, 0);
+});
+
+// --- The guidance area's state (phase B) ---
+
+const FAR_METERS = 2000;
+// A passenger who has landed, has a meeting point, allowed the location and has a position 300 m
+// away with a good fix; each test changes what it is about.
+const base = {
+  preview: false,
+  hasPoint: true,
+  arrived: false,
+  access: 'granted',
+  distance: 300,
+  display: 'exact',
+  inZone: false,
+  headingReliable: true,
+  farMeters: FAR_METERS,
+};
+const stateOf = (overrides) => guidanceState({ ...base, ...overrides });
+
+test('a) no location permission: the permission state, whichever way it is missing', () => {
+  for (const access of ['undetermined', 'denied', 'reduced', 'unavailable']) {
+    assert.equal(stateOf({ access, distance: null, display: null }), 'permission');
+  }
+});
+
+test('b) permission granted but no position yet: locating', () => {
+  assert.equal(stateOf({ distance: null, display: null }), 'locating');
+  // While the permission itself is still being read, too.
+  assert.equal(stateOf({ access: null, distance: null, display: null }), 'locating');
+});
+
+test('c) more than 2 km away: far, with the arrow - even with a rough fix', () => {
+  assert.equal(stateOf({ distance: 2500 }), 'far');
+  assert.equal(stateOf({ distance: 12_000, display: 'close' }), 'far');
+  assert.equal(stateOf({ distance: 2000 }), 'arrow');
+  assert.equal(arrowVisible('far'), true);
+});
+
+test('d) normal: the arrow', () => {
+  assert.equal(stateOf({}), 'arrow');
+  assert.equal(stateOf({ display: 'approx' }), 'arrow');
+  // Before the compass's first reading the arrow is shown (it turns once the reading arrives).
+  assert.equal(stateOf({ headingReliable: null }), 'arrow');
+  assert.equal(arrowVisible('arrow'), true);
+});
+
+test('e) too rough this close: the photo and directions; in the zone: almost there', () => {
+  assert.equal(stateOf({ distance: 30, display: 'close' }), 'close');
+  assert.equal(stateOf({ distance: 20, inZone: true }), 'almostThere');
+  assert.equal(guidanceShowsPhoto('close'), true);
+  assert.equal(guidanceShowsPhoto('almostThere'), true);
+  assert.equal(arrowVisible('close'), false);
+});
+
+test('f) compass unusable: the calibration state, near or far - no arrow, distance still shown', () => {
+  assert.equal(stateOf({ headingReliable: false }), 'compass');
+  assert.equal(stateOf({ headingReliable: false, distance: 15_000 }), 'compass');
+  assert.equal(arrowVisible('compass'), false);
+});
+
+test('before landing, while the point is being assigned, and once there: their own states', () => {
+  assert.equal(stateOf({ preview: true, access: 'denied', hasPoint: false }), 'preview');
+  assert.equal(stateOf({ hasPoint: false }), 'loadingPoint');
+  // Arrived needs no location at all.
+  assert.equal(stateOf({ arrived: true, access: 'denied', distance: null }), 'arrived');
+});
+
+test('every combination gives a state, and only arrow/far say "follow the arrow"', () => {
+  const states = new Set();
+  for (const preview of [false, true])
+    for (const hasPoint of [false, true])
+      for (const arrived of [false, true])
+        for (const access of [null, 'granted', 'denied', 'undetermined'])
+          for (const distance of [null, 5, 300, 50_000])
+            for (const display of ['exact', 'approx', 'close'])
+              for (const inZone of [false, true])
+                for (const headingReliable of [null, true, false]) {
+                  const state = guidanceState({ preview, hasPoint, arrived, access, distance, display, inZone, headingReliable, farMeters: FAR_METERS });
+                  assert.equal(typeof state, 'string');
+                  states.add(state);
+                }
+  assert.deepEqual(
+    [...states].sort(),
+    ['almostThere', 'arrived', 'arrow', 'close', 'compass', 'far', 'loadingPoint', 'locating', 'permission', 'preview']
+  );
+  assert.deepEqual([...states].filter(arrowVisible).sort(), ['arrow', 'far']);
+});
+
+test('distances read in metres below 1 km, kilometres from there', () => {
+  assert.deepEqual(distanceText(42), { unit: 'm', value: 40 });
+  assert.deepEqual(distanceText(999), { unit: 'm', value: 1000 });
+  assert.deepEqual(distanceText(1000), { unit: 'km', value: 1 });
+  assert.deepEqual(distanceText(12_449), { unit: 'km', value: 12.4 });
+  assert.deepEqual(distanceText(250_600), { unit: 'km', value: 251 });
+});
+
+test('from home in Barcelona: the arrow points south-west to T1, about 13 km away, "far"', () => {
+  const home = { lat: 41.387, lng: 2.17 }; // Plaça de Catalunya
+  const t1Fallback = { lat: 41.2887, lng: 2.0733 }; // T1-FALLBACK, as seeded
+  const meters = distanceMeters(home, t1Fallback);
+  const bearing = bearingDegrees(home, t1Fallback);
+  assert.ok(meters > 12_000 && meters < 15_000, `distance ${meters}`);
+  assert.ok(bearing > 200 && bearing < 230, `bearing ${bearing}`);
+  assert.equal(stateOf({ distance: meters, display: 'approx' }), 'far');
+  assert.equal(distanceText(meters).unit, 'km');
+  // Phone facing north: the arrow turns towards the south-west.
+  assert.ok(Math.abs(arrowRotation(bearing, 0) - bearing) < 1e-9);
 });

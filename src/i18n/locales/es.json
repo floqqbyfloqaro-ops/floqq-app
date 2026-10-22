@@ -535,6 +535,7 @@
   "findGroup": {
     "title": "Encuentra a tu grupo",
     "subtitle": "Sigue la flecha hasta tu punto de encuentro. Compartir tu ubicación con tu grupo es opcional.",
+    "subtitleWhere": "Aquí es donde te encontrarás con tu grupo. Compartir tu ubicación con tu grupo es opcional.",
     "windowClosed": "Podrás compartir tu ubicación cuando aterrice el primer viajero, hacia las {{time}}.",
     "memberLands": "Aterriza a las {{time}}",
     "memberLanded": "Ha aterrizado",
@@ -556,9 +557,6 @@
     "notNow": "Ahora no",
     "shareFootnote": "Opcional. Solo tu grupo puede verla, y solo mientras esta pantalla esté abierta.",
     "openSettings": "Abrir ajustes",
-    "accessDenied": "FLOQQ no tiene permiso para usar tu ubicación. Puedes encontrarte con tu grupo sin ella o permitirla en los ajustes.",
-    "accessReduced": "Tu teléfono solo comparte una ubicación aproximada con FLOQQ, demasiado imprecisa para encontraros. Activa la ubicación precisa en los ajustes para compartirla.",
-    "accessUnavailable": "La ubicación está desactivada en este teléfono. Actívala para compartir tu ubicación.",
     "channelError": "No pudimos conectarte con las ubicaciones en directo de tu grupo. Revisa tu conexión y vuelve a abrir esta pantalla.",
     "groupFound": "Ya estáis todos. Abre tu insignia para indicar que el trayecto ha empezado."
   },
@@ -832,6 +830,15 @@
     "taxiError": "No pudimos indicar que el trayecto ha empezado. Inténtalo de nuevo."
   },
   "guidance": {
+    "permissionTitle": "Activa la ubicación para que te guiemos hasta tu punto de encuentro",
+    "permissionNote": "Tu ubicación se queda en tu teléfono. Solo se comparte con tu grupo si lo eliges aparte.",
+    "permissionDenied": "FLOQQ no tiene permiso para usar tu ubicación. Permítela en los ajustes o usa los datos del punto de encuentro de abajo.",
+    "permissionReduced": "Tu teléfono solo da a FLOQQ una ubicación aproximada, demasiado imprecisa para guiarte. Activa la ubicación precisa en los ajustes.",
+    "permissionUnavailable": "La ubicación está desactivada en este teléfono. Actívala en los ajustes para que te guiemos.",
+    "allowLocation": "Permitir ubicación",
+    "distanceAwayKm": "A {{km}} km",
+    "distanceApproxKm": "Aprox. {{km}} km",
+    "notAtAirport": "Todavía no estás en el aeropuerto",
     "targetLine": "Hacia: {{name}}",
     "distanceAway": "A {{meters}} m",
     "distanceApprox": "Aprox. {{meters}} m",
@@ -841,8 +848,6 @@
     "locating": "Buscando tu posición…",
     "calibrate": "La brújula de tu teléfono necesita calibrarse. Mueve el teléfono dibujando un ocho.",
     "arrowLabel": "Flecha que señala tu punto de encuentro",
-    "useLocation": "Usar mi ubicación para guiarme",
-    "locationStaysLocal": "Una flecha puede guiarte hasta el punto de encuentro. Tu ubicación se queda en tu teléfono: solo se comparte con tu grupo si lo eliges aparte.",
     "atMeetingPoint": "Estoy en el punto de encuentro",
     "atMeetingPointDone": "Estás en el punto de encuentro ✓",
     "undo": "Deshacer",

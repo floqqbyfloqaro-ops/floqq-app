@@ -138,6 +138,9 @@ export const GUIDANCE = {
   arrivedRadiusMeters: 10,
   arrivedMaxAccuracyMeters: 10,
   arrivedReadings: 2,
+  // Further than this from the meeting point counts as "not at the airport yet": the arrow stays,
+  // the distance reads in kilometres.
+  farMeters: 2000,
 } as const;
 
 // The compass: how much of each new reading the arrow takes (lower is calmer), and the lowest
