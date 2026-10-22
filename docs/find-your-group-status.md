@@ -158,6 +158,21 @@ showed "Your meeting point will appear here shortly" forever, with no arrow.
   hand, off everywhere else; the database refuses them otherwise.
 - **Tested:** unit tests; `scripts/fallback-meeting-point-test.mjs` against floqq-test.
 
+## Guidance states and layout, phase B (branch `feat/find-group-guidance-phase-b`, 2026-10-22)
+
+App only - no database or server change.
+
+- **Guidance area at the top**, right under the title, always showing one state
+  (`guidanceState` in `src/services/guidanceRules.ts`): before landing, meeting point loading,
+  arrived, no location permission ("Allow location" or "Open settings"), finding your position,
+  almost there, far (> 2 km, `GUIDANCE.farMeters`: arrow, km and "You're not at the airport
+  yet"), close (photo and directions), arrow, compass needs calibrating (hint, distance shown).
+- **Header** says "Follow the arrow" only while the arrow is on screen; otherwise "Here's where to
+  meet your group".
+- **Order:** title and subtitle, guidance, meeting point card, "I'm at the meeting point"
+  (disabled until a meeting point shows), "Show our badge", group members, location sharing.
+- **Not verified:** anything on screen (needs a build); the states and distances are unit-tested.
+
 ## Before anything can be tested
 
 - [ ] A development build. iPhone: EAS has no iOS credentials for this project yet, so run

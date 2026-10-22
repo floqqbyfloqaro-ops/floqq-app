@@ -539,6 +539,7 @@
   "findGroup": {
     "title": "Find your group",
     "subtitle": "Follow the arrow to your meeting point. Sharing your location with your group is optional.",
+    "subtitleWhere": "Here's where to meet your group. Sharing your location with your group is optional.",
     "windowClosed": "Location sharing opens when the first traveler lands, around {{time}}.",
     "memberLands": "Lands at {{time}}",
     "memberLanded": "Landed",
@@ -560,9 +561,6 @@
     "notNow": "Not now",
     "shareFootnote": "Optional. Only your group can see it, and only while this screen is open.",
     "openSettings": "Open settings",
-    "accessDenied": "FLOQQ isn't allowed to use your location. You can still meet your group without it, or allow it in settings.",
-    "accessReduced": "Your phone only shares an approximate location with FLOQQ, which is too rough to find each other. Turn on Precise Location in settings to share.",
-    "accessUnavailable": "Location is turned off on this phone. Turn it on to share your location.",
     "channelError": "We couldn't connect you to your group's live locations. Check your connection and reopen this screen.",
     "groupFound": "Everyone's together. Open your badge to mark the ride as started."
   },
@@ -836,6 +834,15 @@
     "taxiError": "We couldn't mark the ride as started. Please try again."
   },
   "guidance": {
+    "permissionTitle": "Turn on location to get directions to your meeting point",
+    "permissionNote": "Your location stays on your phone. It is only shared with your group if you choose that separately.",
+    "permissionDenied": "FLOQQ isn't allowed to use your location. Allow it in settings, or use the meeting point details below.",
+    "permissionReduced": "Your phone only gives FLOQQ an approximate location, too rough for directions. Turn on Precise Location in settings.",
+    "permissionUnavailable": "Location is turned off on this phone. Turn it on in your phone settings for directions.",
+    "allowLocation": "Allow location",
+    "distanceAwayKm": "{{km}} km away",
+    "distanceApproxKm": "Approx. {{km}} km",
+    "notAtAirport": "You're not at the airport yet",
     "targetLine": "To: {{name}}",
     "distanceAway": "{{meters}} m away",
     "distanceApprox": "Approx. {{meters}} m",
@@ -845,8 +852,6 @@
     "locating": "Finding your position…",
     "calibrate": "Your phone's compass needs calibrating. Move the phone in a figure of eight.",
     "arrowLabel": "Arrow pointing to your meeting point",
-    "useLocation": "Use my location for directions",
-    "locationStaysLocal": "An arrow can guide you to the meeting point. Your location stays on your phone - it is only shared with your group if you choose that separately.",
     "atMeetingPoint": "I'm at the meeting point",
     "atMeetingPointDone": "You're at the meeting point ✓",
     "undo": "Undo",

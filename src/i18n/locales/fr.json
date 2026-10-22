@@ -539,6 +539,7 @@
   "findGroup": {
     "title": "Retrouvez votre groupe",
     "subtitle": "Suivez la flèche jusqu’à votre point de rencontre. Partager votre position avec votre groupe est facultatif.",
+    "subtitleWhere": "Voici où retrouver votre groupe. Partager votre position avec votre groupe est facultatif.",
     "windowClosed": "Le partage de position s'ouvre à l'atterrissage du premier voyageur, vers {{time}}.",
     "memberLands": "Atterrit à {{time}}",
     "memberLanded": "A atterri",
@@ -560,9 +561,6 @@
     "notNow": "Pas maintenant",
     "shareFootnote": "Facultatif. Seul votre groupe peut la voir, et uniquement tant que cet écran est ouvert.",
     "openSettings": "Ouvrir les réglages",
-    "accessDenied": "FLOQQ n'est pas autorisé à utiliser votre position. Vous pouvez retrouver votre groupe sans elle, ou l'autoriser dans les réglages.",
-    "accessReduced": "Votre téléphone ne partage qu'une position approximative avec FLOQQ, trop imprécise pour vous retrouver. Activez la position exacte dans les réglages pour la partager.",
-    "accessUnavailable": "La localisation est désactivée sur ce téléphone. Activez-la pour partager votre position.",
     "channelError": "Impossible de vous connecter aux positions en direct de votre groupe. Vérifiez votre connexion et rouvrez cet écran.",
     "groupFound": "Tout le monde est là. Ouvrez votre badge pour indiquer que le trajet a commencé."
   },
@@ -836,6 +834,15 @@
     "taxiError": "Impossible d'indiquer que le trajet a commencé. Veuillez réessayer."
   },
   "guidance": {
+    "permissionTitle": "Activez la localisation pour être guidé jusqu'à votre point de rencontre",
+    "permissionNote": "Votre position reste sur votre téléphone. Elle n'est partagée avec votre groupe que si vous le choisissez séparément.",
+    "permissionDenied": "FLOQQ n'est pas autorisé à utiliser votre position. Autorisez-la dans les réglages, ou servez-vous des indications du point de rencontre ci-dessous.",
+    "permissionReduced": "Votre téléphone ne donne à FLOQQ qu'une position approximative, trop imprécise pour vous guider. Activez la position exacte dans les réglages.",
+    "permissionUnavailable": "La localisation est désactivée sur ce téléphone. Activez-la dans les réglages pour être guidé.",
+    "allowLocation": "Autoriser la localisation",
+    "distanceAwayKm": "À {{km}} km",
+    "distanceApproxKm": "Env. {{km}} km",
+    "notAtAirport": "Vous n'êtes pas encore à l'aéroport",
     "targetLine": "Vers : {{name}}",
     "distanceAway": "À {{meters}} m",
     "distanceApprox": "Environ {{meters}} m",
@@ -845,8 +852,6 @@
     "locating": "Recherche de votre position…",
     "calibrate": "La boussole de votre téléphone doit être calibrée. Faites un mouvement en forme de huit.",
     "arrowLabel": "Flèche indiquant votre point de rencontre",
-    "useLocation": "Utiliser ma position pour me guider",
-    "locationStaysLocal": "Une flèche peut vous guider jusqu'au point de rencontre. Votre position reste sur votre téléphone : elle n'est partagée avec votre groupe que si vous le choisissez séparément.",
     "atMeetingPoint": "Je suis au point de rencontre",
     "atMeetingPointDone": "Vous êtes au point de rencontre ✓",
     "undo": "Annuler",
