@@ -9,6 +9,7 @@ import Avatar from '../components/Avatar';
 import BadgeView from '../components/BadgeView';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
+import GuidanceDiagnostics from '../components/GuidanceDiagnostics';
 import GuidancePanel from '../components/GuidancePanel';
 import MeetingPointCard from '../components/MeetingPointCard';
 import PrimaryButton from '../components/PrimaryButton';
@@ -396,6 +397,19 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
                     onOpenSettings={() => Linking.openSettings()}
                     onShowBadge={() => setShowBadge(true)}
                     onHeadingReliability={setHeadingReliable}
+                  />
+                ) : null}
+
+                {/* Development builds only: never in a store build. */}
+                {__DEV__ && showGuidance ? (
+                  <GuidanceDiagnostics
+                    state={guidanceView}
+                    locationAllowed={locationAllowed}
+                    access={ownLocation.access}
+                    fix={ownLocation.fix}
+                    headingReliable={headingReliable}
+                    point={point}
+                    distance={guidance?.distance ?? null}
                   />
                 ) : null}
 
