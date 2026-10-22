@@ -173,6 +173,13 @@ App only - no database or server change.
   (disabled until a meeting point shows), "Show our badge", group members, location sharing.
 - **Not verified:** anything on screen (needs a build); the states and distances are unit-tested.
 
+## Guidance diagnostics, phase C (branch `feat/find-group-diagnostics-phase-c`, 2026-10-22)
+
+App only. Under the guidance area, development builds only (`__DEV__`; never in a store build):
+a "Diagnostics" panel that opens on tap, showing the guidance state, whether the location may be
+used yet, the permission, the last position with its age and accuracy, the compass (usable or
+not, live value while open), the target point (code, kind, coordinates) and the distance.
+
 ## Before anything can be tested
 
 - [ ] A development build. iPhone: EAS has no iOS credentials for this project yet, so run
