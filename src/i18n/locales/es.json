@@ -647,6 +647,22 @@
     "underAgeContact": "Si tu fecha de nacimiento se introdujo por error, contacta con soporte.",
     "requiredForRide": "Introduce tu fecha de nacimiento antes de pedir un trayecto."
   },
+  "adminRatings": {
+    "title": "Valoraciones",
+    "intro": "Lo que pensaron los pasajeros de sus trayectos, últimos {{days}} días. Solo tú puedes verlo.",
+    "empty": "Aún no hay valoraciones.",
+    "loadError": "No se han podido cargar las valoraciones.",
+    "basis": "media de {{count}} valoraciones",
+    "barLabel": "{{stars}} estrellas: {{count}}",
+    "reasonsTitle": "Motivos más frecuentes",
+    "noReasons": "Aún no se ha dado ningún motivo.",
+    "latestTitle": "Últimas con comentario o de 1-2 estrellas",
+    "needsReview": "Revisar",
+    "passenger": "Pasajero",
+    "openRide": "Abrir el trayecto",
+    "warning": "Valoraciones bajas en los últimos {{days}} días: {{count}}",
+    "warningDetail": "Las valoraciones de 1-2 estrellas necesitan revisión. Abre la pestaña Historial para verlas."
+  },
   "adminAccounts": {
     "title": "Cuentas",
     "tab": "Cuentas",

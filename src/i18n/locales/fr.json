@@ -651,6 +651,22 @@
     "underAgeContact": "Si votre date de naissance a été saisie par erreur, contactez le support.",
     "requiredForRide": "Veuillez saisir votre date de naissance avant de demander un trajet."
   },
+  "adminRatings": {
+    "title": "Notes",
+    "intro": "Ce que les passagers ont pensé de leurs trajets, {{days}} derniers jours. Vous seul pouvez voir ceci.",
+    "empty": "Aucune note pour l’instant.",
+    "loadError": "Les notes n’ont pas pu être chargées.",
+    "basis": "moyenne de {{count}} notes",
+    "barLabel": "{{stars}} étoiles : {{count}}",
+    "reasonsTitle": "Raisons les plus fréquentes",
+    "noReasons": "Aucune raison donnée pour l’instant.",
+    "latestTitle": "Dernières notes avec un commentaire ou 1-2 étoiles",
+    "needsReview": "À examiner",
+    "passenger": "Passager",
+    "openRide": "Ouvrir le trajet",
+    "warning": "Notes basses des {{days}} derniers jours : {{count}}",
+    "warningDetail": "Les notes de 1-2 étoiles sont à examiner. Ouvrez l’onglet Historique pour les voir."
+  },
   "adminAccounts": {
     "title": "Comptes",
     "tab": "Comptes",

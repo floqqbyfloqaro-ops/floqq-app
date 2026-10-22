@@ -651,6 +651,22 @@
     "underAgeContact": "If your date of birth was entered by mistake, please contact support.",
     "requiredForRide": "Please enter your date of birth before requesting a ride."
   },
+  "adminRatings": {
+    "title": "Ratings",
+    "intro": "What passengers thought of their rides, last {{days}} days. Only you can see this.",
+    "empty": "No ratings yet.",
+    "loadError": "The ratings couldn’t be loaded.",
+    "basis": "average of {{count}} ratings",
+    "barLabel": "{{stars}} stars: {{count}}",
+    "reasonsTitle": "Most frequent reasons",
+    "noReasons": "No reasons given yet.",
+    "latestTitle": "Latest with a comment or 1-2 stars",
+    "needsReview": "Needs review",
+    "passenger": "Passenger",
+    "openRide": "Open the ride",
+    "warning": "Low ratings in the last {{days}} days: {{count}}",
+    "warningDetail": "Ratings of 1-2 stars need a look. Open the History tab to review them."
+  },
   "adminAccounts": {
     "title": "Accounts",
     "tab": "Accounts",

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { ratingNeedsFollowUp, rideSummaryView } from './rideSummaryRules.ts';
+import { isFlaggedRating, ratingNeedsFollowUp, rideSummaryView, topReasons } from './rideSummaryRules.ts';
 
 const base = {
   paymentsEnabled: true,
@@ -124,4 +124,13 @@ test('"Ride completed" texts exist in every language, spelled FLOQQ', async () =
     assert.doesNotMatch(texts.ride_completed_subtitle, /Floq\b/, language);
     assert.equal(Object.keys(texts.ratingReasons).length, 8, language);
   }
+});
+
+test('admin: 1-2 stars are flagged; reasons are listed most frequent first', () => {
+  assert.deepEqual([1, 2, 3, 4, 5].map(isFlaggedRating), [true, true, false, false, false]);
+  assert.deepEqual(topReasons({ app: 2, meeting_point: 5, waiting_time: 2, other: 1 }, 3), [
+    { reason: 'meeting_point', count: 5 },
+    { reason: 'app', count: 2 },
+    { reason: 'waiting_time', count: 2 },
+  ]);
 });

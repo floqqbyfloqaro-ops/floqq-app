@@ -278,6 +278,22 @@ try {
   await service.from('user_roles').insert({ user_id: admin.user.id, role: 'admin' });
   const { data: overview, error: overviewError } = await admin.client.rpc('admin_rating_summary', { p_days: 1 });
   const { error: notAdmin } = await anna.client.rpc('admin_rating_summary', { p_days: 1 });
+  // The admin's "latest ratings" list (src/components/AdminRatings.tsx): with a comment or 1-2 stars.
+  const { data: latest, error: latestError } = await admin.client
+    .from('ride_ratings')
+    .select('id, group_id, stars, reasons, comment, created_at, passenger_requests(passenger_name, destination_address)')
+    .or('comment.not.is.null,stars.lte.2')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  const bensRating = (latest ?? []).find((row) => row.group_id === group1 && row.stars === 2);
+  check(
+    "the admin's latest list holds Ben's 2-star rating, with his ride",
+    !latestError && bensRating?.passenger_requests?.passenger_name === 'Ben Test',
+    latestError?.message ?? JSON.stringify(bensRating?.passenger_requests ?? null)
+  );
+  const { count: annaListed } = await anna.client.from('ride_ratings').select('id', { count: 'exact', head: true }).neq('user_id', anna.user.id);
+  check("a passenger's list never holds anyone else's rating", annaListed === 0, String(annaListed));
+
   check(
     'the admin sees the overview; a passenger cannot',
     !overviewError && overview?.count >= 2 && notAdmin?.code === '42501',

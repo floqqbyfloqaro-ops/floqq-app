@@ -134,3 +134,14 @@ export const RATING_COMMENT_MAX = 500;
 
 // 5 stars: a thank-you. 1 to 4: "What could we do better?".
 export const ratingNeedsFollowUp = (stars: number) => stars >= 1 && stars <= 4;
+
+// Admin: ratings of 1 or 2 stars are flagged for review.
+export const isFlaggedRating = (stars: number) => stars <= 2;
+
+// Admin: the reasons given most often, most frequent first (ties alphabetically), at most `limit`.
+export function topReasons(counts: Record<string, number>, limit: number): { reason: string; count: number }[] {
+  return Object.entries(counts)
+    .map(([reason, count]) => ({ reason, count: Number(count) }))
+    .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason))
+    .slice(0, limit);
+}
