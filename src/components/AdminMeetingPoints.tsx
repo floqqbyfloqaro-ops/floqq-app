@@ -6,11 +6,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import { MEETING_POINT_MIN_SEPARATION_METERS } from '../constants';
 import { ClosePair, pointsTooClose } from '../services/guidanceRules';
 import { MeetingPoint, meetingPointText, missingForActivation, wordingLanguageFor } from '../services/meetingPointRules';
-import { fetchMeetingPoints, shippedText } from '../services/meetingPoints';
+import { createTestMeetingPoint, fetchMeetingPoints, shippedText, testMeetingPointsAllowed } from '../services/meetingPoints';
 import { baseText, colors, spacing } from '../theme/colors';
 import { formatBarcelonaDateTime } from '../utils/formatDateTime';
 import Card from './Card';
 import ErrorNotice from './ErrorNotice';
+import SecondaryButton from './SecondaryButton';
 import Skeleton from './Skeleton';
 import StatusPill from './StatusPill';
 
@@ -35,12 +36,16 @@ export function closePointWarnings(pointId: string, pairs: ClosePair[], t: TFunc
 }
 
 // Admin dashboard, "Meeting points" tab: every point per terminal, with what it still needs
-// before passengers can be sent to it. Tapping one opens its editor.
+// before passengers can be sent to it. Tapping one opens its editor. On the test project only, the
+// admin can also add TEST points here (never on the live one: the database refuses them).
 export default function AdminMeetingPoints({ onOpen }: Props) {
   const { t, i18n } = useTranslation();
   const [points, setPoints] = useState<MeetingPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [allowTest, setAllowTest] = useState(false);
+  const [creating, setCreating] = useState<'T1' | 'T2B' | null>(null);
+  const [createFailed, setCreateFailed] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await fetchMeetingPoints();
@@ -56,7 +61,23 @@ export default function AdminMeetingPoints({ onOpen }: Props) {
 
   useEffect(() => {
     load();
+    testMeetingPointsAllowed()
+      .then(setAllowTest)
+      .catch(() => setAllowTest(false));
   }, [load]);
+
+  const handleCreateTest = async (terminal: 'T1' | 'T2B') => {
+    setCreateFailed(false);
+    setCreating(terminal);
+    const { data, error } = await createTestMeetingPoint(terminal);
+    setCreating(null);
+    if (error || !data) {
+      console.warn('createTestMeetingPoint failed', error);
+      setCreateFailed(true);
+      return;
+    }
+    onOpen(data);
+  };
 
   if (isLoading) {
     return (
@@ -82,6 +103,24 @@ export default function AdminMeetingPoints({ onOpen }: Props) {
   return (
     <View>
       {points.length === 0 ? <Text style={styles.emptyText}>{t('adminMeetingPoints.empty')}</Text> : null}
+      {allowTest ? (
+        <Card style={styles.row}>
+          <Text style={styles.name}>{t('adminMeetingPoints.testTitle')}</Text>
+          <Text style={styles.meta}>{t('adminMeetingPoints.testHint')}</Text>
+          {createFailed ? <Text style={styles.missing}>{t('adminMeetingPoints.saveError')}</Text> : null}
+          {(['T1', 'T2B'] as const).map((terminal) => (
+            <View key={terminal} style={styles.testButton}>
+              <SecondaryButton
+                label={t('adminMeetingPoints.newTestPoint', { terminal })}
+                icon="flask-outline"
+                onPress={() => handleCreateTest(terminal)}
+                loading={creating === terminal}
+                disabled={creating != null}
+              />
+            </View>
+          ))}
+        </Card>
+      ) : null}
       {terminals.map((terminal) => (
         <View key={terminal}>
           <Text style={styles.terminalHeader} accessibilityRole="header">
@@ -93,6 +132,7 @@ export default function AdminMeetingPoints({ onOpen }: Props) {
               const name = meetingPointText(point, 'name', language, shippedText);
               const missing = missingForActivation(point, shippedText);
               const statusLabel = t(point.is_active ? 'adminMeetingPoints.active' : 'adminMeetingPoints.inactive');
+              const kindLabel = point.kind === 'regular' ? null : t(`adminMeetingPoints.kind.${point.kind}`);
               const verifiedLabel = point.verified_at
                 ? t('adminMeetingPoints.verifiedOn', { date: formatBarcelonaDateTime(point.verified_at) })
                 : null;
@@ -106,11 +146,14 @@ export default function AdminMeetingPoints({ onOpen }: Props) {
                   key={point.id}
                   onPress={() => onOpen(point)}
                   style={styles.row}
-                  accessibilityLabel={[point.short_code, name, statusLabel, verifiedLabel, missingLabel]
+                  accessibilityLabel={[point.short_code, kindLabel, name, statusLabel, verifiedLabel, missingLabel]
                     .filter(Boolean)
                     .join(', ')}
                 >
-                  <Text style={styles.code}>{point.short_code}</Text>
+                  <Text style={styles.code}>
+                    {point.short_code}
+                    {kindLabel ? ` · ${kindLabel}` : ''}
+                  </Text>
                   <Text style={styles.name}>{name}</Text>
                   {verifiedLabel ? <Text style={styles.meta}>{verifiedLabel}</Text> : null}
                   {missingLabel ? <Text style={styles.missing}>{missingLabel}</Text> : null}
@@ -132,6 +175,9 @@ export default function AdminMeetingPoints({ onOpen }: Props) {
 const styles = StyleSheet.create({
   row: {
     marginBottom: spacing.x3,
+  },
+  testButton: {
+    marginTop: spacing.x2,
   },
   skeletonGap: {
     marginBottom: spacing.x2,

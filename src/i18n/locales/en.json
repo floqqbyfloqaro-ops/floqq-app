@@ -194,6 +194,7 @@
     "flightLaterFlag": "Flight time changed: a member now arrives {{minutes}} min later",
     "flightEarlierFlag": "Flight time changed: a member now arrives {{minutes}} min earlier",
     "noMeetingPointFlag": "No meeting point assigned",
+    "fallbackMeetingPointFlag": "Group using fallback meeting point",
     "meetupFlaggedFlag": "Needs review: this group never met. Nothing is charged until you confirm the ride.",
     "noShowFlag": "No-show: their group continued without them ({{date}})"
   },
@@ -281,6 +282,7 @@
     "flightTimeChangedNote": "Flight data now has this passenger arriving at {{time}}. The group is confirmed, so its meeting time was not changed automatically.",
     "meetingPointTitle": "Meeting point",
     "meetingPointNone": "No meeting point yet. One is assigned automatically within a minute, as soon as this terminal has an active point.",
+    "meetingPointFallbackNote": "This group was given its terminal's fallback meeting point (the arrivals hall) because no verified point was active. Pick a real one below.",
     "meetingTimeLabel": "Meeting time: {{time}}",
     "meetingPointChange": "Change meeting point",
     "meetingPointAuto": "Back to automatic",
@@ -408,6 +410,16 @@
     "checkDetail": "Flight data reported {{reported}} for {{flights}} {{name}} flights in the last {{days}} days. This list says {{table}}."
   },
   "adminMeetingPoints": {
+    "kind": {
+      "regular": "Regular",
+      "fallback": "Fallback",
+      "test": "TEST"
+    },
+    "testTitle": "TEST meeting points (test project only)",
+    "testHint": "Create a point marked TEST, set its location and activate it - no photo or on-site check needed. The live database refuses these.",
+    "newTestPoint": "New TEST point at {{terminal}}",
+    "fallbackHint": "Fallback point: the arrivals hall itself. A group only gets it when no verified point is active at this terminal, and is flagged for you. Keep it active and its location right.",
+    "testPointHint": "TEST point: can be active without a photo or on-site check. Only possible on the test project.",
     "tab": "Points",
     "title": "Meeting points",
     "empty": "There are no meeting points yet.",
@@ -474,6 +486,18 @@
     "tooClose": "Only {{meters}} m from {{code}}: the arrow can't reliably tell them apart."
   },
   "meetingPoints": {
+    "T1-FALLBACK": {
+      "name": "Terminal 1 arrivals hall",
+      "directions": "Exit from baggage claim into the arrivals hall and wait just past the exit doors."
+    },
+    "T2-FALLBACK": {
+      "name": "Terminal 2B arrivals hall",
+      "directions": "Exit from baggage claim into the T2B arrivals hall and wait just past the exit doors."
+    },
+    "TEST": {
+      "name": "TEST meeting point",
+      "directions": "A test point for trying out the app - not a real meeting point."
+    },
     "T1-A": {
       "name": "Tourist Information office",
       "directions": "Level 0, right after you enter the arrivals hall."
@@ -760,7 +784,9 @@
   "meetingPointCard": {
     "title": "Your meeting point",
     "terminal": "Terminal {{terminal}}",
-    "pending": "Your meeting point will appear here shortly.",
+    "pending": "Meet in your terminal's arrivals hall, just past the baggage claim exit.",
+    "loading": "Finding your meeting point…",
+    "testMark": "TEST",
     "meetingTime": "Meeting time: {{time}} (Barcelona time)",
     "openInMaps": "Open in Google Maps",
     "photoLabel": "Photo of the meeting point: {{name}}"

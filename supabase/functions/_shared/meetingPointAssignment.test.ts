@@ -10,12 +10,19 @@ const WINDOW_MINUTES = 20;
 const MINUTE = 60_000;
 const NOON = Date.parse('2026-10-10T12:00:00Z');
 
-const point = (shortCode: string, terminal: string, sortPriority: number, isActive = true): AssignablePoint => ({
+const point = (
+  shortCode: string,
+  terminal: string,
+  sortPriority: number,
+  isActive = true,
+  kind: AssignablePoint['kind'] = 'regular'
+): AssignablePoint => ({
   id: shortCode,
   terminal,
   shortCode,
   sortPriority,
   isActive,
+  kind,
 });
 
 const POINTS = [
@@ -88,4 +95,36 @@ test('no active point at the terminal: nothing is assigned', () => {
   const onlyT2 = POINTS.filter((p) => p.terminal === 'T2B');
   assert.equal(pickMeetingPoint(onlyT2, 'T1', NOON, [], WINDOW_MINUTES), null);
   assert.equal(pickMeetingPoint(POINTS, 'T3', NOON, [], WINDOW_MINUTES), null);
+});
+
+test('a terminal with no other active point: its fallback, flagged as such', () => {
+  const points = [point('T1-FALLBACK', 'T1', 0, true, 'fallback'), point('T1-A', 'T1', 50, false), ...POINTS.slice(3)];
+  const choice = pickMeetingPoint(points, 'T1', NOON, [], WINDOW_MINUTES);
+  assert.equal(choice?.point.shortCode, 'T1-FALLBACK');
+  assert.equal(choice?.isFallback, true);
+});
+
+test('the fallback is never picked while a real point is active, even a busy one', () => {
+  const points = [point('T1-FALLBACK', 'T1', 99, true, 'fallback'), point('T1-A', 'T1', 50)];
+  const choice = pickMeetingPoint(points, 'T1', NOON, [at('T1-A', 0), at('T1-A', 5)], WINDOW_MINUTES);
+  assert.equal(choice?.point.shortCode, 'T1-A');
+  assert.equal(choice?.isFallback, false);
+});
+
+test('several groups at the same time all get the fallback when it is the only point', () => {
+  const points = [point('T2-FALLBACK', 'T2B', 0, true, 'fallback')];
+  const choice = pickMeetingPoint(points, 'T2', NOON, [at('T2-FALLBACK', 0), at('T2-FALLBACK', 5)], WINDOW_MINUTES);
+  assert.equal(choice?.point.shortCode, 'T2-FALLBACK');
+  assert.equal(choice?.overlapping, 2);
+});
+
+test('a TEST point is picked like a real one, before the fallback', () => {
+  const points = [point('T1-FALLBACK', 'T1', 0, true, 'fallback'), point('TEST-T1-1', 'T1', 0, true, 'test')];
+  const choice = pickMeetingPoint(points, 'T1', NOON, [], WINDOW_MINUTES);
+  assert.equal(choice?.point.shortCode, 'TEST-T1-1');
+  assert.equal(choice?.isFallback, false);
+});
+
+test('no active point at all, not even a fallback: nothing', () => {
+  assert.equal(pickMeetingPoint([point('T1-FALLBACK', 'T1', 0, false, 'fallback')], 'T1', NOON, [], WINDOW_MINUTES), null);
 });

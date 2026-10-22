@@ -6,7 +6,7 @@ import { supabase } from './supabase';
 const PHOTO_BUCKET = 'meeting-point-photos';
 
 const COLUMNS =
-  'id, airport_code, terminal, short_code, name_key, directions_key, name_i18n, directions_i18n, latitude, longitude, photo_path, is_active, sort_priority, verified_at, verified_by';
+  'id, kind, airport_code, terminal, short_code, name_key, directions_key, name_i18n, directions_i18n, latitude, longitude, photo_path, is_active, sort_priority, verified_at, verified_by';
 
 // The wording shipped with the app, for the rules in meetingPointRules.ts.
 // Read straight from that language's own file: a text missing in French must not be reported as
@@ -33,9 +33,33 @@ export function fetchMeetingPoints() {
 export function fetchMeetingPointSummary(id: string) {
   return supabase
     .from('meeting_points')
-    .select('id, terminal, short_code, name_key, directions_key, name_i18n, directions_i18n, latitude, longitude, photo_path')
+    .select('id, terminal, short_code, kind, name_key, directions_key, name_i18n, directions_i18n, latitude, longitude, photo_path')
     .eq('id', id)
     .maybeSingle<MeetingPointSummary>();
+}
+
+// Whether this database allows TEST meeting points (the test project only; never the live one).
+// The database enforces it too: this only decides whether the admin tool offers them.
+export async function testMeetingPointsAllowed(): Promise<boolean> {
+  const { data } = await supabase.from('environment_settings').select('allow_test_meeting_points').maybeSingle();
+  return data?.allow_test_meeting_points === true;
+}
+
+// Admin only, and only where TEST points are allowed: a new, inactive TEST point at a terminal
+// ('T1' or 'T2B'), worded generically until the admin changes it. Returns the point as stored.
+export function createTestMeetingPoint(terminal: 'T1' | 'T2B') {
+  const shortCode = `TEST-${terminal === 'T1' ? 'T1' : 'T2'}-${Date.now().toString(36).toUpperCase()}`;
+  return supabase
+    .from('meeting_points')
+    .insert({
+      kind: 'test',
+      terminal,
+      short_code: shortCode,
+      name_key: 'meetingPoints.TEST.name',
+      directions_key: 'meetingPoints.TEST.directions',
+    })
+    .select(COLUMNS)
+    .single<MeetingPoint>();
 }
 
 export type MeetingPointPatch = Partial<

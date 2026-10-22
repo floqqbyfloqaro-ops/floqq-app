@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Image, Linking, StyleSheet, Text } from 'react-native';
+import { Image, Linking, StyleSheet, Text, View } from 'react-native';
 
 import { MeetingPointSummary, meetingPointText, wordingLanguageFor } from '../services/meetingPointRules';
 import { meetingPointPhotoUrl, shippedText } from '../services/meetingPoints';
@@ -7,13 +7,17 @@ import { baseText, colors, radii, spacing } from '../theme/colors';
 import { barcelonaDateParts } from '../utils/formatDateTime';
 import Card from './Card';
 import SecondaryButton from './SecondaryButton';
+import Skeleton from './Skeleton';
 
 type Props = {
   // The group's arrival terminal ('T1' / 'T2'), shown even before a point is assigned: T1 and T2
   // are kilometres apart, so which terminal is the first thing a passenger must know.
   terminal: string | null;
-  // Null until the group has been given its meeting point.
+  // Null until the group has been given its meeting point (or, on "Find your group", while
+  // `loading`).
   point: MeetingPointSummary | null;
+  // The point is being assigned right now: shown as loading, for a minute at most.
+  loading?: boolean;
   meetingTime: string | null;
   // The photo is already on screen above this card (the guidance shows it when the passenger is
   // close): don't show it twice.
@@ -26,7 +30,7 @@ const terminalNumber = (terminal: string) => terminal.replace(/^T/, '');
 // Where a confirmed group meets at the airport: the terminal, the landmark with its photo, how to
 // walk there from the baggage claim exit, and when. The wording is the passenger's own language
 // (the admin's edits where there are any, otherwise what ships with the app).
-export default function MeetingPointCard({ terminal, point, meetingTime, hidePhoto = false }: Props) {
+export default function MeetingPointCard({ terminal, point, loading = false, meetingTime, hidePhoto = false }: Props) {
   const { t, i18n } = useTranslation();
   const language = wordingLanguageFor(i18n.language);
 
@@ -55,8 +59,14 @@ export default function MeetingPointCard({ terminal, point, meetingTime, hidePho
         <Text style={styles.terminal}>{t('meetingPointCard.terminal', { terminal: terminalNumber(shownTerminal) })}</Text>
       ) : null}
 
-      {point ? (
+      {loading ? (
+        <View accessible accessibilityLabel={t('meetingPointCard.loading')}>
+          <Skeleton width="70%" height={18} style={styles.skeletonGap} />
+          <Skeleton width="90%" height={14} style={styles.skeletonGap} />
+        </View>
+      ) : point ? (
         <>
+          {point.kind === 'test' ? <Text style={styles.testMark}>{t('meetingPointCard.testMark')}</Text> : null}
           {point.photo_path && !hidePhoto ? (
             <Image
               source={{ uri: meetingPointPhotoUrl(point.photo_path) }}
@@ -108,6 +118,14 @@ const styles = StyleSheet.create({
     ...baseText.body,
     color: colors.textSecondary,
     marginBottom: spacing.x3,
+  },
+  skeletonGap: {
+    marginBottom: spacing.x3,
+  },
+  testMark: {
+    ...baseText.label,
+    color: colors.warning,
+    marginBottom: spacing.x2,
   },
   meetingTime: {
     ...baseText.body,

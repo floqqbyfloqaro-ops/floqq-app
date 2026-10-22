@@ -141,6 +141,23 @@ App only - no database or server change.
   calculated ready time on average.
 - **Not verified:** anything on screen (needs a build); the texts and the rules are unit-tested.
 
+## Fallback meeting points, phase A (branch `feat/fallback-meeting-points-phase-a`, 2026-10-22)
+
+Why: no meeting point was verified yet, so confirmed groups never got one and "Find your group"
+showed "Your meeting point will appear here shortly" forever, with no arrow.
+
+- **Fallback point per terminal** (`T1-FALLBACK`, `T2-FALLBACK`): the arrivals hall, approximate
+  coordinates, generic wording, active without a photo or on-site check. Only assigned when no
+  other point is active at the terminal. Never switched automatically to a point verified later.
+- **Admin.** Group list: "Group using fallback meeting point"; group page: a note to pick a real
+  one. Points tab: "Fallback" / "TEST" labels; correcting a fallback's location keeps it active.
+- **Passengers.** Until the group's own point is saved, "Find your group" shows a loading state
+  for at most a minute, then the terminal's fallback.
+- **TEST points.** Created from the Points tab, active without a photo or on-site check. Only
+  where `environment_settings.allow_test_meeting_points` is on: switched on in floqq-test by
+  hand, off everywhere else; the database refuses them otherwise.
+- **Tested:** unit tests; `scripts/fallback-meeting-point-test.mjs` against floqq-test.
+
 ## Before anything can be tested
 
 - [ ] A development build. iPhone: EAS has no iOS credentials for this project yet, so run

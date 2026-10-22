@@ -716,6 +716,12 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
                 new Date(rideDate).getTime() > Date.now() - MEETING_POINT_FLAG_GRACE_MS
                   ? t('admin.noMeetingPointFlag')
                   : null;
+              // Sent to its terminal's arrivals hall because no verified point was active: the admin
+              // picks it a real one.
+              const fallbackPointLabel =
+                group.status === 'confirmed' && group.meeting_point?.kind === 'fallback'
+                  ? t('admin.fallbackMeetingPointFlag')
+                  : null;
               const summary = paymentSummaries[group.id];
               const paymentsLabel = summary
                 ? [
@@ -739,7 +745,9 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
                     paymentsLabel ? `${paymentsLabel}, ` : ''
                   }${receiptFlags[group.id] ? `${receiptFlags[group.id]}, ` : ''}${
                     terminalConflictLabel ? `${terminalConflictLabel}, ` : ''
-                  }${timeChangeLabel ? `${timeChangeLabel}, ` : ''}${noMeetingPointLabel ? `${noMeetingPointLabel}, ` : ''}${statusLabel}`}
+                  }${timeChangeLabel ? `${timeChangeLabel}, ` : ''}${noMeetingPointLabel ? `${noMeetingPointLabel}, ` : ''}${
+                    fallbackPointLabel ? `${fallbackPointLabel}, ` : ''
+                  }${statusLabel}`}
                 >
                   {rideDateLabel ? <Text style={styles.groupTitle}>{rideDateLabel}</Text> : null}
                   <Text style={rideDateLabel ? styles.groupSubtitle : styles.groupTitle}>{createdLabel}</Text>
@@ -749,6 +757,7 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
                   {terminalConflictLabel ? <Text style={styles.guaranteeFlag}>{terminalConflictLabel}</Text> : null}
                   {timeChangeLabel ? <Text style={styles.guaranteeFlag}>{timeChangeLabel}</Text> : null}
                   {noMeetingPointLabel ? <Text style={styles.guaranteeFlag}>{noMeetingPointLabel}</Text> : null}
+                  {fallbackPointLabel ? <Text style={styles.guaranteeFlag}>{fallbackPointLabel}</Text> : null}
                   {group.meetup_flagged_at ? (
                     <Text style={styles.guaranteeFlag}>{t('admin.meetupFlaggedFlag')}</Text>
                   ) : null}

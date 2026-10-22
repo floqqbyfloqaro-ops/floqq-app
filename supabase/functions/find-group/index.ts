@@ -17,6 +17,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { MEETUP_SHARING_TIMEOUT_MINUTES, NO_SHOW_WAIT_MINUTES } from '../_shared/constants.ts';
 import { rideDepartureMs } from '../_shared/holdMath.ts';
 import { expectedLandingIso } from '../_shared/landedRule.ts';
+import { meetingTerminalFor } from '../_shared/meetingPointAssignment.ts';
 import { readyIso } from '../_shared/readyTimeRule.ts';
 
 const corsHeaders = {
@@ -111,16 +112,26 @@ Deno.serve(async (req) => {
   // The group meets when its last member is ready - not when the last plane arrives.
   const departureMs = rideDepartureMs(members.map(readyIso));
 
-  // Where the group meets: assigned within a minute of confirmation (_shared/meetingPoints.ts),
-  // so it can still be missing - the app then shows the terminal alone. The wording travels as the
-  // app's own i18n keys plus the admin's edits; the app picks the passenger's language.
+  // Where the group meets: assigned within a minute of confirmation (_shared/meetingPoints.ts).
+  // Until then it is the terminal's fallback - which is also what the assignment picks while the
+  // terminal has no verified point - marked provisional, so the app can wait a moment for the
+  // real one. The wording travels as the app's own i18n keys plus the admin's edits; the app
+  // picks the passenger's language.
+  const POINT_COLUMNS =
+    'id, terminal, short_code, kind, name_key, directions_key, name_i18n, directions_i18n, latitude, longitude, photo_path';
+  const terminal = members.find((m) => m.arrival_terminal != null)?.arrival_terminal ?? null;
+  const meetingTerminal = terminal ? meetingTerminalFor(terminal) : null;
   const { data: meetingPoint } = group.meeting_point_id
-    ? await adminClient
-        .from('meeting_points')
-        .select('id, terminal, short_code, name_key, directions_key, name_i18n, directions_i18n, latitude, longitude, photo_path')
-        .eq('id', group.meeting_point_id)
-        .maybeSingle()
-    : { data: null };
+    ? await adminClient.from('meeting_points').select(POINT_COLUMNS).eq('id', group.meeting_point_id).maybeSingle()
+    : meetingTerminal
+      ? await adminClient
+          .from('meeting_points')
+          .select(POINT_COLUMNS)
+          .eq('terminal', meetingTerminal)
+          .eq('kind', 'fallback')
+          .eq('is_active', true)
+          .maybeSingle()
+      : { data: null };
 
   // "I've found my group": from the first confirmation the others have NO_SHOW_WAIT_MINUTES; after
   // that the members who are there may continue without whoever hasn't confirmed.
@@ -138,8 +149,10 @@ Deno.serve(async (req) => {
       meetupCompletedAt: group.meetup_completed_at,
       continueWithoutFrom,
       // 'T1' / 'T2': a group only ever holds passengers arriving at one terminal.
-      terminal: members.find((m) => m.arrival_terminal != null)?.arrival_terminal ?? null,
+      terminal,
       meetingPoint: meetingPoint ?? null,
+      // The terminal's fallback, handed out before the group's own point was saved.
+      meetingPointProvisional: !group.meeting_point_id && meetingPoint != null,
       meetingTime: group.meeting_time ?? new Date(departureMs).toISOString(),
       rideStartedAt: group.ride_started_at,
       windowOpensAt: new Date(firstArrivalMs).toISOString(),

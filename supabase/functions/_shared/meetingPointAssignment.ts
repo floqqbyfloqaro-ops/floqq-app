@@ -5,7 +5,9 @@
 //     same landmark at once;
 //   - the highest priority among the free ones;
 //   - when every point is taken: the least crowded one (the groups then tell each other apart by
-//     their badge).
+//     their badge);
+//   - only when the terminal has no other active point: its fallback (the arrivals hall itself),
+//     however many groups already meet there - a confirmed group always has a meeting point.
 // Meeting points are landmarks, not venues: whether a café is open plays no part.
 //
 // No Deno-touching imports, so this runs under a plain Node test.
@@ -17,6 +19,8 @@ export type AssignablePoint = {
   shortCode: string;
   sortPriority: number;
   isActive: boolean;
+  // 'regular' and 'test' points are picked alike; a 'fallback' only when there is nothing else.
+  kind: 'regular' | 'fallback' | 'test';
 };
 
 // A point another group already has, and when that group meets there.
@@ -48,9 +52,11 @@ export type PointChoice = {
   point: AssignablePoint;
   // How many other groups meet there within the window: 0 unless every point was taken.
   overlapping: number;
+  // The terminal's fallback: no other point was active there.
+  isFallback: boolean;
 };
 
-// Null when the terminal has no active point at all.
+// Null when the terminal has no active point at all, not even its fallback.
 export function pickMeetingPoint(
   points: AssignablePoint[],
   arrivalTerminal: string,
@@ -61,9 +67,20 @@ export function pickMeetingPoint(
   const terminal = meetingTerminalFor(arrivalTerminal);
   if (!terminal) return null;
 
-  const choices = points
-    .filter((point) => point.isActive && point.terminal === terminal)
-    .map((point) => ({ point, overlapping: overlappingGroups(point.id, meetingTimeMs, others, windowMinutes) }))
+  const candidates = points.filter((point) => point.isActive && point.terminal === terminal);
+  const regular = candidates.filter((point) => point.kind !== 'fallback');
+  if (regular.length === 0) {
+    const fallback = candidates.find((point) => point.kind === 'fallback');
+    if (!fallback) return null;
+    return { point: fallback, overlapping: overlappingGroups(fallback.id, meetingTimeMs, others, windowMinutes), isFallback: true };
+  }
+
+  const choices = regular
+    .map((point) => ({
+      point,
+      overlapping: overlappingGroups(point.id, meetingTimeMs, others, windowMinutes),
+      isFallback: false,
+    }))
     .sort(
       (a, b) =>
         a.overlapping - b.overlapping ||

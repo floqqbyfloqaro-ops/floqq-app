@@ -650,6 +650,9 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                 <Text style={styles.memberTitle}>
                   {currentMeetingPoint ? meetingPointLabel(currentMeetingPoint) : t('groupDetail.meetingPointNone')}
                 </Text>
+                {currentMeetingPoint?.kind === 'fallback' ? (
+                  <Text style={styles.guaranteeNote}>{t('groupDetail.meetingPointFallbackNote')}</Text>
+                ) : null}
                 {meetingPoint.id && meetingPoint.time ? (
                   <Text style={styles.memberSubtitle}>
                     {t('groupDetail.meetingTimeLabel', { time: formatRideDateTime(t, i18n.language, meetingPoint.time) })}
