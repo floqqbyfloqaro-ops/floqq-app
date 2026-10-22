@@ -31,6 +31,7 @@ import {
 } from '../services/findGroup';
 import { findGroupEntryState, hasLanded, locationMayRun } from '../services/findGroupEntryRules';
 import { arrowVisible, guidanceShowsPhoto, guidanceState } from '../services/guidanceRules';
+import { rideInProgress } from '../services/onTheWayRules';
 import { memberSharingStatus } from '../services/locationSharingRules';
 import { subscribeToRide } from '../services/matchOffer';
 import { MyPassengerRequest } from '../services/passengerRequests';
@@ -42,6 +43,9 @@ type Props = {
   onBack: () => void;
   // How the passenger got here, for the audit trail.
   openedFrom?: FindGroupOpenSource;
+  // The group's ride has just started ("We're in the taxi", here or on another member's phone):
+  // the meetup is over and "On the way" takes over.
+  onRideStarted?: () => void;
 };
 
 // How often the group is re-read on top of the live updates (a safety net for a missed one), and
@@ -75,7 +79,7 @@ function KeepScreenAwake() {
 // when the group meets, who is in it and when they land, the badge - and no location at all: none
 // is read, and none is asked for.
 // Not the same file as GroupDetailScreen.tsx, which is the admin-facing fare-split/confirm screen.
-export default function GroupDetailsScreen({ request, onBack, openedFrom = 'button' }: Props) {
+export default function GroupDetailsScreen({ request, onBack, openedFrom = 'button', onRideStarted }: Props) {
   const { t } = useTranslation();
 
   const openedAt = useRef(Date.now());
@@ -143,6 +147,17 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
   const isPreview = entryState === 'preview';
   const locationAllowed = locationMayRun(entryState);
   const sharingAllowed = meetupRunning && !groupFound && locationAllowed;
+
+  // Once the ride is on its way, hand over to "On the way" (once; a ride that started long ago
+  // stays on the ended meetup).
+  const rideStartedAt = meetup?.rideStartedAt ?? null;
+  const handedOver = useRef(false);
+  useEffect(() => {
+    if (handedOver.current || !onRideStarted) return;
+    if (!rideInProgress({ groupStatus: 'confirmed', rideStartedAt }, Date.now())) return;
+    handedOver.current = true;
+    onRideStarted();
+  }, [rideStartedAt, onRideStarted]);
 
   const me = meetup?.members.find((member) => member.isMe) ?? null;
   const arrived = me?.arrivedAt != null;

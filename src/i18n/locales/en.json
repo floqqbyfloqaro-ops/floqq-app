@@ -537,6 +537,13 @@
     }
   },
   "location_share_explainer": "Share your live location with your group only, so you can find each other. It turns off automatically once you're together.",
+  "on_the_way_title": "On the way!",
+  "on_the_way_subtitle": "Enjoy your ride together.",
+  "estimated_share": "Est. share",
+  "final_share_note": "Final amount based on the taxi receipt",
+  "share_secured_info": "Each passenger's fair share is secured and will be settled after the ride.",
+  "share_calculated_info": "Each passenger's final share will be calculated after the ride.",
+  "on_the_way_details": "Ride details",
   "findGroup": {
     "title": "Find your group",
     "subtitle": "Follow the arrow to your meeting point. Sharing your location with your group is optional.",

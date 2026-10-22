@@ -537,6 +537,13 @@
     }
   },
   "location_share_explainer": "Partagez votre position en direct avec votre groupe uniquement, pour vous retrouver. Le partage s'arrête automatiquement une fois que vous êtes ensemble.",
+  "on_the_way_title": "En route !",
+  "on_the_way_subtitle": "Bon trajet ensemble.",
+  "estimated_share": "Part estimée",
+  "final_share_note": "Montant final basé sur le reçu du taxi",
+  "share_secured_info": "La juste part de chaque passager est garantie et sera réglée après le trajet.",
+  "share_calculated_info": "La part finale de chaque passager sera calculée après le trajet.",
+  "on_the_way_details": "Détails du trajet",
   "findGroup": {
     "title": "Retrouvez votre groupe",
     "subtitle": "Suivez la flèche jusqu’à votre point de rencontre. Partager votre position avec votre groupe est facultatif.",

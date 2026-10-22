@@ -17,12 +17,14 @@ import { FindGroupOpenSource } from '../services/findGroup';
 import { subscribeToRide } from '../services/matchOffer';
 import { MeetingPointSummary, meetingPointText, wordingLanguageFor } from '../services/meetingPointRules';
 import { fetchMeetingPointSummary, shippedText } from '../services/meetingPoints';
+import { rideInProgress } from '../services/onTheWayRules';
 import { createServiceFeeCheckout } from '../services/payments';
 import { fetchMyGroupStatus, fetchMyLatestRequest, MyPassengerRequest, MyTaxiGroup } from '../services/passengerRequests';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
 import FindingMatchScreen from './FindingMatchScreen';
 import GroupDetailsScreen from './GroupDetailsScreen';
 import MatchFoundScreen from './MatchFoundScreen';
+import OnTheWayScreen from './OnTheWayScreen';
 
 type Props = {
   onBack: () => void;
@@ -35,7 +37,7 @@ type Props = {
   onFindGroupOpened?: () => void;
 };
 
-type SubScreen = 'findingMatch' | 'matchFound' | 'findGroup' | null;
+type SubScreen = 'findingMatch' | 'matchFound' | 'findGroup' | 'onTheWay' | null;
 
 // How often the ride is re-read while the passenger is waiting for (or looking at) a match, on top
 // of the live updates - a safety net for a missed one.
@@ -56,6 +58,9 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
   // "Find your group": how it was opened (for the audit trail) and where its back button leads.
   const [findGroupSource, setFindGroupSource] = useState<FindGroupOpenSource>('button');
   const [findGroupReturn, setFindGroupReturn] = useState<SubScreen>(null);
+  // The passenger asked for the ride's normal card while it is on its way (the payer's receipt is
+  // there): don't send them back to "On the way" during this visit.
+  const [showRideDetails, setShowRideDetails] = useState(false);
 
   const showFindGroup = (source: FindGroupOpenSource, returnTo: SubScreen) => {
     setFindGroupSource(source);
@@ -150,7 +155,8 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
   // (Supabase Realtime on their own ride and group)...
   const requestId = request?.id;
   const groupId = request?.group_id ?? null;
-  const isWatchingMatch = subScreen === 'findingMatch' || subScreen === 'matchFound';
+  // ...and while it's on its way, so "On the way" ends as soon as the taxi receipt is in.
+  const isWatchingMatch = subScreen === 'findingMatch' || subScreen === 'matchFound' || subScreen === 'onTheWay';
   useEffect(() => {
     if (!requestId || !isWatchingMatch) return;
     const unsubscribe = subscribeToRide('myride', requestId, groupId, loadData);
@@ -167,6 +173,24 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
   // ride's current one.
   const groupStatus = group && group.id === groupId ? group.status : null;
   const isActiveRide = request?.status === 'pending' || request?.status === 'matched';
+  // While the group's ride is in progress, My Ride opens on "On the way" - and leaves it once it
+  // isn't any more: the taxi receipt came in, or the time is up. (Only once the loaded group says
+  // the ride started: right after "We're in the taxi" it may still be the copy from before.)
+  const currentGroup = group && group.id === groupId ? group : null;
+  const isOnTheWay = rideInProgress(
+    {
+      groupStatus,
+      rideStartedAt: currentGroup?.ride_started_at ?? null,
+      receiptReceivedAt: currentGroup?.receipt_received_at ?? null,
+    },
+    Date.now()
+  );
+  const rideHasStarted = currentGroup?.ride_started_at != null;
+  useEffect(() => {
+    if (isOnTheWay && !showRideDetails && subScreen === null) setSubScreen('onTheWay');
+    else if (subScreen === 'onTheWay' && rideHasStarted && !isOnTheWay) setSubScreen(null);
+  }, [isOnTheWay, rideHasStarted, showRideDetails, subScreen]);
+
   useEffect(() => {
     if (subScreen === 'findingMatch' && (groupStatus === 'unconfirmed' || groupStatus === 'confirmed')) {
       setSubScreen('matchFound');
@@ -227,11 +251,29 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
     );
   }
 
+  if (subScreen === 'onTheWay' && request) {
+    return (
+      <OnTheWayScreen
+        requestId={request.id}
+        onBack={onBack}
+        onShowDetails={() => {
+          setShowRideDetails(true);
+          setSubScreen(null);
+        }}
+      />
+    );
+  }
+
   if (subScreen === 'findGroup' && request) {
     return (
       <GroupDetailsScreen
         request={request}
         openedFrom={findGroupSource}
+        onRideStarted={() => {
+          setShowRideDetails(false);
+          setSubScreen('onTheWay');
+          loadData();
+        }}
         onBack={() => {
           setSubScreen(findGroupReturn);
           loadData();

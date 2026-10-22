@@ -533,6 +533,13 @@
     }
   },
   "location_share_explainer": "Comparte tu ubicación en directo solo con tu grupo para que podáis encontraros. Se desactiva automáticamente cuando estéis juntos.",
+  "on_the_way_title": "¡En camino!",
+  "on_the_way_subtitle": "Disfrutad del trayecto juntos.",
+  "estimated_share": "Parte estimada",
+  "final_share_note": "Importe final según el recibo del taxi",
+  "share_secured_info": "La parte justa de cada pasajero está asegurada y se liquidará después del trayecto.",
+  "share_calculated_info": "La parte final de cada pasajero se calculará después del trayecto.",
+  "on_the_way_details": "Detalles del trayecto",
   "findGroup": {
     "title": "Encuentra a tu grupo",
     "subtitle": "Sigue la flecha hasta tu punto de encuentro. Compartir tu ubicación con tu grupo es opcional.",
