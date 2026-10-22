@@ -16,6 +16,7 @@ import AdminAccounts from '../components/AdminAccounts';
 import AdminAirlineTerminals from '../components/AdminAirlineTerminals';
 import AdminJobStatus from '../components/AdminJobStatus';
 import AdminMeetingPoints from '../components/AdminMeetingPoints';
+import AdminRatings from '../components/AdminRatings';
 import AdminReadyTimeCalibration from '../components/AdminReadyTimeCalibration';
 import AdminPaymentIssues from '../components/AdminPaymentIssues';
 import Card from '../components/Card';
@@ -515,6 +516,7 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
         <AdminJobStatus refreshKey={paymentIssuesKey} />
         <AdminAirlineTerminals warningsOnly refreshKey={paymentIssuesKey} />
         <AdminAccounts warningsOnly refreshKey={paymentIssuesKey} onOpenAccounts={() => setActiveTab('accounts')} />
+        <AdminRatings warningsOnly refreshKey={paymentIssuesKey} onOpenHistory={() => setActiveTab('history')} />
         {PAYMENTS_ENABLED ? <AdminPaymentIssues onOpenGroup={setOpenGroupId} refreshKey={paymentIssuesKey} /> : null}
         <View style={styles.suggestionsSection}>
           <PrimaryButton
@@ -796,6 +798,7 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
         ) : (
           <>
             {/* Looks back at finished rides: how well the calculated ready times held up. */}
+            <AdminRatings refreshKey={paymentIssuesKey} onOpenGroup={setOpenGroupId} />
             <AdminReadyTimeCalibration refreshKey={paymentIssuesKey} />
             <View style={styles.groupsSection}>
               <Text style={styles.sectionTitle}>{t('admin.historyRequestsTitle')}</Text>

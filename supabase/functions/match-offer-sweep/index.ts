@@ -16,6 +16,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { isAuthorized } from '../_shared/auth.ts';
+import { RIDE_AUTO_COMPLETE_HOURS } from '../_shared/constants.ts';
 import { monitored } from '../_shared/jobRuns.ts';
 import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { runMeetupUpkeep } from '../_shared/meetingPoints.ts';
@@ -103,7 +104,13 @@ Deno.serve(monitored('match-offer-sweep', async (req) => {
     // badge, and meetups that are long over are closed.
     const meetups = await runMeetupUpkeep(adminClient, now);
 
-    return jsonResponse({ announced, removed, extended, confirmed, meetups });
+    // Rides started long enough ago are completed for whoever didn't tap "I've arrived".
+    const { data: ridesCompleted, error: completeError } = await adminClient.rpc('system_complete_rides', {
+      p_hours: RIDE_AUTO_COMPLETE_HOURS,
+    });
+    if (completeError) console.warn('system_complete_rides failed', completeError.message);
+
+    return jsonResponse({ announced, removed, extended, confirmed, meetups, ridesCompleted: ridesCompleted ?? 0 });
   } finally {
     await releaseLock(adminClient, LOCK_ID);
   }

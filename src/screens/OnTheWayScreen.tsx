@@ -5,10 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import Card from '../components/Card';
+import PrimaryButton from '../components/PrimaryButton';
+import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import { PAYMENTS_ENABLED } from '../constants';
 import { fetchMatchOffer } from '../services/matchOffer';
 import { shareInfoKey } from '../services/onTheWayRules';
+import { markArrived } from '../services/rideCompletion';
 import { formatCents } from '../services/payments';
 import { baseText, borders, colors, radii, spacing } from '../theme/colors';
 
@@ -18,6 +21,8 @@ type Props = {
   onBack: () => void;
   // The ride's normal card (for the payer: the taxi receipt).
   onShowDetails: () => void;
+  // "I've arrived" was confirmed and saved: this passenger's ride is completed.
+  onArrived: () => void;
 };
 
 // The hero image's own proportions (1122 x 1402), shown a little shorter than that: its top part
@@ -28,11 +33,26 @@ const HERO_VISIBLE = 0.82;
 // "On the way": the group is in the taxi. Purely informative - FLOQQ doesn't deal with the taxi,
 // so there is no arrival time, driver or plate, and nothing here uses the location, the compass or
 // any other sensor (the meetup screen has stopped all of that when the ride started).
-export default function OnTheWayScreen({ requestId, onBack, onShowDetails }: Props) {
+export default function OnTheWayScreen({ requestId, onBack, onShowDetails, onArrived }: Props) {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const [shareCents, setShareCents] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isConfirmingArrival, setIsConfirmingArrival] = useState(false);
+  const [isArriving, setIsArriving] = useState(false);
+  const [arrivalError, setArrivalError] = useState<string | null>(null);
+
+  const handleArrived = async () => {
+    setArrivalError(null);
+    setIsArriving(true);
+    const { error } = await markArrived(requestId);
+    setIsArriving(false);
+    if (error) {
+      setArrivalError(t('arrival.error'));
+      return;
+    }
+    onArrived();
+  };
 
   // The estimated share, from the same fare split the "Match found" screen shows.
   useEffect(() => {
@@ -115,6 +135,20 @@ export default function OnTheWayScreen({ requestId, onBack, onShowDetails }: Pro
               <Text style={styles.infoText}>{t(infoKey)}</Text>
             </View>
           </Card>
+
+          {isConfirmingArrival ? (
+            <Card style={styles.card}>
+              <Text style={styles.confirmQuestion}>{t('arrival.confirmQuestion')}</Text>
+              <Text style={styles.note}>{t('arrival.confirmNote')}</Text>
+              <View style={styles.confirmButtons}>
+                <PrimaryButton label={t('arrival.confirmYes')} onPress={handleArrived} loading={isArriving} />
+              </View>
+              <SecondaryButton label={t('arrival.confirmNo')} onPress={() => setIsConfirmingArrival(false)} disabled={isArriving} />
+            </Card>
+          ) : (
+            <PrimaryButton label={t('ive_arrived')} onPress={() => setIsConfirmingArrival(true)} />
+          )}
+          {arrivalError ? <Text style={styles.error}>{arrivalError}</Text> : null}
 
           <Pressable
             onPress={onShowDetails}
@@ -211,7 +245,21 @@ const styles = StyleSheet.create({
   },
   detailsLink: {
     alignSelf: 'center',
-    marginTop: spacing.x2,
+    marginTop: spacing.x6,
+  },
+  confirmQuestion: {
+    ...baseText.h3,
+    marginBottom: spacing.x2,
+  },
+  confirmButtons: {
+    marginTop: spacing.x4,
+    marginBottom: spacing.x3,
+  },
+  error: {
+    ...baseText.bodySmall,
+    color: colors.dangerStrong,
+    textAlign: 'center',
+    marginTop: spacing.x3,
   },
   detailsText: {
     ...baseText.bodySmall,

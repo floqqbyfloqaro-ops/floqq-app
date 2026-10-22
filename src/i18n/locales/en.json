@@ -544,6 +544,64 @@
   "share_secured_info": "Each passenger's fair share is secured and will be settled after the ride.",
   "share_calculated_info": "Each passenger's final share will be calculated after the ride.",
   "on_the_way_details": "Ride details",
+  "ive_arrived": "I've arrived",
+  "ride_completed_title": "Ride completed!",
+  "ride_completed_subtitle": "Thanks for riding with FLOQQ.",
+  "final_amount_pending": "We'll notify you when your final amount is ready.",
+  "rate_experience": "Rate your experience",
+  "rating_improve_title": "What could we do better?",
+  "arrival": {
+    "confirmQuestion": "Have you arrived?",
+    "confirmNote": "This ends the ride for you. The others arrive in their own time.",
+    "confirmYes": "Yes, I've arrived",
+    "confirmNo": "Not yet",
+    "error": "That didn't go through. Please try again."
+  },
+  "rideSummary": {
+    "taxiFare": "Taxi fare",
+    "yourShare": "Your share",
+    "floqqFee": "FLOQQ fee",
+    "totalPaid": "Total paid",
+    "estimated": "Est. {{amount}}",
+    "statusPaid": "Paid",
+    "statusPaidToTaxi": "Paid to the taxi",
+    "statusPending": "Pending",
+    "statusNotPaid": "Not paid",
+    "statusFailed": "Payment problem",
+    "payerReturnPending": "{{amount}} is being returned to you.",
+    "payerReturnSent": "{{amount}} has been sent to you.",
+    "loadError": "We couldn't load your ride summary.",
+    "starLabel": "{{count}} of 5",
+    "ratingThanksFive": "Thanks! Glad you enjoyed it.",
+    "ratingThanks": "Thanks for your feedback.",
+    "ratingError": "Your rating couldn't be saved. Please try again.",
+    "done": "Done"
+  },
+  "ratingSheet": {
+    "starsGiven": "Your rating: {{count}} of 5",
+    "commentPlaceholder": "Anything else? (optional)",
+    "commentCount": "{{count}}/{{max}}",
+    "send": "Send",
+    "skip": "Skip",
+    "reportSafety": "Report a safety problem",
+    "safetySubject": "FLOQQ - safety problem",
+    "safetyBody": "Ride reference: {{reference}}\n\nWhat happened:\n"
+  },
+  "ratingReasons": {
+    "finding_group": "Finding my group",
+    "meeting_point": "Meeting point",
+    "waiting_time": "Waiting time",
+    "match_route": "Match / route",
+    "fare_price": "Fare / price",
+    "other_passengers": "Other passengers",
+    "app": "The app",
+    "other": "Other"
+  },
+  "myTrips": {
+    "title": "My trips",
+    "viewSummary": "View summary",
+    "lastCompleted": "Your last ride is completed. Where to next?"
+  },
   "findGroup": {
     "title": "Find your group",
     "subtitle": "Follow the arrow to your meeting point. Sharing your location with your group is optional.",
@@ -592,6 +650,22 @@
     "underAge": "FLOQQ is only available to users aged 18 and over.",
     "underAgeContact": "If your date of birth was entered by mistake, please contact support.",
     "requiredForRide": "Please enter your date of birth before requesting a ride."
+  },
+  "adminRatings": {
+    "title": "Ratings",
+    "intro": "What passengers thought of their rides, last {{days}} days. Only you can see this.",
+    "empty": "No ratings yet.",
+    "loadError": "The ratings couldn’t be loaded.",
+    "basis": "average of {{count}} ratings",
+    "barLabel": "{{stars}} stars: {{count}}",
+    "reasonsTitle": "Most frequent reasons",
+    "noReasons": "No reasons given yet.",
+    "latestTitle": "Latest with a comment or 1-2 stars",
+    "needsReview": "Needs review",
+    "passenger": "Passenger",
+    "openRide": "Open the ride",
+    "warning": "Low ratings in the last {{days}} days: {{count}}",
+    "warningDetail": "Ratings of 1-2 stars need a look. Open the History tab to review them."
   },
   "adminAccounts": {
     "title": "Accounts",

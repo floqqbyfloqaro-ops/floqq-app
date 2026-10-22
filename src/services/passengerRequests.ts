@@ -176,10 +176,14 @@ export type MyPassengerRequest = {
   destination_address: string;
   arrival_at: string;
   max_wait_minutes: number;
+  // When this passenger's ride was completed ("I've arrived", the taxi receipt, or automatically).
+  completed_at: string | null;
+  // When they saw "Ride completed"; null: not yet (after an automatic completion).
+  completion_seen_at: string | null;
 };
 
 const MY_REQUEST_COLUMNS =
-  'id, flight_number, status, group_id, service_fee_status, destination_address, arrival_at, max_wait_minutes';
+  'id, flight_number, status, group_id, service_fee_status, destination_address, arrival_at, max_wait_minutes, completed_at, completion_seen_at';
 
 // The ride MyRideScreen shows: the passenger's active ride if they have one, otherwise their most
 // recent (cancelled/expired) one. Active first, not simply newest - otherwise a newer expired or
