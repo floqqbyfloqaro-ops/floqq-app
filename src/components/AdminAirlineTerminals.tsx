@@ -37,6 +37,8 @@ export default function AdminAirlineTerminals({ warningsOnly = false, refreshKey
   const [loadFailed, setLoadFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [removingCode, setRemovingCode] = useState<string | null>(null);
+  // A terminal change waiting for the admin's confirmation: nothing is saved before that.
+  const [pendingChange, setPendingChange] = useState<{ code: string; terminal: ArrivalTerminal } | null>(null);
 
   const [newIata, setNewIata] = useState('');
   const [newIcao, setNewIcao] = useState('');
@@ -103,7 +105,13 @@ export default function AdminAirlineTerminals({ warningsOnly = false, refreshKey
     return <ErrorNotice message={t('adminAirlines.loadError')} onRetry={load} retryLabel={t('common.retry')} />;
   }
 
+  // Tapping the other terminal only asks; the change is saved once confirmed.
+  const handlePickTerminal = (row: AirlineTerminalRow, terminal: ArrivalTerminal) => {
+    setPendingChange(row.terminal === terminal ? null : { code: row.airline_iata, terminal });
+  };
+
   const handleSetTerminal = async (row: AirlineTerminalRow, terminal: ArrivalTerminal) => {
+    setPendingChange(null);
     if (row.terminal === terminal) return;
     setErrorMessage(null);
     setRows((prev) => prev.map((r) => (r.airline_iata === row.airline_iata ? { ...r, terminal } : r)));
@@ -234,9 +242,39 @@ export default function AdminAirlineTerminals({ warningsOnly = false, refreshKey
                   <Text style={styles.code}>{codes}</Text>
                   {terminalButtons(
                     row.terminal,
-                    (picked) => handleSetTerminal(row, picked),
+                    (picked) => handlePickTerminal(row, picked),
                     row.airline_name || row.airline_iata
                   )}
+                  {pendingChange?.code === row.airline_iata ? (
+                    <View style={styles.changeWarning}>
+                      <Text style={styles.warningText}>
+                        {t('adminAirlines.changeWarning', {
+                          name: row.airline_name || row.airline_iata,
+                          code: row.airline_iata,
+                          from: row.terminal,
+                          to: pendingChange.terminal,
+                        })}
+                      </Text>
+                      <View style={styles.removeRow}>
+                        <Pressable
+                          onPress={() => handleSetTerminal(row, pendingChange.terminal)}
+                          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                          accessibilityRole="button"
+                        >
+                          <Text style={styles.removeConfirm}>
+                            {t('adminAirlines.changeConfirm', { terminal: pendingChange.terminal })}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => setPendingChange(null)}
+                          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                          accessibilityRole="button"
+                        >
+                          <Text style={styles.removeLink}>{t('adminAirlines.changeCancel')}</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : null}
                   {removingCode === row.airline_iata ? (
                     <View style={styles.removeRow}>
                       <Pressable
@@ -348,6 +386,10 @@ const styles = StyleSheet.create({
   },
   terminalOptionLabelSelected: {
     color: colors.textPrimary,
+  },
+  changeWarning: {
+    gap: spacing.x3,
+    marginBottom: spacing.x3,
   },
   removeRow: {
     flexDirection: 'row',

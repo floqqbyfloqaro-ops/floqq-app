@@ -388,6 +388,9 @@
     "lastError": "Dernière erreur ({{date}}) : {{error}}"
   },
   "adminAirlines": {
+    "changeWarning": "Passer {{name}} de {{from}} à {{to}} ? Désormais, les passagers qui saisissent un numéro de vol {{code}} verront le Terminal {{to}} et seront regroupés avec d'autres passagers de ce terminal, jusqu'à ce que les données de vol confirment leur terminal. Les trajets déjà enregistrés gardent le leur. Ne changez ceci que si vous êtes sûr que la compagnie a changé de terminal.",
+    "changeConfirm": "Oui, passer à {{terminal}}",
+    "changeCancel": "Annuler",
     "tab": "Compagnies",
     "title": "Terminaux des compagnies",
     "intro": "Quelle compagnie atterrit à quel terminal. Un passager qui saisit un numéro de vol obtient son terminal grâce à cette liste ; les données de vol le confirment ou le corrigent ensuite.",

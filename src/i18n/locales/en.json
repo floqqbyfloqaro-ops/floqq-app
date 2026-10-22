@@ -388,6 +388,9 @@
     "lastError": "Last error ({{date}}): {{error}}"
   },
   "adminAirlines": {
+    "changeWarning": "Change {{name}} from {{from}} to {{to}}? From now on, passengers who type a {{code}} flight number are shown Terminal {{to}} and matched with others there, until flight data confirms their terminal. Rides already saved keep theirs. Only change this when you are sure the airline moved.",
+    "changeConfirm": "Yes, change to {{terminal}}",
+    "changeCancel": "Cancel",
     "tab": "Airlines",
     "title": "Airline terminals",
     "intro": "Which airline lands at which terminal. A passenger who enters a flight number gets their terminal from this list; flight data confirms or corrects it later.",
