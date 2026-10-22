@@ -384,6 +384,9 @@
     "lastError": "Último error ({{date}}): {{error}}"
   },
   "adminAirlines": {
+    "changeWarning": "¿Cambiar {{name}} de {{from}} a {{to}}? A partir de ahora, a los pasajeros que escriban un número de vuelo {{code}} se les mostrará la Terminal {{to}} y se les agrupará con otros de esa terminal, hasta que los datos del vuelo confirmen su terminal. Los trayectos ya guardados conservan la suya. Cámbialo solo si estás seguro de que la aerolínea ha cambiado de terminal.",
+    "changeConfirm": "Sí, cambiar a {{terminal}}",
+    "changeCancel": "Cancelar",
     "tab": "Aerolíneas",
     "title": "Terminales de las aerolíneas",
     "intro": "Qué aerolínea aterriza en qué terminal. Un pasajero que introduce un número de vuelo obtiene su terminal de esta lista; los datos del vuelo la confirman o la corrigen después.",
