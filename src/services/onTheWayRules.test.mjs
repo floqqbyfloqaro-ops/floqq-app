@@ -70,3 +70,9 @@ test('the taxi receipt ends it, even within the 3 hours', () => {
   // A rejected receipt is cleared on the server: until a new one comes in, it is on its way again.
   assert.equal(rideInProgress({ ...ride, receiptReceivedAt: null }, at('2026-10-22T18:45:00Z')), true);
 });
+
+test("\"I've arrived\" ends it for that passenger only", () => {
+  const ride = { groupStatus: 'confirmed', rideStartedAt: STARTED };
+  assert.equal(rideInProgress({ ...ride, completedAt: '2026-10-22T18:20:00Z' }, at('2026-10-22T18:25:00Z')), false);
+  assert.equal(rideInProgress({ ...ride, completedAt: null }, at('2026-10-22T18:25:00Z')), true);
+});

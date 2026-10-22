@@ -112,3 +112,16 @@ test('5 stars get a thank-you; 1 to 4 stars ask what could be better', () => {
   assert.equal(ratingNeedsFollowUp(5), false);
   for (const stars of [1, 2, 3, 4]) assert.equal(ratingNeedsFollowUp(stars), true);
 });
+
+test('"Ride completed" texts exist in every language, spelled FLOQQ', async () => {
+  const { readFileSync } = await import('node:fs');
+  for (const language of ['en', 'fr', 'es']) {
+    const texts = JSON.parse(readFileSync(new URL(`../i18n/locales/${language}.json`, import.meta.url), 'utf8'));
+    for (const key of ['ive_arrived', 'ride_completed_title', 'ride_completed_subtitle', 'final_amount_pending', 'rate_experience', 'rating_improve_title']) {
+      assert.equal(typeof texts[key], 'string', `${language}: ${key}`);
+    }
+    assert.match(texts.ride_completed_subtitle, /FLOQQ/, language);
+    assert.doesNotMatch(texts.ride_completed_subtitle, /Floq\b/, language);
+    assert.equal(Object.keys(texts.ratingReasons).length, 8, language);
+  }
+});

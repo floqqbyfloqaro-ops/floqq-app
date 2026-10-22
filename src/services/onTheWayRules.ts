@@ -14,13 +14,15 @@ export type RideProgress = {
   rideStartedAt: string | null;
   // When the group's taxi receipt came in; null while there is none (or it was rejected).
   receiptReceivedAt?: string | null;
+  // When THIS passenger's ride was completed ("I've arrived", the receipt, or automatically).
+  completedAt?: string | null;
 };
 
-// In progress: a confirmed group whose ride started less than ON_THE_WAY_HOURS ago and whose taxi
-// receipt isn't in yet. Never before the start (a confirmed ride still waiting at the airport),
+// In progress: a confirmed group whose ride started less than ON_THE_WAY_HOURS ago, whose taxi
+// receipt isn't in yet, and where this passenger hasn't arrived. Never before the start (a confirmed ride still waiting at the airport),
 // never after (a completed ride).
 export function rideInProgress(ride: RideProgress, nowMs: number, hours: number = ON_THE_WAY_HOURS): boolean {
-  if (ride.groupStatus !== 'confirmed' || !ride.rideStartedAt || ride.receiptReceivedAt) return false;
+  if (ride.groupStatus !== 'confirmed' || !ride.rideStartedAt || ride.receiptReceivedAt || ride.completedAt) return false;
   const startedMs = new Date(ride.rideStartedAt).getTime();
   return nowMs >= startedMs && nowMs < startedMs + hours * HOUR_MS;
 }

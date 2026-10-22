@@ -24,6 +24,7 @@ import { handleStripeRedirect } from './src/services/cardSetup';
 import { parseEmailVerifiedLink } from './src/services/emailVerification';
 import type { FindGroupOpenSource } from './src/services/findGroup';
 import { shouldOpenFindGroupNow } from './src/services/findGroupAutoOpen';
+import { hasUnseenCompletedRide } from './src/services/rideCompletion';
 import { registerPushToken, useTappedNotification } from './src/services/pushNotifications';
 import { hasCompletedOnboarding, setOnboardingCompleted } from './src/services/onboarding';
 import { supabase } from './src/services/supabase';
@@ -141,7 +142,14 @@ function AppContent() {
     const check = async () => {
       if (mainScreenRef.current !== 'home') return;
       const open = await shouldOpenFindGroupNow();
-      if (!cancelled && open && mainScreenRef.current === 'home') goToFindGroup('app_open');
+      if (!cancelled && open && mainScreenRef.current === 'home') {
+        goToFindGroup('app_open');
+        return;
+      }
+      // A ride completed by itself (the receipt, or after a few hours) that the passenger hasn't
+      // seen: My Ride shows "Ride completed" for it, once.
+      const completed = await hasUnseenCompletedRide();
+      if (!cancelled && completed && mainScreenRef.current === 'home') setMainScreen('myRide');
     };
     check();
     const subscription = AppState.addEventListener('change', (state) => {
