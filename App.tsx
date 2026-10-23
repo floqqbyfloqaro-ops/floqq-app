@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AdminScreen from './src/screens/AdminScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import HelpScreen from './src/screens/HelpScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import MyRideScreen from './src/screens/MyRideScreen';
@@ -52,7 +53,7 @@ function AppContent() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgotPassword'>('login');
-  const [mainScreen, setMainScreen] = useState<'home' | 'newRequest' | 'myRide' | 'admin' | 'profile'>('home');
+  const [mainScreen, setMainScreen] = useState<'home' | 'newRequest' | 'myRide' | 'admin' | 'profile' | 'help'>('home');
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [showEmailVerified, setShowEmailVerified] = useState(false);
   // Set to take My ride straight to "Find your group" (a new nonce each time).
@@ -236,7 +237,11 @@ function AppContent() {
     }
 
     if (mainScreen === 'profile') {
-      return <ProfileScreen onBack={() => setMainScreen('home')} />;
+      return <ProfileScreen onBack={() => setMainScreen('home')} onOpenHelp={() => setMainScreen('help')} />;
+    }
+
+    if (mainScreen === 'help') {
+      return <HelpScreen onBack={() => setMainScreen('profile')} />;
     }
 
     if (mainScreen === 'admin') {

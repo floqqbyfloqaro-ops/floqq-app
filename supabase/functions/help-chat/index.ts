@@ -2,7 +2,10 @@
 // function's secrets, never in the app.
 //   { action: 'start', language }                       -> a new conversation, opened with the
 //                                                          fixed "I'm an AI assistant" greeting.
-//   { action: 'send', conversationId, message, language } -> the assistant's answer.
+//   { action: 'send', conversationId, message, language } -> the assistant's answer, and whether
+//                                                          to ask "Did this solve your problem?"
+//                                                          or to hand over to the team.
+//   { action: 'resolve', conversationId }                -> "Yes": resolved by the assistant.
 // It answers from the published knowledge base (help_articles) and the passenger's own data,
 // which it reads itself through two read-only tools scoped to the signed-in user - it can never
 // change anything, and never sees other passengers' data. A message suggesting danger always gets
@@ -33,6 +36,7 @@ import {
   systemPrompt,
 } from '../_shared/helpChatRules.ts';
 import type { HelpLanguage } from '../_shared/helpKnowledgeBase.ts';
+import { HandoverReason, parseHandoverReason } from '../_shared/supportRules.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,7 +61,33 @@ const TOOLS: Anthropic.Tool[] = [
       "The signed-in passenger's own payments for their last rides: what is reserved on their card, what was charged and released, what failed or is outstanding, and - when they paid the taxi - the reimbursement to them. Also whether they have a saved card. Read-only. Amounts in euros.",
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
   },
+  // Signals for the app - they change nothing.
+  {
+    name: 'offer_resolution_check',
+    description:
+      'Call this together with an answer that fully answers the question or gives a complete solution. The app then asks the passenger "Did this solve your problem?". Changes nothing.',
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'hand_over',
+    description:
+      'Call this when the Bot rules say the conversation must go to a person from the FLOQQ team. The app then helps the passenger reach the team (WhatsApp or a call back). Changes nothing by itself.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        reason: {
+          type: 'string',
+          enum: ['user_asked', 'money_problem', 'safety', 'dispute', 'account_change', 'undecided_rule', 'repeated_failure', 'other'],
+          description: 'Why it goes to a person.',
+        },
+      },
+      required: ['reason'],
+      additionalProperties: false,
+    },
+  },
 ];
+
+const SIGNAL_TOOLS = new Set(['offer_resolution_check', 'hand_over']);
 
 const PAYMENT_STATUS_MEANING: Record<string, string> = {
   NOT_STARTED: 'nothing reserved on the card yet',
@@ -234,7 +264,14 @@ async function answer(args: {
   history: Anthropic.MessageParam[];
   userText: string;
   emergency: boolean;
-}): Promise<{ text: string; usage: HelpUsage; toolsUsed: string[]; refused: boolean }> {
+}): Promise<{
+  text: string;
+  usage: HelpUsage;
+  toolsUsed: string[];
+  refused: boolean;
+  resolutionCheck: boolean;
+  handoverReason: HandoverReason | null;
+}> {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not configured.');
   const client = new Anthropic({ apiKey, timeout: 30_000, maxRetries: 1 });
@@ -260,6 +297,8 @@ async function answer(args: {
 
   let usage: HelpUsage = { input_tokens: 0, output_tokens: 0 };
   const toolsUsed: string[] = [];
+  let resolutionCheck = false;
+  let handoverReason: HandoverReason | null = null;
 
   for (let round = 0; round <= HELP_MAX_TOOL_ROUNDS; round += 1) {
     const response = await client.messages.create({
@@ -274,30 +313,47 @@ async function answer(args: {
     });
     usage = addUsage(usage, response.usage);
 
-    if (response.stop_reason === 'refusal') return { text: '', usage, toolsUsed, refused: true };
+    if (response.stop_reason === 'refusal') return { text: '', usage, toolsUsed, refused: true, resolutionCheck: false, handoverReason: null };
 
     const toolCalls = response.content.filter((block): block is Anthropic.ToolUseBlock => block.type === 'tool_use');
-    if (response.stop_reason !== 'tool_use' || toolCalls.length === 0) {
-      const text = response.content
-        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-        .map((block) => block.text)
-        .join('\n')
-        .trim();
-      return { text, usage, toolsUsed, refused: text.length === 0 };
+    for (const call of toolCalls) {
+      if (call.name === 'offer_resolution_check') resolutionCheck = true;
+      if (call.name === 'hand_over') handoverReason = parseHandoverReason((call.input as { reason?: unknown })?.reason);
+    }
+    const text = response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+      .map((block) => block.text)
+      .join('\n')
+      .trim();
+    // Done: no tool to run, or only signals next to an answer that is already written.
+    const onlySignals = toolCalls.every((call) => SIGNAL_TOOLS.has(call.name));
+    if (response.stop_reason !== 'tool_use' || toolCalls.length === 0 || (onlySignals && text)) {
+      return {
+        text,
+        usage,
+        toolsUsed,
+        refused: text.length === 0,
+        // A hand-over wins: the passenger isn't asked whether it's solved when it goes to a person.
+        resolutionCheck: resolutionCheck && handoverReason == null,
+        handoverReason,
+      };
     }
 
     // Passed back unchanged (thinking blocks included), then every result in one message.
     messages.push({ role: 'assistant', content: response.content });
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const call of toolCalls) {
-      toolsUsed.push(call.name);
+      // Only lookups are listed (and noted in the history); signals are stored separately.
+      if (!SIGNAL_TOOLS.has(call.name)) toolsUsed.push(call.name);
       try {
         const result =
           call.name === 'get_my_rides'
             ? await getMyRides(args.admin, args.userId, args.language)
             : call.name === 'get_my_payments'
               ? await getMyPayments(args.admin, args.userId)
-              : null;
+              : SIGNAL_TOOLS.has(call.name)
+                ? { done: 'The app will show this to the passenger. Now write your answer.' }
+                : null;
         results.push(
           result == null
             ? { type: 'tool_result', tool_use_id: call.id, content: 'Unknown tool.', is_error: true }
@@ -310,7 +366,7 @@ async function answer(args: {
     }
     messages.push({ role: 'user', content: results });
   }
-  return { text: '', usage, toolsUsed, refused: true };
+  return { text: '', usage, toolsUsed, refused: true, resolutionCheck: false, handoverReason };
 }
 
 Deno.serve(async (req) => {
@@ -348,6 +404,21 @@ Deno.serve(async (req) => {
       .select('id, role, content, created_at')
       .single();
     return jsonResponse({ conversationId: conversation.id, messages: greeting ? [greeting] : [] });
+  }
+
+  // "Did this solve your problem?" - Yes: resolved by the assistant. No: the app starts the
+  // handover (support-handover), which records it.
+  if (body.action === 'resolve') {
+    const conversationId = typeof body.conversationId === 'string' ? body.conversationId : '';
+    const { data: resolved } = await admin
+      .from('help_conversations')
+      .update({ resolved_at: new Date().toISOString(), resolved_by: 'assistant' })
+      .eq('id', conversationId)
+      .eq('user_id', user.id)
+      .is('handed_over_at', null)
+      .select('id');
+    if (!resolved?.length) return jsonResponse({ error: 'not_found' }, 404);
+    return jsonResponse({ resolved: true });
   }
 
   if (body.action !== 'send') return jsonResponse({ error: 'invalid_action' }, 400);
@@ -403,6 +474,9 @@ Deno.serve(async (req) => {
     reply = texts.refusal;
   }
   if (emergency) reply = `${texts.emergency}\n\n${reply}`;
+  // Danger always offers the team too, even if the model didn't say so.
+  const handoverReason = result?.handoverReason ?? (emergency ? 'safety' : null);
+  const resolutionCheck = handoverReason == null && result?.resolutionCheck === true;
 
   const now = new Date().toISOString();
   await admin.from('help_messages').insert({ conversation_id: conversation.id, user_id: user.id, role: 'user', content: userText, created_at: now });
@@ -418,15 +492,20 @@ Deno.serve(async (req) => {
       model: result ? HELP_MODEL : null,
       tools_used: result?.toolsUsed.length ? result.toolsUsed : null,
       emergency,
+      resolution_check: resolutionCheck,
+      handover_reason: handoverReason,
       input_tokens: result?.usage.input_tokens ?? null,
       output_tokens: result?.usage.output_tokens ?? null,
       cache_read_tokens: result?.usage.cache_read_input_tokens ?? null,
       cache_write_tokens: result?.usage.cache_creation_input_tokens ?? null,
       cost_usd: result ? costUsd(result.usage) : null,
     })
-    .select('id, role, content, created_at')
+    .select('id, role, content, created_at, resolution_check, handover_reason')
     .single();
-  await admin.from('help_conversations').update({ last_message_at: now, language }).eq('id', conversation.id);
+  await admin
+    .from('help_conversations')
+    .update({ last_message_at: now, language, ...(handoverReason ? { handover_reason: handoverReason } : {}) })
+    .eq('id', conversation.id);
 
-  return jsonResponse({ message: saved, emergency });
+  return jsonResponse({ message: saved, emergency, resolutionCheck, handoverReason });
 });

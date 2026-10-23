@@ -94,6 +94,10 @@ export const SERVICE_FEE_EUR = 2.49;
 // supabase/functions/_shared/holdMath.ts.
 export const PLATFORM_FEE_CENTS = Math.round(SERVICE_FEE_EUR * 100);
 
+// The longest question the help assistant takes - kept in sync with HELP_MAX_MESSAGE_CHARS in
+// supabase/functions/_shared/helpChatRules.ts.
+export const HELP_MAX_MESSAGE_CHARS = 1000;
+
 // Admin dashboard History tab: rows older than this are hidden by default (never deleted - the
 // admin can still reveal them with "Show all history"). Pilot default; revisit once there's real
 // History-tab volume to judge against.
