@@ -98,7 +98,7 @@ async function ask(who, conversationId, message, language = 'en') {
   const { data: row } = data?.message?.id
     ? await service.from('help_messages').select('tools_used, cost_usd, cache_read_tokens, emergency').eq('id', data.message.id).single()
     : { data: null };
-  return { status, reply: data?.message?.content ?? '', emergency: data?.emergency, row, error: data?.error };
+  return { status, reply: data?.message?.content ?? '', emergency: data?.emergency, handoverReason: data?.handoverReason ?? null, row, error: data?.error };
 }
 
 try {
@@ -180,9 +180,11 @@ try {
   const undecided = await ask(anna, conversationId, "If someone in my group doesn't show up, do I get my €2.49 back?");
   console.log(`      > ${undecided.reply.replace(/\n/g, ' ')}`);
   check(
-    'a TO DECIDE question is not promised; it suggests a person',
-    undecided.status === 200 && /Talk to a person|person/i.test(undecided.reply) && /(not|n't) (been |yet been )?decided|not settled|not yet/i.test(undecided.reply),
-    undecided.reply.slice(0, 80)
+    'a TO DECIDE question is not promised; it goes to a person',
+    undecided.status === 200 &&
+      (undecided.handoverReason != null || /Talk to a person/i.test(undecided.reply)) &&
+      /(not|n't) (been |yet been )?decided|not settled|not yet/i.test(undecided.reply),
+    `${undecided.handoverReason} - ${undecided.reply.slice(0, 80)}`
   );
 
   // --- French ---

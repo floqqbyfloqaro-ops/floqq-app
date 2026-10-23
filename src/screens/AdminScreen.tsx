@@ -15,6 +15,7 @@ import {
 import AdminAccounts from '../components/AdminAccounts';
 import AdminAirlineTerminals from '../components/AdminAirlineTerminals';
 import AdminHelpArticles from '../components/AdminHelpArticles';
+import AdminSupportInbox from '../components/AdminSupportInbox';
 import AdminJobStatus from '../components/AdminJobStatus';
 import AdminMeetingPoints from '../components/AdminMeetingPoints';
 import AdminRatings from '../components/AdminRatings';
@@ -58,6 +59,7 @@ import { baseText, colors, motion, overlays, spacing } from '../theme/colors';
 import { addDaysToDayKey, barcelonaDayKey, formatBarcelonaDateTime, weekdayForDayKey } from '../utils/formatDateTime';
 import GroupDetailScreen from './GroupDetailScreen';
 import HelpArticleEditorScreen from './HelpArticleEditorScreen';
+import SupportTicketScreen from './SupportTicketScreen';
 import MeetingPointEditorScreen from './MeetingPointEditorScreen';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -148,6 +150,9 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
   // Help tab: the knowledge base section open in its editor; the counter reloads the list after it.
   const [openHelpArticle, setOpenHelpArticle] = useState<HelpArticle | null>(null);
   const [helpRefreshKey, setHelpRefreshKey] = useState(0);
+  // Help tab: the support inbox (default) or the knowledge base, and the ticket open in its screen.
+  const [helpSection, setHelpSection] = useState<'tickets' | 'articles'>('tickets');
+  const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const [openMeetingPoint, setOpenMeetingPoint] = useState<MeetingPoint | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [rideDateFilter, setRideDateFilter] = useState<RideDateFilter>('all');
@@ -285,6 +290,18 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
         onBack={() => {
           setOpenGroupId(null);
           loadData();
+        }}
+      />
+    );
+  }
+
+  if (openTicketId) {
+    return (
+      <SupportTicketScreen
+        ticketId={openTicketId}
+        onBack={() => {
+          setOpenTicketId(null);
+          setHelpRefreshKey((key) => key + 1);
         }}
       />
     );
@@ -823,7 +840,28 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
         ) : activeTab === 'accounts' ? (
           <AdminAccounts refreshKey={paymentIssuesKey} />
         ) : activeTab === 'help' ? (
-          <AdminHelpArticles onOpen={setOpenHelpArticle} refreshKey={helpRefreshKey} />
+          <>
+            <View style={styles.tabRow} accessibilityRole="tablist">
+              {(['tickets', 'articles'] as const).map((section) => (
+                <Pressable
+                  key={section}
+                  onPress={() => setHelpSection(section)}
+                  style={[styles.tab, helpSection === section && styles.tabActive]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: helpSection === section }}
+                >
+                  <Text style={[styles.tabText, helpSection === section && styles.tabTextActive]}>
+                    {t(section === 'tickets' ? 'adminSupport.tab' : 'adminHelp.articlesTitle')}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {helpSection === 'tickets' ? (
+              <AdminSupportInbox onOpen={(ticket) => setOpenTicketId(ticket.id)} refreshKey={helpRefreshKey} />
+            ) : (
+              <AdminHelpArticles onOpen={setOpenHelpArticle} refreshKey={helpRefreshKey} />
+            )}
+          </>
         ) : (
           <>
             {/* Looks back at finished rides: how well the calculated ready times held up. */}

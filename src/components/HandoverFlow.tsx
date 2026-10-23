@@ -29,6 +29,10 @@ type Props = {
   // Why it goes to a person: "Talk to a person", "No", or the assistant's own handover rules.
   reason: string;
   appLanguage: HelpLanguage;
+  // After "We tried to call you": choose WhatsApp or another call back for the same ticket.
+  changeChannel?: boolean;
+  // A ticket was created or changed.
+  onDone?: () => void;
 };
 
 type Step = 'language' | 'channel' | 'callback' | 'done';
@@ -43,11 +47,11 @@ const TICKET_ERRORS: Record<string, string> = {
 // The handover to the FLOQQ team, inside the help chat: which language, then WhatsApp (a message
 // with only the ticket reference) or a call back (number, time, consent). Outside support hours
 // the passenger first sees when the team is back; after danger, "call 112" always comes first.
-export default function HandoverFlow({ conversationId, reason, appLanguage }: Props) {
+export default function HandoverFlow({ conversationId, reason, appLanguage, changeChannel = false, onDone }: Props) {
   const { t, i18n } = useTranslation();
   const [info, setInfo] = useState<SupportInfo | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [step, setStep] = useState<Step>('language');
+  const [step, setStep] = useState<Step>(changeChannel ? 'channel' : 'language');
   const [language, setLanguage] = useState<HelpLanguage>(appLanguage);
   const [country, setCountry] = useState<CountryCode>('ES');
   const [phone, setPhone] = useState('');
@@ -67,7 +71,7 @@ export default function HandoverFlow({ conversationId, reason, appLanguage }: Pr
     }
     setInfo(next);
     if (!next.teamLanguages.includes(appLanguage)) setLanguage(next.teamLanguages[0]);
-    if (next.existingTicket) {
+    if (next.existingTicket && !changeChannel) {
       setTicket({
         reference: next.existingTicket.reference,
         channel: next.existingTicket.channel,
@@ -77,7 +81,7 @@ export default function HandoverFlow({ conversationId, reason, appLanguage }: Pr
       });
       setStep('done');
     }
-  }, [conversationId, appLanguage]);
+  }, [conversationId, appLanguage, changeChannel]);
 
   useEffect(() => {
     load();
@@ -117,6 +121,7 @@ export default function HandoverFlow({ conversationId, reason, appLanguage }: Pr
     }
     setTicket(created);
     setStep('done');
+    onDone?.();
     if (created.channel === 'whatsapp') await openWhatsApp(created);
   };
 
@@ -230,7 +235,7 @@ export default function HandoverFlow({ conversationId, reason, appLanguage }: Pr
             <PrimaryButton label={t('help.whatsappOption')} onPress={() => submit('whatsapp')} loading={busy} disabled={!info.whatsapp} />
             {!info.whatsapp ? <Text style={styles.notice}>{t('help.whatsappComingSoon')}</Text> : null}
             <SecondaryButton label={t('help.callbackOption')} icon="call-outline" onPress={() => setStep('callback')} disabled={busy} />
-            <SecondaryButton label={t('help.back')} onPress={() => setStep('language')} disabled={busy} />
+            {!changeChannel ? <SecondaryButton label={t('help.back')} onPress={() => setStep('language')} disabled={busy} /> : null}
           </View>
         </>
       ) : (

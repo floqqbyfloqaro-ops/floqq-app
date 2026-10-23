@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import type { TFunction } from 'i18next';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -12,7 +13,23 @@ import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import { HELP_MAX_MESSAGE_CHARS } from '../constants';
 import { helpLanguageFor, HelpMessage, markHelpResolved, sendHelpMessage, startHelpConversation } from '../services/helpChat';
+import { fetchMyLatestTicket, MyTicket } from '../services/supportInbox';
 import { baseText, borders, colors, overlays, radii, spacing } from '../theme/colors';
+import { barcelonaDateParts, barcelonaWeekday } from '../utils/formatDateTime';
+
+// What the passenger sees about their ticket: when the team will call, that they tried, or that
+// it is resolved.
+function ticketStatusText(ticket: MyTicket, t: TFunction, language: string): string {
+  const reference = ticket.reference;
+  if (ticket.status === 'resolved') return t('help.ticketResolved', { reference });
+  if (ticket.status === 'no_answer') return t('help.ticketNoAnswer', { reference });
+  if (ticket.channel === 'whatsapp') return t('help.ticketWaitingWhatsApp', { reference });
+  if (ticket.callback_at) {
+    const { hour, minute } = barcelonaDateParts(ticket.callback_at);
+    return t('help.ticketCallAt', { when: t('help.weekdayTime', { weekday: barcelonaWeekday(ticket.callback_at, language), time: `${hour}:${minute}` }), reference });
+  }
+  return ticket.status === 'in_progress' ? t('help.ticketInProgress', { reference }) : t('help.ticketCallAsap', { reference });
+}
 
 type Props = {
   onBack: () => void;
@@ -40,10 +57,18 @@ export default function HelpScreen({ onBack }: Props) {
   const [checkFor, setCheckFor] = useState<string | null>(null);
   const [resolved, setResolved] = useState(false);
   const [handoverReason, setHandoverReason] = useState<string | null>(null);
+  // The passenger's own latest ticket, and whether they are choosing a new way to be reached.
+  const [ticket, setTicket] = useState<MyTicket | null>(null);
+  const [changingChannel, setChangingChannel] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  const loadTicket = useCallback(async () => {
+    setTicket(await fetchMyLatestTicket());
+  }, []);
 
   const start = useCallback(async () => {
     setStartFailed(false);
+    // With a ticket still open this is that ticket's conversation, so the team reads what follows.
     const { conversationId: id, messages: first, error } = await startHelpConversation(language);
     if (error || !id) {
       setStartFailed(true);
@@ -51,7 +76,8 @@ export default function HelpScreen({ onBack }: Props) {
     }
     setConversationId(id);
     setMessages(first);
-  }, [language]);
+    loadTicket();
+  }, [language, loadTicket]);
 
   useEffect(() => {
     start();
@@ -80,6 +106,10 @@ export default function HelpScreen({ onBack }: Props) {
     if (answer.handoverReason && !handoverReason) setHandoverReason(answer.handoverReason);
     else if (answer.resolutionCheck) setCheckFor(answer.message.id);
   };
+
+  // A ticket the team is still handling: no second handover, the banner says what happens next.
+  // The flow that just created it stays on screen with its confirmation.
+  const openTicket = ticket != null && ticket.status !== 'resolved' && handoverReason == null;
 
   const answerCheck = async (solved: boolean) => {
     if (!conversationId) return;
@@ -122,6 +152,36 @@ export default function HelpScreen({ onBack }: Props) {
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
           {startFailed ? <ErrorNotice message={t('help.startError')} onRetry={start} retryLabel={t('common.retry')} /> : null}
+
+          {ticket ? (
+            <Card style={styles.ticket}>
+              <View style={styles.ticketRow}>
+                <Ionicons
+                  name={ticket.status === 'resolved' ? 'checkmark-circle' : ticket.status === 'no_answer' ? 'call-outline' : 'time-outline'}
+                  size={20}
+                  color={ticket.status === 'resolved' ? colors.success : ticket.status === 'no_answer' ? colors.warning : colors.info}
+                />
+                <Text style={styles.ticketText} accessibilityLiveRegion="polite">
+                  {ticketStatusText(ticket, t, i18n.language)}
+                </Text>
+              </View>
+              {ticket.status === 'no_answer' && !changingChannel ? (
+                <SecondaryButton label={t('help.chooseHowToReach')} onPress={() => setChangingChannel(true)} />
+              ) : null}
+            </Card>
+          ) : null}
+          {changingChannel && conversationId ? (
+            <HandoverFlow
+              conversationId={conversationId}
+              reason="user_asked"
+              appLanguage={language}
+              changeChannel
+              onDone={() => {
+                setChangingChannel(false);
+                loadTicket();
+              }}
+            />
+          ) : null}
           {!conversationId && !startFailed ? <ActivityIndicator color={colors.accentPrimaryStrong} accessibilityLabel={t('admin.loading')} /> : null}
 
           {messages.map((message) => (
@@ -163,14 +223,14 @@ export default function HelpScreen({ onBack }: Props) {
             </Text>
           ) : null}
 
-          {handoverReason && conversationId ? (
-            <HandoverFlow conversationId={conversationId} reason={handoverReason} appLanguage={language} />
+          {handoverReason && conversationId && !openTicket ? (
+            <HandoverFlow conversationId={conversationId} reason={handoverReason} appLanguage={language} onDone={loadTicket} />
           ) : null}
         </ScrollView>
 
         <View style={styles.footer}>
           {sendError ? <ErrorNotice message={sendError} /> : null}
-          {!handoverReason && conversationId ? (
+          {!handoverReason && !openTicket && conversationId ? (
             <Pressable
               onPress={() => setHandoverReason('user_asked')}
               style={styles.person}
@@ -256,6 +316,19 @@ const styles = StyleSheet.create({
   },
   check: {
     marginTop: spacing.x2,
+  },
+  ticket: {
+    marginBottom: spacing.x2,
+    gap: spacing.x3,
+  },
+  ticketRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.x2,
+  },
+  ticketText: {
+    ...baseText.body,
+    flex: 1,
   },
   checkQuestion: {
     ...baseText.body,

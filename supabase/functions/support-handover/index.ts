@@ -198,35 +198,49 @@ Deno.serve(async (req) => {
     }
   }
 
-  // A double tap, or coming back to it: the conversation's open ticket is returned as it is - or,
-  // when WhatsApp couldn't be opened, switched to a call back while nobody has picked it up yet.
+  // A double tap, or coming back to it: the conversation's open ticket is returned as it is. While
+  // nobody has reached the passenger yet, they can change how: WhatsApp that didn't open becomes a
+  // call back, and after "We tried to call you" they choose WhatsApp or another call back.
   const { data: existing } = await admin
     .from('support_tickets')
     .select('id, reference, channel, callback_at, urgent, language, status')
     .eq('conversation_id', conversation.id)
     .neq('status', 'resolved')
     .maybeSingle();
-  if (existing && existing.channel === 'whatsapp' && channel === 'callback' && existing.status === 'open') {
+  const canChange = existing && (existing.status === 'no_answer' || (existing.status === 'open' && existing.channel !== channel));
+  if (existing && canChange) {
     const { error } = await admin
       .from('support_tickets')
       .update({
         channel,
+        status: 'open',
         callback_phone: callbackPhone,
         callback_at: callbackAt,
-        callback_consent_at: new Date(now).toISOString(),
+        callback_consent_at: channel === 'callback' ? new Date(now).toISOString() : null,
         language,
         updated_at: new Date(now).toISOString(),
       })
       .eq('id', existing.id);
     if (error) return jsonResponse({ error: 'ticket_failed' }, 500);
+    const how =
+      channel === 'whatsapp'
+        ? 'WhatsApp'
+        : `a call back ${callbackAt ? `at ${new Date(callbackAt).toLocaleString('en-GB', { timeZone: 'Europe/Madrid', dateStyle: 'medium', timeStyle: 'short' })} (Barcelona)` : 'as soon as possible'}`;
+    await admin.from('support_ticket_events').insert({ ticket_id: existing.id, kind: 'channel_changed', body: how });
     if (settings.alertEmail) {
       await sendEmail({
         to: settings.alertEmail,
-        subject: `${existing.urgent ? 'URGENT - ' : ''}Ticket #${existing.reference} now wants a call back`,
-        text: `Ticket #${existing.reference}: WhatsApp didn't open on the passenger's phone, so they asked for a call back ${callbackAt ? `at ${new Date(callbackAt).toLocaleString('en-GB', { timeZone: 'Europe/Madrid', dateStyle: 'medium', timeStyle: 'short' })} (Barcelona)` : 'as soon as possible'}.`,
+        subject: `${existing.urgent ? 'URGENT - ' : ''}Ticket #${existing.reference} now wants ${channel === 'whatsapp' ? 'WhatsApp' : 'a call back'}`,
+        text: `Ticket #${existing.reference}: the passenger now wants ${how}.`,
       });
     }
-    return jsonResponse({ reference: existing.reference, channel, callbackAt, urgent: existing.urgent, whatsapp: null });
+    return jsonResponse({
+      reference: existing.reference,
+      channel,
+      callbackAt,
+      urgent: existing.urgent,
+      whatsapp: channel === 'whatsapp' ? { digits: settings.whatsappDigits, text: whatsappMessage(language, existing.reference) } : null,
+    });
   }
   if (existing) {
     return jsonResponse({

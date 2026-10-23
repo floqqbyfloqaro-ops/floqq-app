@@ -105,11 +105,12 @@ const handover = (who, body) => call(who.client, 'support-handover', body);
 const ticketByReference = async (reference) =>
   (await service.from('support_tickets').select('*').eq('reference', reference).maybeSingle()).data;
 
-const { data: savedSettings } = await service.from('support_settings').select('whatsapp_number, support_hours').eq('id', 1).single();
+const { data: savedSettings } = await service.from('support_settings').select('whatsapp_number, support_hours, alert_email').eq('id', 1).single();
 const ALWAYS_OPEN = Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((d) => [d, { open: '00:00', close: '24:00' }]));
 
 try {
-  await service.from('support_settings').update({ whatsapp_number: TEST_WHATSAPP, support_hours: ALWAYS_OPEN }).eq('id', 1);
+  // No alert emails for test tickets (scripts/support-alert-test.mjs checks the email on its own).
+  await service.from('support_settings').update({ whatsapp_number: TEST_WHATSAPP, support_hours: ALWAYS_OPEN, alert_email: null }).eq('id', 1);
 
   // --- Solved by the assistant: "Yes" ---
   const ana = await passenger('Ana');

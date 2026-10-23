@@ -35,6 +35,7 @@ import {
   sanitizeUserText,
   systemPrompt,
 } from '../_shared/helpChatRules.ts';
+import { sendEmail } from '../_shared/email.ts';
 import type { HelpLanguage } from '../_shared/helpKnowledgeBase.ts';
 import { HandoverReason, parseHandoverReason } from '../_shared/supportRules.ts';
 
@@ -369,6 +370,29 @@ async function answer(args: {
   return { text: '', usage, toolsUsed, refused: true, resolutionCheck: false, handoverReason };
 }
 
+// A message in a conversation the team is handling goes in the ticket's history. After "We tried
+// to call you" it is the passenger's answer: the ticket goes back to open and the team hears of it.
+async function notePassengerReply(admin: SupabaseClient, conversationId: string, text: string) {
+  const { data: ticket } = await admin
+    .from('support_tickets')
+    .select('id, reference, status, urgent')
+    .eq('conversation_id', conversationId)
+    .neq('status', 'resolved')
+    .maybeSingle();
+  if (!ticket) return;
+  await admin.from('support_ticket_events').insert({ ticket_id: ticket.id, kind: 'passenger_replied', body: text.slice(0, 2000) });
+  if (ticket.status !== 'no_answer') return;
+  await admin.from('support_tickets').update({ status: 'open', updated_at: new Date().toISOString() }).eq('id', ticket.id);
+  const { data: settings } = await admin.from('support_settings').select('alert_email').eq('id', 1).maybeSingle();
+  if (settings?.alert_email) {
+    await sendEmail({
+      to: settings.alert_email,
+      subject: `${ticket.urgent ? 'URGENT - ' : ''}Ticket #${ticket.reference}: the passenger replied`,
+      text: `We couldn't reach the passenger of ticket #${ticket.reference} by phone; they have now replied in the help chat:\n\n${text.slice(0, 2000)}\n\nOpen the FLOQQ admin to see the conversation.`,
+    });
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
@@ -391,6 +415,27 @@ Deno.serve(async (req) => {
   const language = parseHelpLanguage(body.language);
 
   if (body.action === 'start') {
+    // With a ticket still open, the passenger comes back to that conversation: what they write
+    // there is what the team reads.
+    const { data: openTicket } = await admin
+      .from('support_tickets')
+      .select('conversation_id')
+      .eq('user_id', user.id)
+      .neq('status', 'resolved')
+      .not('conversation_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (openTicket?.conversation_id) {
+      const { data: earlier } = await admin
+        .from('help_messages')
+        .select('id, role, content, created_at')
+        .eq('conversation_id', openTicket.conversation_id)
+        .order('created_at', { ascending: true })
+        .limit(200);
+      return jsonResponse({ conversationId: openTicket.conversation_id, messages: earlier ?? [], resumed: true });
+    }
+
     const { current } = await loadRides(admin, user.id);
     const { data: conversation, error } = await admin
       .from('help_conversations')
@@ -506,6 +551,7 @@ Deno.serve(async (req) => {
     .from('help_conversations')
     .update({ last_message_at: now, language, ...(handoverReason ? { handover_reason: handoverReason } : {}) })
     .eq('id', conversation.id);
+  await notePassengerReply(admin, conversation.id, userText);
 
   return jsonResponse({ message: saved, emergency, resolutionCheck, handoverReason });
 });

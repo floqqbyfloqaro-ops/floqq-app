@@ -28,7 +28,8 @@ export type PushMessageKey =
   | 'terminalChanged'
   | 'meetingPointChanged'
   | 'removedNoShow'
-  | 'landedFindGroup';
+  | 'landedFindGroup'
+  | 'supportNoAnswer';
 
 export type PushParams = {
   amount?: string;
@@ -141,6 +142,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: 'You’ve landed!',
       body: 'Find your group at {{place}}.',
     },
+    supportNoAnswer: {
+      title: 'We tried to call you',
+      body: 'Reply in Help, or choose WhatsApp.',
+    },
   },
   es: {
     holdOpen: {
@@ -239,6 +244,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
       title: '¡Has aterrizado!',
       body: 'Encuentra a tu grupo: {{place}}.',
     },
+    supportNoAnswer: {
+      title: 'Hemos intentado llamarte',
+      body: 'Responde en Ayuda, o elige WhatsApp.',
+    },
   },
   fr: {
     holdOpen: {
@@ -336,6 +345,10 @@ const MESSAGES: Record<PushLocale, Record<PushMessageKey, Template>> = {
     landedFindGroup: {
       title: 'Vous avez atterri !',
       body: 'Retrouvez votre groupe : {{place}}.',
+    },
+    supportNoAnswer: {
+      title: 'Nous avons essayé de vous appeler',
+      body: 'Répondez dans Aide, ou choisissez WhatsApp.',
     },
   },
 };

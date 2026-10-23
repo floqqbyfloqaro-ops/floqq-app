@@ -131,6 +131,8 @@ function AppContent() {
       goToFindGroup('notification');
     } else if (tappedNotification.screen === 'myRide') {
       setMainScreen('myRide');
+    } else if (tappedNotification.screen === 'help') {
+      setMainScreen('help');
     }
   }, [tappedNotification, userId]);
 
