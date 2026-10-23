@@ -19,6 +19,7 @@ import DateOfBirthGate from './src/screens/DateOfBirthGate';
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeSplashScreen from './src/screens/WelcomeSplashScreen';
 import { PAYMENTS_ENABLED } from './src/constants';
+import SlideInScreen from './src/components/SlideInScreen';
 import WebAppFrame from './src/components/WebAppFrame';
 import { fetchIsAdmin } from './src/services/adminRole';
 import { handleStripeRedirect } from './src/services/cardSetup';
@@ -243,7 +244,17 @@ function AppContent() {
     }
 
     if (mainScreen === 'help') {
-      return <HelpScreen onBack={() => setMainScreen('profile')} />;
+      return (
+        <SlideInScreen>
+          <HelpScreen
+            onBack={() => setMainScreen('profile')}
+            onOpenMyRide={() => setMainScreen('myRide')}
+            onEditRide={(requestId) => openNewRequest(requestId)}
+            onOpenPaymentMethods={() => setMainScreen('profile')}
+            onShowBadge={() => goToFindGroup('button')}
+          />
+        </SlideInScreen>
+      );
     }
 
     if (mainScreen === 'admin') {

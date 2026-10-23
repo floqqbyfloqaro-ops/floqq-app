@@ -15,7 +15,9 @@ import {
 import AdminAccounts from '../components/AdminAccounts';
 import AdminAirlineTerminals from '../components/AdminAirlineTerminals';
 import AdminHelpArticles from '../components/AdminHelpArticles';
+import AdminHelpMetrics from '../components/AdminHelpMetrics';
 import AdminSupportInbox from '../components/AdminSupportInbox';
+import AdminSupportSettings from '../components/AdminSupportSettings';
 import AdminJobStatus from '../components/AdminJobStatus';
 import AdminMeetingPoints from '../components/AdminMeetingPoints';
 import AdminRatings from '../components/AdminRatings';
@@ -151,7 +153,7 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
   const [openHelpArticle, setOpenHelpArticle] = useState<HelpArticle | null>(null);
   const [helpRefreshKey, setHelpRefreshKey] = useState(0);
   // Help tab: the support inbox (default) or the knowledge base, and the ticket open in its screen.
-  const [helpSection, setHelpSection] = useState<'tickets' | 'articles'>('tickets');
+  const [helpSection, setHelpSection] = useState<'tickets' | 'overview' | 'articles'>('tickets');
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const [openMeetingPoint, setOpenMeetingPoint] = useState<MeetingPoint | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
@@ -842,7 +844,7 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
         ) : activeTab === 'help' ? (
           <>
             <View style={styles.tabRow} accessibilityRole="tablist">
-              {(['tickets', 'articles'] as const).map((section) => (
+              {(['tickets', 'overview', 'articles'] as const).map((section) => (
                 <Pressable
                   key={section}
                   onPress={() => setHelpSection(section)}
@@ -851,13 +853,18 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
                   accessibilityState={{ selected: helpSection === section }}
                 >
                   <Text style={[styles.tabText, helpSection === section && styles.tabTextActive]}>
-                    {t(section === 'tickets' ? 'adminSupport.tab' : 'adminHelp.articlesTitle')}
+                    {t(section === 'tickets' ? 'adminSupport.tab' : section === 'overview' ? 'adminHelpMetrics.tab' : 'adminHelp.articlesTitle')}
                   </Text>
                 </Pressable>
               ))}
             </View>
             {helpSection === 'tickets' ? (
               <AdminSupportInbox onOpen={(ticket) => setOpenTicketId(ticket.id)} refreshKey={helpRefreshKey} />
+            ) : helpSection === 'overview' ? (
+              <>
+                <AdminHelpMetrics refreshKey={helpRefreshKey} />
+                <AdminSupportSettings />
+              </>
             ) : (
               <AdminHelpArticles onOpen={setOpenHelpArticle} refreshKey={helpRefreshKey} />
             )}

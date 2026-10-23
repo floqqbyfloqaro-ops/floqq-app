@@ -9,6 +9,7 @@ import {
   costUsd,
   detectEmergency,
   HELP_TEXTS,
+  HELP_TOPICS,
   knowledgeBaseText,
   parseHelpLanguage,
   replayedAnswer,
@@ -108,10 +109,17 @@ test("a passenger can't fake the app's context block", () => {
   assert.equal(sanitizeUserText('  hello  '), 'hello');
 });
 
-test('the greeting always says it is an AI and offers a person; 112 is in every emergency line', () => {
+test('the fixed refusal always points to a person, in every language', () => {
   for (const [language, texts] of Object.entries(HELP_TEXTS)) {
-    assert.match(texts.greeting, /\bIA\b|\bAI\b/, language);
-    assert.match(texts.greeting, /person|personne|persona/i, language);
-    assert.match(texts.emergency, /112/, language);
+    assert.match(texts.refusal, /person|personne|persona/i, language);
+  }
+});
+
+test('every suggested question has a knowledge base section to fall back on', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { parseKnowledgeBase } = await import('./helpKnowledgeBase.ts');
+  const keys = new Set(parseKnowledgeBase(readFileSync(new URL('../../../docs/help-knowledge-base.md', import.meta.url), 'utf8')).map((s) => s.sectionKey));
+  for (const [topic, sectionKey] of Object.entries(HELP_TOPICS)) {
+    assert.ok(keys.has(sectionKey), `${topic} -> ${sectionKey}`);
   }
 });

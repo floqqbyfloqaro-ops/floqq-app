@@ -283,6 +283,7 @@ Deno.serve(async (req) => {
         callback_consent_at: channel === 'callback' ? new Date(now).toISOString() : null,
         urgent,
         summary,
+        summary_cost_usd: usage ? costUsd(usage) : null,
       })
       .select('id, reference')
       .single();
@@ -298,7 +299,6 @@ Deno.serve(async (req) => {
     .from('help_conversations')
     .update({ handed_over_at: new Date(now).toISOString(), handover_reason: reason })
     .eq('id', conversation.id);
-  if (usage) console.log(`ticket ${ticket.reference} summary cost $${costUsd(usage)}`);
 
   let alertSent = false;
   if (settings.alertEmail) {

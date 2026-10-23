@@ -1,115 +1,300 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import type { TFunction } from 'i18next';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNetworkState } from 'expo-network';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  AppState,
+  FlatList,
+  KeyboardAvoidingView,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
-import AuthTextInput from '../components/AuthTextInput';
-import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
-import HandoverFlow from '../components/HandoverFlow';
-import HelpMessageText from '../components/HelpMessageText';
-import ScreenBackground from '../components/ScreenBackground';
+import HelpAvatar from '../components/HelpAvatar';
+import HelpComposer from '../components/HelpComposer';
+import HelpHandover from '../components/HelpHandover';
+import HelpMessageRow from '../components/HelpMessageRow';
+import HelpTicketCard from '../components/HelpTicketCard';
 import SecondaryButton from '../components/SecondaryButton';
-import { HELP_MAX_MESSAGE_CHARS } from '../constants';
-import { helpLanguageFor, HelpMessage, markHelpResolved, sendHelpMessage, startHelpConversation } from '../services/helpChat';
-import { fetchMyLatestTicket, MyTicket } from '../services/supportInbox';
-import { baseText, borders, colors, overlays, radii, spacing } from '../theme/colors';
-import { barcelonaDateParts, barcelonaWeekday } from '../utils/formatDateTime';
-
-// What the passenger sees about their ticket: when the team will call, that they tried, or that
-// it is resolved.
-function ticketStatusText(ticket: MyTicket, t: TFunction, language: string): string {
-  const reference = ticket.reference;
-  if (ticket.status === 'resolved') return t('help.ticketResolved', { reference });
-  if (ticket.status === 'no_answer') return t('help.ticketNoAnswer', { reference });
-  if (ticket.channel === 'whatsapp') return t('help.ticketWaitingWhatsApp', { reference });
-  if (ticket.callback_at) {
-    const { hour, minute } = barcelonaDateParts(ticket.callback_at);
-    return t('help.ticketCallAt', { when: t('help.weekdayTime', { weekday: barcelonaWeekday(ticket.callback_at, language), time: `${hour}:${minute}` }), reference });
-  }
-  return ticket.status === 'in_progress' ? t('help.ticketInProgress', { reference }) : t('help.ticketCallAsap', { reference });
-}
+import StatusPill from '../components/StatusPill';
+import {
+  fetchHelpTopic,
+  HelpAction,
+  helpLanguageFor,
+  HelpMessage,
+  markHelpResolved,
+  sendHelpFeedback,
+  sendHelpMessageStreamed,
+  startHelpConversation,
+} from '../services/helpChat';
+import { chipsFor, HelpRideFacts, HelpTopic, rideStage, stagePill } from '../services/helpChips';
+import { plainText } from '../services/helpMarkdown';
+import { fetchMyGroupStatus, fetchMyLatestRequest, MyPassengerRequest } from '../services/passengerRequests';
+import { supabase } from '../services/supabase';
+import { fetchMyLatestTicket, fetchMyTickets, MyTicket } from '../services/supportInbox';
+import { baseText, borders, colors, radii, spacing } from '../theme/colors';
 
 type Props = {
   onBack: () => void;
+  // Where the answers' buttons lead. None of them changes anything by itself.
+  onOpenMyRide: () => void;
+  onEditRide: (requestId: string) => void;
+  onOpenPaymentMethods: () => void;
+  onShowBadge: () => void;
 };
+
+type Item =
+  | { kind: 'message'; message: HelpMessage; firstInGroup: boolean; lastInGroup: boolean; streaming: boolean }
+  | { kind: 'check' }
+  | { kind: 'glad' }
+  | { kind: 'offer' }
+  | { kind: 'retry' }
+  | { kind: 'handover' }
+  | { kind: 'ticket' };
 
 const SEND_ERRORS: Record<string, string> = {
   rate_limited: 'help.rateLimited',
   message_too_long: 'help.tooLong',
-  assistant_unavailable: 'help.unavailable',
 };
 
-// "Help": the AI support assistant. It opens with the fixed "I'm an AI assistant" greeting; after
-// a complete answer it asks "Did this solve your problem?"; "No", "Talk to a person" (always
-// there) or the assistant's own handover rules lead to the FLOQQ team (HandoverFlow).
-export default function HelpScreen({ onBack }: Props) {
+const TICKET_REFRESH_MS = 20_000;
+const STREAMING_ID = 'streaming';
+
+// "Help": the FLOQQ Assistant, a full-screen chat. It greets the passenger by name, knows their
+// current ride (a context card, and suggested questions that follow the ride), streams its answers,
+// shows the passenger's own data as cards and offers buttons to the right screen. "Did this solve
+// your problem?", the handover to the team and the ticket all happen inside the conversation. Typed
+// text is never lost, a message written offline goes out once the phone is back online, and when
+// the assistant can't be reached the suggested questions still get the knowledge base's answer.
+export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPaymentMethods, onShowBadge }: Props) {
   const { t, i18n } = useTranslation();
   const language = helpLanguageFor(i18n.language);
+  const network = useNetworkState();
+  const offline = network.isConnected === false || network.isInternetReachable === false;
+
+  const [userId, setUserId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [firstName, setFirstName] = useState<string | null>(null);
   const [messages, setMessages] = useState<HelpMessage[]>([]);
   const [startFailed, setStartFailed] = useState(false);
   const [draft, setDraft] = useState('');
-  const [sending, setSending] = useState(false);
+  const [queued, setQueued] = useState<string | null>(null);
+  const [streaming, setStreaming] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
-  // The answer whose "Did this solve your problem?" is waiting, and what came of it.
+  const [failures, setFailures] = useState(0);
   const [checkFor, setCheckFor] = useState<string | null>(null);
   const [resolved, setResolved] = useState(false);
+  const [offerFor, setOfferFor] = useState<{ messageId: string; reason: string } | null>(null);
   const [handoverReason, setHandoverReason] = useState<string | null>(null);
-  // The passenger's own latest ticket, and whether they are choosing a new way to be reached.
   const [ticket, setTicket] = useState<MyTicket | null>(null);
   const [changingChannel, setChangingChannel] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const [ride, setRide] = useState<{ request: MyPassengerRequest; facts: HelpRideFacts } | null>(null);
+  const [requestsOpen, setRequestsOpen] = useState(false);
+  const [requests, setRequests] = useState<MyTicket[]>([]);
+  const listRef = useRef<FlatList<Item>>(null);
+  const sendingRef = useRef(false);
 
-  const loadTicket = useCallback(async () => {
-    setTicket(await fetchMyLatestTicket());
+  const draftKey = userId ? `help-draft:${userId}` : null;
+  const queueKey = userId ? `help-queue:${userId}` : null;
+
+  // --- Loading ---
+
+  const loadTicket = useCallback(async () => setTicket(await fetchMyLatestTicket()), []);
+
+  const loadRide = useCallback(async () => {
+    const { data: request } = await fetchMyLatestRequest();
+    if (!request) return setRide(null);
+    const { data: group } = request.group_id ? await fetchMyGroupStatus(request.group_id) : { data: null };
+    setRide({
+      request,
+      facts: {
+        status: request.status,
+        arrivalAt: request.arrival_at,
+        readyAt: request.ready_at,
+        completedAt: request.completed_at,
+        groupStatus: group?.status ?? null,
+        rideStartedAt: group?.ride_started_at ?? null,
+      },
+    });
   }, []);
 
-  const start = useCallback(async () => {
-    setStartFailed(false);
-    // With a ticket still open this is that ticket's conversation, so the team reads what follows.
-    const { conversationId: id, messages: first, error } = await startHelpConversation(language);
-    if (error || !id) {
-      setStartFailed(true);
-      return;
-    }
-    setConversationId(id);
-    setMessages(first);
-    loadTicket();
-  }, [language, loadTicket]);
+  const start = useCallback(
+    async (fresh = false) => {
+      setStartFailed(false);
+      setCheckFor(null);
+      setResolved(false);
+      setOfferFor(null);
+      setHandoverReason(null);
+      setSendError(null);
+      setFailures(0);
+      const result = await startHelpConversation(language, fresh);
+      if (result.error || !result.conversationId) return setStartFailed(true);
+      setConversationId(result.conversationId);
+      setMessages(result.messages);
+      setFirstName(result.firstName);
+      loadTicket();
+    },
+    [language, loadTicket]
+  );
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
     start();
-  }, [start]);
+    loadRide();
+  }, [start, loadRide]);
 
-  const send = async () => {
+  // What was typed (and a message waiting for the connection) survives leaving and coming back.
+  useEffect(() => {
+    if (!draftKey || !queueKey) return;
+    (async () => {
+      try {
+        const [savedDraft, savedQueue] = await Promise.all([AsyncStorage.getItem(draftKey), AsyncStorage.getItem(queueKey)]);
+        if (savedDraft) setDraft((current) => current || savedDraft);
+        if (savedQueue) setQueued(savedQueue);
+      } catch {
+        // Storage unavailable: nothing to restore.
+      }
+    })();
+  }, [draftKey, queueKey]);
+
+  useEffect(() => {
+    if (!draftKey) return;
+    const timer = setTimeout(() => {
+      (draft ? AsyncStorage.setItem(draftKey, draft) : AsyncStorage.removeItem(draftKey)).catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [draft, draftKey]);
+
+  // The ticket card stays up to date while the ticket is open.
+  useEffect(() => {
+    if (!ticket || ticket.status === 'resolved') return;
+    const timer = setInterval(loadTicket, TICKET_REFRESH_MS);
+    const subscription = AppState.addEventListener('change', (state) => state === 'active' && loadTicket());
+    return () => {
+      clearInterval(timer);
+      subscription.remove();
+    };
+  }, [ticket, loadTicket]);
+
+  // --- Sending ---
+
+  const send = useCallback(
+    async (text: string) => {
+      if (!conversationId || sendingRef.current) return;
+      sendingRef.current = true;
+      setSendError(null);
+      setCheckFor(null);
+      setResolved(false);
+      const local: HelpMessage = { id: `local-${Date.now()}`, role: 'user', content: text, created_at: new Date().toISOString() };
+      const placeholder: HelpMessage = { id: STREAMING_ID, role: 'assistant', content: '', created_at: new Date().toISOString() };
+      setMessages((current) => [...current, local, placeholder]);
+      setStreaming(true);
+
+      // Pieces of text are gathered and shown a few times a second, not one render per word.
+      let buffered = '';
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+      const flush = () => {
+        flushTimer = null;
+        const text = buffered;
+        setMessages((current) => current.map((m) => (m.id === STREAMING_ID ? { ...m, content: text } : m)));
+      };
+
+      const { answer, error } = await sendHelpMessageStreamed(conversationId, text, language, {
+        onEmergency: () => setMessages((current) => current.map((m) => (m.id === STREAMING_ID ? { ...m, emergency: true } : m))),
+        onText: (delta) => {
+          buffered += delta;
+          if (!flushTimer) flushTimer = setTimeout(flush, 80);
+        },
+        onReset: () => {
+          buffered = '';
+          if (!flushTimer) flushTimer = setTimeout(flush, 0);
+        },
+      });
+      if (flushTimer) clearTimeout(flushTimer);
+      setStreaming(false);
+      sendingRef.current = false;
+
+      if (answer) {
+        setFailures(0);
+        setMessages((current) => current.map((m) => (m.id === STREAMING_ID ? answer.message : m)));
+        AccessibilityInfo.announceForAccessibility(plainText(answer.message.content));
+        if (answer.handoverReason) setHandoverReason((reason) => reason ?? answer.handoverReason);
+        else if (answer.offerHandover) setOfferFor({ messageId: answer.message.id, reason: answer.emergency ? 'safety' : 'user_asked' });
+        else if (answer.resolutionCheck) setCheckFor(answer.message.id);
+        return;
+      }
+
+      // Not answered: nothing is lost.
+      setMessages((current) => current.filter((m) => m.id !== STREAMING_ID && m.id !== local.id));
+      if (error === 'interrupted') {
+        // The server still finished and stored it: show what it has.
+        start();
+        return;
+      }
+      if (error === 'offline') {
+        setQueued(text);
+        if (queueKey) AsyncStorage.setItem(queueKey, text).catch(() => {});
+        return;
+      }
+      setDraft((current) => current || text);
+      if (SEND_ERRORS[error ?? '']) {
+        setSendError(t(SEND_ERRORS[error!], { max: 1000 }));
+        return;
+      }
+      setFailures((count) => count + 1);
+    },
+    [conversationId, language, queueKey, start, t]
+  );
+
+  const sendDraft = () => {
     const text = draft.trim();
-    if (!text || !conversationId || sending) return;
-    setSendError(null);
-    setSending(true);
-    setCheckFor(null);
-    const pending: HelpMessage = { id: `pending-${Date.now()}`, role: 'user', content: text, created_at: new Date().toISOString() };
-    setMessages((current) => [...current, pending]);
+    if (!text) return;
     setDraft('');
-    const { answer, error } = await sendHelpMessage(conversationId, text, language);
-    setSending(false);
-    if (error || !answer) {
-      // Not sent: take it back out and put the text back, so nothing is lost.
-      setMessages((current) => current.filter((m) => m.id !== pending.id));
-      setDraft(text);
-      setSendError(t(SEND_ERRORS[error ?? ''] ?? 'help.sendError', { max: HELP_MAX_MESSAGE_CHARS }));
+    if (offline) {
+      setQueued(text);
+      if (queueKey) AsyncStorage.setItem(queueKey, text).catch(() => {});
       return;
     }
-    setMessages((current) => [...current, answer.message]);
-    setResolved(false);
-    if (answer.handoverReason && !handoverReason) setHandoverReason(answer.handoverReason);
-    else if (answer.resolutionCheck) setCheckFor(answer.message.id);
+    send(text);
   };
 
-  // A ticket the team is still handling: no second handover, the banner says what happens next.
-  // The flow that just created it stays on screen with its confirmation.
-  const openTicket = ticket != null && ticket.status !== 'resolved' && handoverReason == null;
+  // Back online: the waiting message goes out by itself.
+  useEffect(() => {
+    if (offline || !queued || !conversationId || sendingRef.current) return;
+    const text = queued;
+    setQueued(null);
+    if (queueKey) AsyncStorage.removeItem(queueKey).catch(() => {});
+    send(text);
+  }, [offline, queued, conversationId, queueKey, send]);
+
+  const retry = () => {
+    const text = draft.trim();
+    if (!text) return;
+    setDraft('');
+    send(text);
+  };
+
+  // Suggested questions: asked like any message - or, when the assistant can't be reached, answered
+  // straight from the knowledge base.
+  const askTopic = async (topic: HelpTopic) => {
+    const question = t(`help.chip.${topic}`);
+    if (failures < 2) return send(question);
+    const { article } = await fetchHelpTopic(topic, language);
+    const now = new Date().toISOString();
+    setMessages((current) => [
+      ...current,
+      { id: `topic-q-${Date.now()}`, role: 'user', content: question, created_at: now },
+      { id: `topic-a-${Date.now()}`, role: 'assistant', content: article ? `**${article.title}**\n\n${article.content}` : t('help.unavailable'), created_at: now },
+    ]);
+  };
 
   const answerCheck = async (solved: boolean) => {
     if (!conversationId) return;
@@ -122,156 +307,237 @@ export default function HelpScreen({ onBack }: Props) {
     }
   };
 
-  return (
-    <ScreenBackground
-      source={require('../../assets/bg-airport-arrival.png')}
-      naturalWidth={941}
-      naturalHeight={1672}
-      scrimColor={overlays.scrimHeavy}
-    >
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={onBack}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('admin.back')}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-          </Pressable>
-          <Text style={styles.title} accessibilityRole="header">
-            {t('help.title')}
+  const onAction = (action: HelpAction) => {
+    if (action === 'open_my_ride' || action === 'cancel_ride') onOpenMyRide();
+    else if (action === 'edit_ride') ride ? onEditRide(ride.request.id) : onOpenMyRide();
+    else if (action === 'payment_methods') onOpenPaymentMethods();
+    else if (action === 'show_badge') onShowBadge();
+    else if (action === 'location_settings') Linking.openSettings().catch(() => {});
+  };
+
+  const onFeedback = useCallback((messageId: string, value: 'up' | 'down' | null, note?: string) => {
+    if (messageId === STREAMING_ID || messageId.startsWith('local-') || messageId.startsWith('topic-')) return;
+    sendHelpFeedback(messageId, value, note);
+  }, []);
+
+  const openRequests = async () => {
+    setRequestsOpen(true);
+    setRequests(await fetchMyTickets());
+  };
+
+  // --- What the list shows ---
+
+  const openTicket = ticket != null && ticket.status !== 'resolved';
+  const showTicket = ticket != null && (openTicket || ticket.conversation_id === conversationId);
+  const items = useMemo<Item[]>(() => {
+    const list: Item[] = messages.map((message, index) => ({
+      kind: 'message',
+      message,
+      firstInGroup: index === 0 || messages[index - 1].role !== message.role,
+      lastInGroup: index === messages.length - 1 || messages[index + 1].role !== message.role,
+      streaming: message.id === STREAMING_ID,
+    }));
+    if (failures > 0 && !streaming) list.push({ kind: 'retry' });
+    if (checkFor && !handoverReason && !openTicket) list.push({ kind: 'check' });
+    if (resolved) list.push({ kind: 'glad' });
+    if (offerFor && !handoverReason && !openTicket) list.push({ kind: 'offer' });
+    if (((handoverReason || failures >= 2) && !openTicket) || changingChannel) list.push({ kind: 'handover' });
+    if (showTicket) list.push({ kind: 'ticket' });
+    return list;
+  }, [messages, failures, streaming, checkFor, handoverReason, openTicket, resolved, offerFor, changingChannel, showTicket]);
+
+  const stage = rideStage(ride?.facts ?? null, Date.now());
+  const pill = stagePill(stage);
+
+  const header = (
+    <View>
+      <Text style={styles.aiLine}>{t('help.aiDisclosure')}</Text>
+      <View style={styles.greetingRow}>
+        <HelpAvatar size={40} />
+        <Text style={styles.greeting} accessibilityRole="header">
+          {firstName ? t('help.greetingName', { name: firstName }) : t('help.greeting')}
+        </Text>
+      </View>
+      {ride && stage !== 'none' ? (
+        <View style={styles.context}>
+          <Text style={styles.contextLabel}>{t('help.yourRide')}</Text>
+          <Text style={styles.contextMain} numberOfLines={2}>
+            {ride.request.destination_address}
           </Text>
-        </View>
-
-        <ScrollView
-          ref={scrollRef}
-          style={styles.flex}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-        >
-          {startFailed ? <ErrorNotice message={t('help.startError')} onRetry={start} retryLabel={t('common.retry')} /> : null}
-
-          {ticket ? (
-            <Card style={styles.ticket}>
-              <View style={styles.ticketRow}>
-                <Ionicons
-                  name={ticket.status === 'resolved' ? 'checkmark-circle' : ticket.status === 'no_answer' ? 'call-outline' : 'time-outline'}
-                  size={20}
-                  color={ticket.status === 'resolved' ? colors.success : ticket.status === 'no_answer' ? colors.warning : colors.info}
-                />
-                <Text style={styles.ticketText} accessibilityLiveRegion="polite">
-                  {ticketStatusText(ticket, t, i18n.language)}
-                </Text>
-              </View>
-              {ticket.status === 'no_answer' && !changingChannel ? (
-                <SecondaryButton label={t('help.chooseHowToReach')} onPress={() => setChangingChannel(true)} />
-              ) : null}
-            </Card>
-          ) : null}
-          {changingChannel && conversationId ? (
-            <HandoverFlow
-              conversationId={conversationId}
-              reason="user_asked"
-              appLanguage={language}
-              changeChannel
-              onDone={() => {
-                setChangingChannel(false);
-                loadTicket();
-              }}
-            />
-          ) : null}
-          {!conversationId && !startFailed ? <ActivityIndicator color={colors.accentPrimaryStrong} accessibilityLabel={t('admin.loading')} /> : null}
-
-          {messages.map((message) => (
-            <View key={message.id} style={[styles.bubble, message.role === 'user' ? styles.userBubble : styles.assistantBubble]}>
-              {message.role === 'assistant' ? (
-                <HelpMessageText text={message.content} style={styles.bubbleText} />
-              ) : (
-                <Text style={styles.bubbleText} selectable>
-                  {message.content}
-                </Text>
-              )}
-            </View>
-          ))}
-
-          {sending ? (
-            <View style={[styles.bubble, styles.assistantBubble]}>
-              <Text style={styles.typing} accessibilityLiveRegion="polite">
-                {t('help.typing')}
-              </Text>
-            </View>
-          ) : null}
-
-          {checkFor && !handoverReason ? (
-            <Card style={styles.check}>
-              <Text style={styles.checkQuestion}>{t('help_resolved_question')}</Text>
-              <View style={styles.checkButtons}>
-                <View style={styles.flex}>
-                  <SecondaryButton label={t('help.yes')} icon="thumbs-up-outline" onPress={() => answerCheck(true)} />
-                </View>
-                <View style={styles.flex}>
-                  <SecondaryButton label={t('help.no')} icon="thumbs-down-outline" onPress={() => answerCheck(false)} />
-                </View>
-              </View>
-            </Card>
-          ) : null}
-          {resolved ? (
-            <Text style={styles.glad} accessibilityLiveRegion="polite">
-              {t('help.gladWeHelped')}
-            </Text>
-          ) : null}
-
-          {handoverReason && conversationId && !openTicket ? (
-            <HandoverFlow conversationId={conversationId} reason={handoverReason} appLanguage={language} onDone={loadTicket} />
-          ) : null}
-        </ScrollView>
-
-        <View style={styles.footer}>
-          {sendError ? <ErrorNotice message={sendError} /> : null}
-          {!handoverReason && !openTicket && conversationId ? (
-            <Pressable
-              onPress={() => setHandoverReason('user_asked')}
-              style={styles.person}
-              accessibilityRole="button"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="person-outline" size={16} color={colors.textPrimary} />
-              <Text style={styles.personText}>{t('help.talkToPerson')}</Text>
-            </Pressable>
-          ) : null}
-          <View style={styles.inputRow}>
-            <View style={styles.flex}>
-              <AuthTextInput
-                variant="card"
-                value={draft}
-                onChangeText={setDraft}
-                placeholder={t('help.inputPlaceholder')}
-                accessibilityLabel={t('help.inputPlaceholder')}
-                maxLength={HELP_MAX_MESSAGE_CHARS}
-                multiline
-                editable={conversationId != null}
-                style={styles.input}
-              />
-            </View>
-            <Pressable
-              onPress={send}
-              disabled={!draft.trim() || sending || !conversationId}
-              style={[styles.send, (!draft.trim() || sending || !conversationId) && styles.sendDisabled]}
-              accessibilityRole="button"
-              accessibilityLabel={t('help.send')}
-            >
-              <Ionicons name="send" size={20} color={colors.white} />
+          <Text style={styles.contextMeta}>
+            {new Date(ride.request.arrival_at).toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' })}
+          </Text>
+          <View style={styles.contextFooter}>
+            {pill ? <StatusPill status={pill} label={t(`help.stage.${stage}`)} /> : <View />}
+            <Pressable onPress={() => send(t('help.helpWithRideQuestion'))} style={styles.contextButton} accessibilityRole="button" disabled={streaming}>
+              <Text style={styles.contextButtonText}>{t('help.helpWithRide')}</Text>
             </Pressable>
           </View>
         </View>
+      ) : null}
+      <View style={styles.chips}>
+        {chipsFor(stage).map((topic) => (
+          <Pressable key={topic} onPress={() => askTopic(topic)} style={styles.chip} accessibilityRole="button" disabled={streaming || !conversationId}>
+            <Text style={styles.chipText}>{t(`help.chip.${topic}`)}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {startFailed ? <ErrorNotice message={t('help.startError')} onRetry={() => start()} retryLabel={t('common.retry')} /> : null}
+    </View>
+  );
+
+  const renderItem = ({ item }: { item: Item }) => {
+    switch (item.kind) {
+      case 'message':
+        return (
+          <HelpMessageRow
+            message={item.message}
+            firstInGroup={item.firstInGroup}
+            lastInGroup={item.lastInGroup}
+            streaming={item.streaming}
+            onAction={onAction}
+            onFeedback={onFeedback}
+          />
+        );
+      case 'retry':
+        return (
+          <View style={styles.inlineCard}>
+            <Text style={styles.inlineText}>{t(failures >= 2 ? 'help.stillUnavailable' : 'help.unavailable')}</Text>
+            {draft.trim() ? <SecondaryButton label={t('help.tryAgain')} icon="refresh" onPress={retry} /> : null}
+          </View>
+        );
+      case 'check':
+        return (
+          <View style={styles.inlineCard}>
+            <Text style={styles.inlineTitle}>{t('help_resolved_question')}</Text>
+            <View style={styles.checkButtons}>
+              <View style={styles.flex}>
+                <SecondaryButton label={t('help.yes')} icon="thumbs-up-outline" onPress={() => answerCheck(true)} />
+              </View>
+              <View style={styles.flex}>
+                <SecondaryButton label={t('help.no')} icon="thumbs-down-outline" onPress={() => answerCheck(false)} />
+              </View>
+            </View>
+          </View>
+        );
+      case 'glad':
+        return (
+          <Text style={styles.glad} accessibilityLiveRegion="polite">
+            {t('help.gladWeHelped')}
+          </Text>
+        );
+      case 'offer':
+        return (
+          <View style={styles.inlineCard}>
+            <Text style={styles.inlineText}>{t('help.offerTeam')}</Text>
+            <SecondaryButton label={t('help.talkToPerson')} icon="person-outline" onPress={() => setHandoverReason(offerFor?.reason ?? 'user_asked')} />
+          </View>
+        );
+      case 'handover':
+        return conversationId ? (
+          <HelpHandover
+            conversationId={conversationId}
+            reason={handoverReason ?? (failures >= 2 ? 'repeated_failure' : 'user_asked')}
+            appLanguage={language}
+            changeChannel={changingChannel}
+            onTicket={() => {
+              setHandoverReason(null);
+              setChangingChannel(false);
+              setFailures(0);
+              loadTicket();
+            }}
+          />
+        ) : null;
+      case 'ticket':
+        return ticket ? <HelpTicketCard ticket={ticket} onChangeChannel={() => setChangingChannel(true)} /> : null;
+    }
+  };
+
+  return (
+    <View style={styles.screen}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.header}>
+          <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('admin.back')}>
+            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+          </Pressable>
+          <HelpAvatar size={28} />
+          <View style={styles.headerTitle}>
+            <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
+              {t('help.assistantName')}
+            </Text>
+            <View style={styles.aiBadge} accessible accessibilityLabel={t('help.aiBadgeLabel')}>
+              <Text style={styles.aiBadgeText}>{t('help.aiBadge')}</Text>
+            </View>
+          </View>
+          <Pressable onPress={openRequests} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('help.yourRequests')}>
+            <Ionicons name="file-tray-outline" size={22} color={colors.textPrimary} />
+          </Pressable>
+          <Pressable onPress={() => start(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('help.newConversation')} disabled={streaming}>
+            <Ionicons name="create-outline" size={22} color={colors.textPrimary} />
+          </Pressable>
+        </View>
+        {!openTicket && !handoverReason ? (
+          <Pressable onPress={() => setHandoverReason('user_asked')} style={styles.person} accessibilityRole="button" disabled={!conversationId}>
+            <Ionicons name="person-outline" size={16} color={colors.accentPrimaryStrong} />
+            <Text style={styles.personText}>{t('help.talkToPerson')}</Text>
+          </Pressable>
+        ) : null}
+
+        <FlatList
+          ref={listRef}
+          style={styles.flex}
+          contentContainerStyle={styles.content}
+          data={items}
+          keyExtractor={(item, index) => (item.kind === 'message' ? item.message.id : `${item.kind}-${index}`)}
+          renderItem={renderItem}
+          ListHeaderComponent={header}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          initialNumToRender={20}
+          windowSize={10}
+        />
+
+        <View style={styles.footer}>
+          {sendError ? <ErrorNotice message={sendError} /> : null}
+          {queued ? (
+            <Text style={styles.queued} accessibilityLiveRegion="polite">
+              {t('help.queued', { text: queued.length > 60 ? `${queued.slice(0, 60)}…` : queued })}
+            </Text>
+          ) : null}
+          <HelpComposer value={draft} onChange={setDraft} onSend={sendDraft} disabled={streaming || !conversationId} offline={offline} />
+        </View>
       </KeyboardAvoidingView>
-    </ScreenBackground>
+
+      <Modal visible={requestsOpen} animationType="slide" transparent onRequestClose={() => setRequestsOpen(false)}>
+        <View style={styles.requestsBackdrop}>
+          <View style={styles.requestsSheet}>
+            <View style={styles.requestsHeader}>
+              <Text style={styles.title} accessibilityRole="header">
+                {t('help.yourRequests')}
+              </Text>
+              <Pressable onPress={() => setRequestsOpen(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('help.close')}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </Pressable>
+            </View>
+            {requests.length === 0 ? <Text style={styles.inlineText}>{t('help.noRequests')}</Text> : null}
+            <FlatList
+              data={requests}
+              keyExtractor={(request) => request.reference}
+              renderItem={({ item }) => <HelpTicketCard ticket={item} />}
+            />
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
+  },
   flex: {
     flex: 1,
   },
@@ -280,60 +546,141 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.x3,
     paddingTop: spacing.x12,
-    paddingHorizontal: spacing.x6,
-    paddingBottom: spacing.x3,
-  },
-  title: {
-    ...baseText.h2,
-  },
-  content: {
-    paddingHorizontal: spacing.x6,
-    paddingBottom: spacing.x6,
-    gap: spacing.x2,
-  },
-  bubble: {
-    maxWidth: '86%',
-    paddingVertical: spacing.x3,
     paddingHorizontal: spacing.x4,
-    borderRadius: radii.lg,
+    paddingBottom: spacing.x3,
+    borderBottomWidth: borders.hairline,
+    borderBottomColor: colors.borderSubtle,
   },
-  assistantBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surfaceCardSolid,
-    borderWidth: borders.regular,
-    borderColor: colors.borderSubtle,
-  },
-  userBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: colors.accentPrimary,
-  },
-  bubbleText: {
-    ...baseText.body,
-  },
-  typing: {
-    ...baseText.bodySmall,
-    color: colors.textSecondary,
-  },
-  check: {
-    marginTop: spacing.x2,
-  },
-  ticket: {
-    marginBottom: spacing.x2,
-    gap: spacing.x3,
-  },
-  ticketRow: {
+  headerTitle: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.x2,
   },
-  ticketText: {
-    ...baseText.body,
+  title: {
+    ...baseText.h3,
+    flexShrink: 1,
+  },
+  aiBadge: {
+    paddingHorizontal: spacing.x2,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    backgroundColor: colors.accentPrimarySoft,
+  },
+  aiBadgeText: {
+    ...baseText.caption,
+    color: colors.accentPrimaryStrong,
+    fontWeight: '700',
+  },
+  person: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: spacing.x1,
+    paddingHorizontal: spacing.x4,
+    paddingVertical: spacing.x2,
+  },
+  personText: {
+    ...baseText.bodySmall,
+    fontWeight: '700',
+    color: colors.accentPrimaryStrong,
+  },
+  content: {
+    paddingHorizontal: spacing.x4,
+    paddingBottom: spacing.x6,
+  },
+  aiLine: {
+    ...baseText.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.x3,
+    marginBottom: spacing.x4,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.x3,
+    marginBottom: spacing.x4,
+  },
+  greeting: {
+    ...baseText.h3,
     flex: 1,
   },
-  checkQuestion: {
-    ...baseText.body,
-    fontWeight: '600',
+  context: {
+    padding: spacing.x4,
+    borderRadius: radii.lg,
+    borderWidth: borders.regular,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceCard,
+    gap: spacing.x1,
     marginBottom: spacing.x3,
+  },
+  contextLabel: {
+    ...baseText.label,
+    color: colors.textSecondary,
+  },
+  contextMain: {
+    ...baseText.body,
+    fontWeight: '700',
+  },
+  contextMeta: {
+    ...baseText.caption,
+    color: colors.textSecondary,
+  },
+  contextFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: spacing.x2,
+    marginTop: spacing.x2,
+  },
+  contextButton: {
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.x3,
+    borderRadius: radii.pill,
+    borderWidth: borders.regular,
+    borderColor: colors.accentPrimaryStrong,
+  },
+  contextButtonText: {
+    ...baseText.bodySmall,
+    fontWeight: '700',
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.x2,
+    marginBottom: spacing.x2,
+  },
+  chip: {
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.x4,
+    borderRadius: radii.pill,
+    borderWidth: borders.regular,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceCardSolid,
+  },
+  chipText: {
+    ...baseText.bodySmall,
+    fontWeight: '600',
+  },
+  inlineCard: {
+    marginTop: spacing.x3,
+    padding: spacing.x4,
+    borderRadius: radii.lg,
+    borderWidth: borders.regular,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceCard,
+    gap: spacing.x3,
+  },
+  inlineTitle: {
+    ...baseText.body,
+    fontWeight: '700',
+  },
+  inlineText: {
+    ...baseText.body,
   },
   checkButtons: {
     flexDirection: 'row',
@@ -343,46 +690,34 @@ const styles = StyleSheet.create({
     ...baseText.bodySmall,
     color: colors.success,
     textAlign: 'center',
-    marginTop: spacing.x2,
+    marginTop: spacing.x3,
   },
   footer: {
-    paddingHorizontal: spacing.x6,
+    paddingHorizontal: spacing.x4,
     paddingTop: spacing.x2,
     paddingBottom: spacing.x6,
     backgroundColor: colors.bgPrimary,
     borderTopWidth: borders.hairline,
     borderTopColor: colors.borderSubtle,
   },
-  person: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: spacing.x1,
+  queued: {
+    ...baseText.caption,
+    color: colors.textSecondary,
     marginBottom: spacing.x2,
   },
-  personText: {
-    ...baseText.bodySmall,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
+  requestsBackdrop: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
-  inputRow: {
+  requestsSheet: {
+    flex: 1,
+    paddingTop: spacing.x12,
+    paddingHorizontal: spacing.x6,
+  },
+  requestsHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.x2,
-  },
-  input: {
-    maxHeight: 120,
-    paddingVertical: spacing.x3,
-  },
-  send: {
-    width: 52,
-    height: 52,
-    borderRadius: radii.pill,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.accentPrimary,
-  },
-  sendDisabled: {
-    backgroundColor: colors.borderSubtle,
+    marginBottom: spacing.x3,
   },
 });

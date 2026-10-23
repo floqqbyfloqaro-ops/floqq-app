@@ -168,7 +168,26 @@ export async function runTicketAction(ticketId: string, request: TicketActionReq
   return { error: (body?.error as string | undefined) ?? 'action_failed' };
 }
 
-export type MyTicket = Pick<SupportTicket, 'reference' | 'channel' | 'status' | 'callback_at' | 'resolved_at' | 'conversation_id'>;
+export type MyTicket = Pick<SupportTicket, 'reference' | 'channel' | 'status' | 'callback_at' | 'resolved_at' | 'conversation_id'> & {
+  created_at?: string;
+};
+
+// "Your requests": the passenger's own tickets, newest first.
+export async function fetchMyTickets(): Promise<MyTicket[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+  // Filtered on the user too: an admin may read everyone's tickets.
+  const { data } = await supabase
+    .from('support_tickets')
+    .select('reference, channel, status, callback_at, resolved_at, conversation_id, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(20)
+    .returns<MyTicket[]>();
+  return data ?? [];
+}
 
 // The passenger's own latest ticket, for the help screen: open ones, and resolved ones for a day.
 export async function fetchMyLatestTicket(): Promise<MyTicket | null> {
