@@ -20,7 +20,7 @@ export type PushRequest = {
   // Where the group meets, per language; English stands in for a language that has none.
   place?: Partial<Record<PushLocale, string>>;
   // The screen a tap opens. Default: My ride.
-  screen?: 'myRide' | 'findGroup';
+  screen?: 'myRide' | 'findGroup' | 'help';
 };
 
 const euros = (cents: number) => (cents / 100).toFixed(2);

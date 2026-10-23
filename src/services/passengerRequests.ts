@@ -175,6 +175,8 @@ export type MyPassengerRequest = {
   service_fee_status: ServiceFeeStatus;
   destination_address: string;
   arrival_at: string;
+  // When they can leave the airport (see readyTimeRules.ts); null on rides from before ready times.
+  ready_at: string | null;
   max_wait_minutes: number;
   // When this passenger's ride was completed ("I've arrived", the taxi receipt, or automatically).
   completed_at: string | null;
@@ -183,7 +185,7 @@ export type MyPassengerRequest = {
 };
 
 const MY_REQUEST_COLUMNS =
-  'id, flight_number, status, group_id, service_fee_status, destination_address, arrival_at, max_wait_minutes, completed_at, completion_seen_at';
+  'id, flight_number, status, group_id, service_fee_status, destination_address, arrival_at, ready_at, max_wait_minutes, completed_at, completion_seen_at';
 
 // The ride MyRideScreen shows: the passenger's active ride if they have one, otherwise their most
 // recent (cancelled/expired) one. Active first, not simply newest - otherwise a newer expired or

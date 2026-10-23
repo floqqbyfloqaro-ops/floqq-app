@@ -26,6 +26,8 @@ import { baseText, colors, overlays, spacing } from '../theme/colors';
 
 type Props = {
   onBack: () => void;
+  // "Help": the AI support assistant (HelpScreen).
+  onOpenHelp: () => void;
 };
 
 // The card only counts as saved once Stripe's webhook has reached our server, which usually takes
@@ -50,7 +52,7 @@ function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-export default function ProfileScreen({ onBack }: Props) {
+export default function ProfileScreen({ onBack, onOpenHelp }: Props) {
   const { t, i18n } = useTranslation();
 
   // The passenger's own details: name and date of birth (profile), email and how they sign in
@@ -357,6 +359,12 @@ export default function ProfileScreen({ onBack }: Props) {
                 )}
               </Card>
             )}
+
+            <View style={styles.helpSection}>
+              <Text style={styles.sectionTitle}>{t('profile.helpTitle')}</Text>
+              <Text style={styles.intro}>{t('profile.helpIntro')}</Text>
+              <SecondaryButton label={t('profile.helpButton')} icon="help-circle-outline" onPress={onOpenHelp} />
+            </View>
           </>
         )}
       </ScrollView>
@@ -438,6 +446,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...baseText.h3,
     marginBottom: spacing.x2,
+  },
+  helpSection: {
+    marginTop: spacing.x8,
   },
   intro: {
     ...baseText.bodySmall,
