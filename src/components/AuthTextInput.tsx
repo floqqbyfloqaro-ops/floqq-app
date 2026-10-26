@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import { Ref, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, TextInputInstance, TextInputProps, View } from 'react-native';
 
 import { borders, colors, components, elevation, radii, spacing } from '../theme/colors';
 
 type Props = TextInputProps & {
+  // Handed on to the TextInput (e.g. to move to the next field).
+  ref?: Ref<TextInputInstance>;
   errorText?: string;
   helperText?: string;
   // 'flat' (default) is today's exact style everywhere else in the app - unaffected by the

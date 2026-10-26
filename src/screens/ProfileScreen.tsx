@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -29,6 +30,8 @@ type Props = {
   onBack: () => void;
   // "Help": the AI support assistant (HelpScreen).
   onOpenHelp: () => void;
+  // "Change password" (email accounts only).
+  onChangePassword: () => void;
 };
 
 // The card only counts as saved once Stripe's webhook has reached our server, which usually takes
@@ -53,7 +56,7 @@ function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-export default function ProfileScreen({ onBack, onOpenHelp }: Props) {
+export default function ProfileScreen({ onBack, onOpenHelp, onChangePassword }: Props) {
   const { t, i18n } = useTranslation();
 
   // The passenger's own details: name and date of birth (profile), email and how they sign in
@@ -316,6 +319,28 @@ export default function ProfileScreen({ onBack, onOpenHelp }: Props) {
               </Card>
             ) : null}
 
+            {/* Apple and Google accounts have no FLOQQ password: only how they sign in. */}
+            {account ? (
+              account.provider === 'email' ? (
+                <Card onPress={onChangePassword} style={styles.passwordRow} accessibilityLabel={t('changePassword.row')}>
+                  <View style={styles.rowInner}>
+                    <Ionicons name="lock-closed-outline" size={22} color={colors.accentPrimaryStrong} />
+                    <Text style={styles.rowText}>{t('changePassword.row')}</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  </View>
+                </Card>
+              ) : (
+                <Card style={styles.passwordRow}>
+                  <View style={styles.rowInner}>
+                    <Ionicons name={account.provider === 'apple' ? 'logo-apple' : 'logo-google'} size={22} color={colors.textSecondary} />
+                    <Text style={styles.rowText}>
+                      {t(account.provider === 'apple' ? 'changePassword.signedInWithApple' : 'changePassword.signedInWithGoogle')}
+                    </Text>
+                  </View>
+                </Card>
+              )
+            ) : null}
+
             <Text style={styles.sectionTitle}>{t('profile.paymentMethodsTitle')}</Text>
             <TestModeBadge />
             <Text style={styles.intro}>{t('profile.paymentMethodsIntro')}</Text>
@@ -444,6 +469,19 @@ const styles = StyleSheet.create({
   },
   editButton: {
     marginTop: spacing.x6,
+  },
+  passwordRow: {
+    marginTop: -spacing.x4,
+    marginBottom: spacing.x8,
+  },
+  rowInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.x3,
+  },
+  rowText: {
+    ...baseText.body,
+    flex: 1,
   },
   sectionTitle: {
     ...baseText.h3,

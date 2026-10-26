@@ -31,6 +31,7 @@ FLOQQ matches travelers landing at Barcelona Airport (BCN) around the same time 
 - **Sign-in options:** email and password, Apple, or Google.
 - **Name:** first and last name can be edited in Profile. Other passengers only ever see the first name.
 - **Email change:** done in Profile. A confirmation link is sent to the new address; the change only applies once it is confirmed, and the old email keeps working until then. Apple or Google accounts: the email is managed by Apple or Google and cannot be changed in FLOQQ.
+- **Password change:** Profile → **Change password**, at any time. Enter the current password, then the new one twice (at least 8 characters, different from the current one) and tap **Save**. The user stays signed in on that phone; every other device is signed out, and an email confirms the change in the phone's language. Forgot the current password: tap **Forgot your current password?** on that screen to get a reset link by email (or **Forgot password?** on the Sign In screen). After 5 wrong current passwords in a row the user must wait 15 minutes. Apple or Google accounts have no FLOQQ password: Profile shows "Signed in with Apple/Google" instead, and the password is managed by Apple or Google.
 - **Date of birth:** cannot be edited by the user once set. To correct it, the user contacts support (human handover).
 - **Language:** the app follows the phone's language (EN, FR, ES supported; others fall back to English).
 - **Payment method:** saved once (Apple Pay, Google Pay or card) in Profile → Payment Methods, where it can be replaced.

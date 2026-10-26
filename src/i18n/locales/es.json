@@ -59,7 +59,7 @@
     "confirmPasswordPlaceholder": "Confirma la nueva contraseña",
     "updatePasswordButton": "Actualizar contraseña",
     "passwordMismatchError": "Las contraseñas no coinciden.",
-    "passwordTooShortError": "La contraseña debe tener al menos 6 caracteres.",
+    "passwordTooShortError": "La contraseña debe tener al menos 8 caracteres.",
     "loginError": "No pudimos iniciar tu sesión. Comprueba tu correo y contraseña e inténtalo de nuevo.",
     "signUpError": "No pudimos crear tu cuenta. Inténtalo de nuevo.",
     "resetLinkError": "No pudimos enviar el enlace de restablecimiento. Comprueba tu correo e inténtalo de nuevo.",
@@ -1353,5 +1353,33 @@
     "undo": "Deshacer",
     "arrivalError": "No se ha podido enviar. Inténtalo de nuevo.",
     "memberArrived": "En el punto de encuentro"
+  },
+  "changePassword": {
+    "title": "Cambiar contraseña",
+    "row": "Cambiar contraseña",
+    "signedInWithApple": "Sesión iniciada con Apple",
+    "signedInWithGoogle": "Sesión iniciada con Google",
+    "currentPassword": "Contraseña actual",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar nueva contraseña",
+    "rules": "Al menos {{min}} caracteres, distinta de tu contraseña actual.",
+    "tooShort": "Usa al menos 8 caracteres.",
+    "tooLong": "Usa como máximo 72 caracteres.",
+    "sameAsCurrent": "Elige una contraseña distinta de la actual.",
+    "mismatch": "Las contraseñas no coinciden.",
+    "wrongCurrent": "Esa no es tu contraseña actual.",
+    "wrongCurrentLeft_one": "Esa no es tu contraseña actual. Te queda 1 intento.",
+    "wrongCurrentLeft_other": "Esa no es tu contraseña actual. Te quedan {{count}} intentos.",
+    "locked": "Demasiados intentos fallidos. Vuelve a intentarlo a las {{time}}.",
+    "failed": "No hemos podido cambiar tu contraseña. Inténtalo de nuevo.",
+    "save": "Guardar",
+    "forgot": "¿Olvidaste tu contraseña actual?",
+    "resetSent": "Hemos enviado un enlace a {{email}} para restablecer tu contraseña.",
+    "success": "Tu contraseña se ha actualizado",
+    "strength": {
+      "weak": "Débil",
+      "fair": "Aceptable",
+      "strong": "Fuerte"
+    }
   }
 }

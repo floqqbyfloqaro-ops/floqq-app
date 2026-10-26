@@ -9,6 +9,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import VerifyEmailNotice from '../components/VerifyEmailNotice';
 import { signUpWithEmail } from '../services/emailVerification';
+import { MIN_PASSWORD_LENGTH } from '../services/passwordRules';
 import {
   barcelonaToday,
   cleanPersonName,
@@ -28,7 +29,7 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ firstName?: string; lastName?: string; dateOfBirth?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ firstName?: string; lastName?: string; dateOfBirth?: string; password?: string }>({});
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -43,6 +44,8 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
     if (!isValidPersonName(firstName)) errors.firstName = t('profileEdit.nameInvalid', { max: NAME_MAX_LENGTH });
     if (!isValidPersonName(lastName)) errors.lastName = t('profileEdit.nameInvalid', { max: NAME_MAX_LENGTH });
     if (!dateOfBirth) errors.dateOfBirth = t('dateOfBirth.required');
+    // Supabase Auth's own minimum (password_min_length) is the same.
+    if (password.length < MIN_PASSWORD_LENGTH) errors.password = t('auth.passwordTooShortError');
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
@@ -140,6 +143,9 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!isPasswordVisible}
+              errorText={fieldErrors.password}
+              textContentType="newPassword"
+              autoComplete="new-password"
             />
 
             {errorMessage ? <ErrorNotice message={errorMessage} onRetry={handleSignUp} retryLabel={t('common.retry')} /> : null}

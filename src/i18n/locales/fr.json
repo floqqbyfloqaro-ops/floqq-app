@@ -63,7 +63,7 @@
     "confirmPasswordPlaceholder": "Confirmez le nouveau mot de passe",
     "updatePasswordButton": "Mettre à jour le mot de passe",
     "passwordMismatchError": "Les mots de passe ne correspondent pas.",
-    "passwordTooShortError": "Le mot de passe doit contenir au moins 6 caractères.",
+    "passwordTooShortError": "Le mot de passe doit contenir au moins 8 caractères.",
     "loginError": "Impossible de vous connecter. Vérifiez votre e-mail et votre mot de passe puis réessayez.",
     "signUpError": "Impossible de créer votre compte. Veuillez réessayer.",
     "resetLinkError": "Impossible d'envoyer le lien de réinitialisation. Vérifiez votre e-mail et réessayez.",
@@ -1357,5 +1357,33 @@
     "undo": "Annuler",
     "arrivalError": "Cela n'a pas fonctionné. Veuillez réessayer.",
     "memberArrived": "Au point de rencontre"
+  },
+  "changePassword": {
+    "title": "Modifier le mot de passe",
+    "row": "Modifier le mot de passe",
+    "signedInWithApple": "Connecté avec Apple",
+    "signedInWithGoogle": "Connecté avec Google",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "rules": "Au moins {{min}} caractères, différent de votre mot de passe actuel.",
+    "tooShort": "Utilisez au moins 8 caractères.",
+    "tooLong": "Utilisez au maximum 72 caractères.",
+    "sameAsCurrent": "Choisissez un mot de passe différent de l’actuel.",
+    "mismatch": "Les mots de passe ne correspondent pas.",
+    "wrongCurrent": "Ce n’est pas votre mot de passe actuel.",
+    "wrongCurrentLeft_one": "Ce n’est pas votre mot de passe actuel. Encore 1 essai.",
+    "wrongCurrentLeft_other": "Ce n’est pas votre mot de passe actuel. Encore {{count}} essais.",
+    "locked": "Trop d’essais incorrects. Réessayez à {{time}}.",
+    "failed": "Impossible de modifier votre mot de passe. Veuillez réessayer.",
+    "save": "Enregistrer",
+    "forgot": "Mot de passe actuel oublié ?",
+    "resetSent": "Nous avons envoyé un lien à {{email}} pour réinitialiser votre mot de passe.",
+    "success": "Votre mot de passe a été modifié",
+    "strength": {
+      "weak": "Faible",
+      "fair": "Correct",
+      "strong": "Fort"
+    }
   }
 }
