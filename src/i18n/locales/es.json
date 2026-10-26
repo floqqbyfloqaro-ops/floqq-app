@@ -1,4 +1,5 @@
 {
+  "your_requests": "Tus solicitudes",
   "common": {
     "retry": "Reintentar",
     "comingSoon": "Próximamente"
@@ -656,16 +657,33 @@
     "warning": "Valoraciones bajas en los últimos {{days}} días: {{count}}",
     "warningDetail": "Las valoraciones de 1-2 estrellas necesitan revisión. Abre la pestaña Historial para verlas."
   },
-  "help_resolved_question": "¿Se ha resuelto tu problema?",
   "help": {
+    "menu": "Más opciones",
+    "contactTeam": "Contactar con el equipo de FLOQQ",
+    "wasHelpful": "¿Te ha sido útil?",
+    "untitled": "Solicitud de ayuda",
+    "rideOf": "Trayecto del {{date}}",
+    "stillNeedHelp": "Todavía necesito ayuda con esto",
+    "backToConversation": "Volver a la conversación",
+    "closedNoReply": "Esta conversación se cerró. Escribe abajo para empezar una nueva; la tendré en cuenta.",
+    "continuing": "Seguimos con tu solicitud anterior.",
+    "followup": {
+      "thatsAll": "No, eso es todo",
+      "anotherQuestion": "Sí, otra pregunta",
+      "solvedYes": "Sí, está resuelto",
+      "solvedNo": "No, sigue el problema"
+    },
+    "status": {
+      "resolved": "Resuelta",
+      "resolvedByTeam": "Resuelta por nuestro equipo",
+      "waitingForTeam": "Esperando a nuestro equipo",
+      "closed": "Cerrada",
+      "inProgress": "En curso"
+    },
     "title": "Ayuda",
     "inputPlaceholder": "Haz una pregunta…",
     "send": "Enviar",
     "typing": "El asistente está escribiendo…",
-    "talkToPerson": "Hablar con una persona",
-    "yes": "Sí",
-    "no": "No",
-    "gladWeHelped": "¡Nos alegra haberte ayudado!",
     "startError": "No pudimos abrir el chat de ayuda.",
     "sendError": "Tu mensaje no se envió. Inténtalo de nuevo.",
     "rateLimited": "Has enviado muchos mensajes en poco tiempo. Espera un poco y vuelve a intentarlo, o habla con una persona.",
@@ -757,15 +775,12 @@
     "charactersLeft": "Quedan {{count}} caracteres",
     "tryAgain": "Reintentar",
     "stillUnavailable": "El asistente sigue sin estar disponible. Toca una pregunta sugerida arriba para ver nuestra respuesta escrita, o habla con nuestro equipo abajo.",
-    "offerTeam": "Como estás en el aeropuerto, nuestro equipo puede ayudarte ahora mismo.",
-    "yourRequests": "Tus solicitudes",
     "noRequests": "Aún no has pedido nada a nuestro equipo.",
     "newConversation": "Nueva conversación",
     "youSaid": "Tú, {{time}}: {{text}}",
     "assistantSaid": "Asistente FLOQQ, {{time}}: {{text}}",
     "thumbsUp": "Útil",
     "thumbsDown": "No útil",
-    "whatWasMissing": "¿Qué faltaba? (opcional)",
     "thanksForFeedback": "Gracias, esto nos ayuda a mejorar.",
     "card": {
       "ride": "Tu trayecto",
@@ -816,6 +831,10 @@
     }
   },
   "adminHelpMetrics": {
+    "resolvedByTeam": "Resueltas por el equipo",
+    "closedNoReply": "Cerradas sin respuesta",
+    "personAfterResolved": "Pidieron una persona tras «resuelta»",
+    "personAfterResolvedHint": "en 24 h: ¿se cerró demasiado pronto?",
     "tab": "Resumen",
     "title": "Este mes",
     "loadError": "No pudimos cargar las cifras.",
@@ -836,6 +855,9 @@
     "missing": "Lo que faltaba: {{note}}"
   },
   "adminSupportSettings": {
+    "noReply": "Cerrar sin respuesta tras (minutos)",
+    "noReplyHint": "Tras una respuesta completa, una conversación sin respuesta durante este tiempo se archiva como «Cerrada». No se envía ninguna notificación.",
+    "invalidNoReply": "Introduce entre 1 y 1440 minutos.",
     "title": "Ajustes del soporte",
     "loadError": "No pudimos cargar los ajustes del soporte.",
     "whatsapp": "Número de WhatsApp del equipo",
@@ -881,6 +903,7 @@
       "days": "hace {{count}} días"
     },
     "reason": {
+      "urgent": "Frustración o urgencia",
       "user_asked": "Pidió una persona",
       "not_solved": "No resuelto por el asistente",
       "money_problem": "Problema de dinero",

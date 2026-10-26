@@ -256,7 +256,11 @@ Deno.serve(async (req) => {
   }
 
   const reason = parseHandoverReason(body.reason ?? conversation.handover_reason);
-  const { requestId, urgent } = await rideFacts(admin, user.id);
+  const facts = await rideFacts(admin, user.id);
+  const requestId = facts.requestId;
+  // The ride says so (about to meet the group, riding, just arrived), or the assistant saw the
+  // passenger is stuck or in danger.
+  const urgent = facts.urgent || reason === 'urgent' || reason === 'safety';
   const { data: messages } = await admin
     .from('help_messages')
     .select('role, content')

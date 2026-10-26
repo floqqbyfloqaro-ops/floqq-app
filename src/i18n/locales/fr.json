@@ -1,4 +1,5 @@
 {
+  "your_requests": "Vos demandes",
   "common": {
     "retry": "Réessayer",
     "comingSoon": "Bientôt disponible"
@@ -660,16 +661,33 @@
     "warning": "Notes basses des {{days}} derniers jours : {{count}}",
     "warningDetail": "Les notes de 1-2 étoiles sont à examiner. Ouvrez l’onglet Historique pour les voir."
   },
-  "help_resolved_question": "Cela a-t-il résolu votre problème ?",
   "help": {
+    "menu": "Plus d’options",
+    "contactTeam": "Contacter l’équipe FLOQQ",
+    "wasHelpful": "Cela vous a-t-il aidé ?",
+    "untitled": "Demande d’aide",
+    "rideOf": "Trajet du {{date}}",
+    "stillNeedHelp": "J’ai encore besoin d’aide",
+    "backToConversation": "Revenir à la conversation",
+    "closedNoReply": "Cette conversation est terminée. Écrivez ci-dessous pour en commencer une nouvelle - je m’en souviendrai.",
+    "continuing": "Suite de votre demande précédente.",
+    "followup": {
+      "thatsAll": "Non, c’est tout",
+      "anotherQuestion": "Oui, une autre question",
+      "solvedYes": "Oui, c’est réglé",
+      "solvedNo": "Non, toujours un problème"
+    },
+    "status": {
+      "resolved": "Résolue",
+      "resolvedByTeam": "Résolue par notre équipe",
+      "waitingForTeam": "En attente de notre équipe",
+      "closed": "Terminée",
+      "inProgress": "En cours"
+    },
     "title": "Aide",
     "inputPlaceholder": "Posez une question…",
     "send": "Envoyer",
     "typing": "L’assistant écrit…",
-    "talkToPerson": "Parler à une personne",
-    "yes": "Oui",
-    "no": "Non",
-    "gladWeHelped": "Ravis d’avoir pu vous aider !",
     "startError": "Impossible d’ouvrir la discussion d’aide.",
     "sendError": "Votre message n’est pas parti. Veuillez réessayer.",
     "rateLimited": "Vous avez envoyé beaucoup de messages en peu de temps. Patientez un peu et réessayez, ou parlez à une personne.",
@@ -761,15 +779,12 @@
     "charactersLeft": "{{count}} caractères restants",
     "tryAgain": "Réessayer",
     "stillUnavailable": "L’assistant reste injoignable. Touchez une question suggérée ci-dessus pour notre réponse écrite, ou parlez à notre équipe ci-dessous.",
-    "offerTeam": "Comme vous êtes à l’aéroport, notre équipe peut vous aider tout de suite.",
-    "yourRequests": "Vos demandes",
     "noRequests": "Vous n’avez encore rien demandé à notre équipe.",
     "newConversation": "Nouvelle conversation",
     "youSaid": "Vous, {{time}} : {{text}}",
     "assistantSaid": "Assistant FLOQQ, {{time}} : {{text}}",
     "thumbsUp": "Utile",
     "thumbsDown": "Pas utile",
-    "whatWasMissing": "Qu’est-ce qui manquait ? (facultatif)",
     "thanksForFeedback": "Merci - cela nous aide à nous améliorer.",
     "card": {
       "ride": "Votre trajet",
@@ -820,6 +835,10 @@
     }
   },
   "adminHelpMetrics": {
+    "resolvedByTeam": "Résolues par l’équipe",
+    "closedNoReply": "Terminées sans réponse",
+    "personAfterResolved": "Personne demandée après « résolue »",
+    "personAfterResolvedHint": "sous 24 h - fermée trop tôt ?",
     "tab": "Vue d’ensemble",
     "title": "Ce mois-ci",
     "loadError": "Impossible de charger les chiffres.",
@@ -840,6 +859,9 @@
     "missing": "Ce qui manquait : {{note}}"
   },
   "adminSupportSettings": {
+    "noReply": "Fermer sans réponse après (minutes)",
+    "noReplyHint": "Après une réponse complète, une conversation sans réponse pendant ce temps est archivée comme « Terminée ». Aucune notification n’est envoyée.",
+    "invalidNoReply": "Saisissez entre 1 et 1440 minutes.",
     "title": "Réglages du support",
     "loadError": "Impossible de charger les réglages du support.",
     "whatsapp": "Numéro WhatsApp de l’équipe",
@@ -885,6 +907,7 @@
       "days": "il y a {{count}} jours"
     },
     "reason": {
+      "urgent": "Frustration ou urgence",
       "user_asked": "A demandé une personne",
       "not_solved": "Non résolu par l’assistant",
       "money_problem": "Problème d’argent",

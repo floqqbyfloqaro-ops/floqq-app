@@ -1,6 +1,6 @@
 # Help assistant – checks on a phone
 
-What `scripts/help-eval-test.mjs` can't check: do these by hand on a real phone (iPhone and Android,
+What `scripts/help-eval-test.mjs` and `scripts/help-endings-test.mjs` can't check: do these by hand on a real phone (iPhone and Android,
 one of them small, e.g. iPhone SE), with `npm run start` (test project). Tick each in EN, FR and ES
 where it says so.
 
@@ -11,17 +11,26 @@ where it says so.
 - [ ] With a ride: the ride card with its status and "Help with this ride"; the suggested questions follow the ride (searching / group found / meeting / completed).
 - [ ] An answer appears word by word, with the typing dots before the first word; links, bold and numbered steps look right.
 - [ ] Ride / payment / refund cards show the real figures; each button opens the right screen and changes nothing by itself.
-- [ ] Leave and come back within 24 hours: the conversation is still there. "New conversation" starts a fresh one.
-- [ ] Thumbs up / down; thumbs down asks "What was missing?".
+- [ ] Leave and come back within 24 hours: a conversation still going is still there. … → "New conversation" starts a fresh one.
+- [ ] No thumbs under the answers.
+
+## How a conversation ends
+
+- [ ] After an answer, "Merci, c'est parfait" / "Thanks!" / "Vale, gracias 👍": a short warm closing, then the closing card (its title, "Was this helpful?" 👍 👎 - once); nothing asked, no team offered.
+- [ ] An unclear "ok" after an answer: "Anything else I can help with?" with "No, that's all" / "Yes, another question" - only once per conversation.
+- [ ] "No, that's all" -> the closing and the closing card. "Yes, another question" -> the buttons go away, carry on.
+- [ ] A correct answer never suggests the team.
+- [ ] No reply for 10 minutes after an answer (Admin → Help → Support settings): the conversation is "Closed"; no notification. Writing below it starts a new one that remembers it.
 
 ## Handover and tickets
 
-- [ ] "Did this solve your problem?" → Yes: "Glad we could help". → No: the team options inline.
-- [ ] "Talk to a person" is always there until a ticket is open.
+- [ ] "This didn't help", "I want to talk to a person" (any language), or a frustrated / stuck-at-the-airport message: the team options inline, at once.
+- [ ] … → "Contact the FLOQQ team" always works (hidden while a ticket is open); there is no "Talk to a person" button in the header.
 - [ ] Call back: country picker with flags, invalid number refused, consent box, time slots; the ticket card appears.
 - [ ] WhatsApp (once a number is set in Admin → Help → Overview): opens WhatsApp with only "#REF".
 - [ ] The ticket card updates by itself (about every 20 seconds) when the admin changes the ticket.
-- [ ] "Your requests" lists earlier tickets.
+- [ ] "Your requests" ("Vos demandes" / "Tus solicitudes"): each conversation with its title, date, status (Resolved / Resolved by our team / Waiting for our team / Closed) and ride; open tickets on top with their live status.
+- [ ] Opening one shows it read-only; "I still need help with this" starts a new conversation that already knows it.
 - [ ] A message with "accident" / "accidente" / "accident" shows the "Call 112" card before the answer; the button calls 112.
 
 ## Typing, offline, errors

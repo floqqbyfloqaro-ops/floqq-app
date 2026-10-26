@@ -12,7 +12,8 @@ import PrimaryButton from './PrimaryButton';
 
 // Admin dashboard, Help tab: the support settings - the team's WhatsApp number (WhatsApp is offered
 // to passengers as soon as it is set), where new-ticket alerts go, the languages the team speaks,
-// and how long help conversations are kept. Support hours are around the clock for now.
+// how long help conversations are kept, and after how long without a reply a complete answer
+// closes the conversation. Support hours are around the clock for now.
 export default function AdminSupportSettings() {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<SupportSettings | null>(null);
@@ -20,6 +21,7 @@ export default function AdminSupportSettings() {
   const [alertEmail, setAlertEmail] = useState('');
   const [languages, setLanguages] = useState<string[]>([]);
   const [retention, setRetention] = useState('90');
+  const [noReplyMinutes, setNoReplyMinutes] = useState('10');
   const [saving, setSaving] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -33,6 +35,7 @@ export default function AdminSupportSettings() {
     setAlertEmail(data.alert_email ?? '');
     setLanguages(data.team_languages);
     setRetention(String(data.retention_days));
+    setNoReplyMinutes(String(data.no_reply_close_minutes));
   }, []);
 
   useEffect(() => {
@@ -48,6 +51,8 @@ export default function AdminSupportSettings() {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setErrorKey('adminSupportSettings.invalidEmail');
     const days = Number(retention);
     if (!Number.isInteger(days) || days < 7 || days > 730) return setErrorKey('adminSupportSettings.invalidRetention');
+    const minutes = Number(noReplyMinutes);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) return setErrorKey('adminSupportSettings.invalidNoReply');
     if (languages.length === 0) return setErrorKey('adminSupportSettings.invalidLanguages');
     setErrorKey(null);
     setSaving(true);
@@ -56,6 +61,7 @@ export default function AdminSupportSettings() {
       alert_email: email || null,
       team_languages: LANGUAGES.filter((l) => languages.includes(l)),
       retention_days: days,
+      no_reply_close_minutes: minutes,
     });
     setSaving(false);
     if (error || !data) return setErrorKey('adminSupportSettings.saveError');
@@ -106,6 +112,10 @@ export default function AdminSupportSettings() {
       <Text style={styles.label}>{t('adminSupportSettings.retention')}</Text>
       <AuthTextInput variant="card" value={retention} onChangeText={setRetention} keyboardType="number-pad" accessibilityLabel={t('adminSupportSettings.retention')} />
       <Text style={styles.hint}>{t('adminSupportSettings.retentionHint')}</Text>
+
+      <Text style={styles.label}>{t('adminSupportSettings.noReply')}</Text>
+      <AuthTextInput variant="card" value={noReplyMinutes} onChangeText={setNoReplyMinutes} keyboardType="number-pad" accessibilityLabel={t('adminSupportSettings.noReply')} />
+      <Text style={styles.hint}>{t('adminSupportSettings.noReplyHint')}</Text>
       <Text style={styles.hint}>{t('adminSupportSettings.hours')}</Text>
 
       {errorKey ? <ErrorNotice message={t(errorKey)} /> : null}

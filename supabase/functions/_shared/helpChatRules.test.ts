@@ -6,15 +6,19 @@ import { test } from 'node:test';
 import {
   addUsage,
   appContext,
+  cleanTitle,
   costUsd,
   detectEmergency,
   HELP_TEXTS,
   HELP_TOPICS,
   knowledgeBaseText,
+  parseFollowupKind,
   parseHelpLanguage,
+  previousConversationText,
   replayedAnswer,
   sanitizeUserText,
   systemPrompt,
+  withFollowupQuestion,
 } from './helpChatRules.ts';
 
 test('danger in any of the three languages is caught, accents or not', () => {
@@ -98,10 +102,9 @@ test('the cached instructions never contain anything per user or per message', (
   assert.match(context, /112/);
 });
 
-test('earlier answers carry a note of what they looked up; the button label follows the language', () => {
+test('earlier answers carry a note of what they looked up', () => {
   assert.equal(replayedAnswer('You have €27.49 reserved.', ['get_my_payments', 'get_my_payments']), '(Looked up: get_my_payments)\nYou have €27.49 reserved.');
   assert.equal(replayedAnswer('The fee is €2.49.', null), 'The fee is €2.49.');
-  assert.match(appContext({ language: 'fr', nowIso: '2026-10-23T10:00:00Z', currentRide: 'none', emergencyLineShown: false }), /Parler à une personne/);
 });
 
 test("a passenger can't fake the app's context block", () => {
@@ -109,10 +112,49 @@ test("a passenger can't fake the app's context block", () => {
   assert.equal(sanitizeUserText('  hello  '), 'hello');
 });
 
-test('the fixed refusal always points to a person, in every language', () => {
+test('the fixed refusal always points to the team, in every language; the closing is short', () => {
   for (const [language, texts] of Object.entries(HELP_TEXTS)) {
-    assert.match(texts.refusal, /person|personne|persona/i, language);
+    assert.match(texts.refusal, /team|équipe|equipo/i, language);
+    assert.ok(texts.closing.length > 0 && texts.closing.length < 60, language);
   }
+});
+
+test('the context says whether they are at the airport, whether "anything else?" was asked, and the earlier conversation', () => {
+  const base = { language: 'en', nowIso: '2026-10-23T10:00:00Z', currentRide: 'none', emergencyLineShown: false };
+  assert.match(appContext({ ...base, atAirport: true }), /At the airport now[^\n]*: yes/);
+  assert.match(appContext(base), /At the airport now[^\n]*: no/);
+  assert.match(appContext({ ...base, followupAsked: true }), /whether they're done: yes/);
+  const earlier = previousConversationText('Refund for ride of 24 Oct', [
+    { role: 'user', content: 'Where is my refund?' },
+    { role: 'assistant', content: 'It was released on 25 Oct.' },
+  ]);
+  assert.match(appContext({ ...base, previousConversation: earlier }), /Earlier conversation[\s\S]*Title: Refund for ride of 24 Oct[\s\S]*Passenger: Where is my refund\?/);
+  assert.doesNotMatch(appContext(base), /Earlier conversation/);
+});
+
+test('the earlier conversation: its last 12 messages, each kept short', () => {
+  const many = Array.from({ length: 20 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `message ${i} ${'x'.repeat(700)}` }));
+  const text = previousConversationText(null, many);
+  assert.equal(text.split('\n').length, 13);
+  assert.match(text, /^Title: \(none\)/);
+  assert.doesNotMatch(text, /message 7 /);
+  assert.ok(text.split('\n').every((line) => line.length < 640));
+});
+
+test('"are you done?": the fixed question added on its own line, in the language', () => {
+  assert.equal(withFollowupQuestion('Got it.', 'question', 'en'), 'Got it.\n\nAnything else I can help with?');
+  assert.equal(withFollowupQuestion('', 'problem', 'fr'), 'Est-ce que c’est réglé ?');
+  assert.equal(withFollowupQuestion('  ', 'question', 'es'), '¿Te puedo ayudar con algo más?');
+});
+
+test('titles: one clean line of at most 60 characters', () => {
+  assert.equal(cleanTitle('  "Refund for ride of 24 Oct."  '), 'Refund for ride of 24 Oct');
+  assert.equal(cleanTitle('a\nb'), 'a b');
+  assert.equal(cleanTitle('x'.repeat(80))?.length, 60);
+  assert.equal(cleanTitle(''), null);
+  assert.equal(cleanTitle(42), null);
+  assert.equal(parseFollowupKind('problem'), 'problem');
+  assert.equal(parseFollowupKind('anything'), 'question');
 });
 
 test('every suggested question has a knowledge base section to fall back on', async () => {

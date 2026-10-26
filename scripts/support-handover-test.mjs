@@ -1,7 +1,7 @@
-// Checks, against the TEST Supabase project only, "Did this solve your problem?" and the handover
+// Checks, against the TEST Supabase project only, how a conversation is resolved and the handover
 // to the FLOQQ team (help-chat + support-handover, 20261023040000_support_tickets.sql). It talks
 // to the real model, so each run costs a few cents.
-//   - a complete answer asks "Did this solve your problem?"; "Yes" marks it resolved;
+//   - a complete answer asks nothing and offers no team; "No, that's all" marks it resolved;
 //   - "No" -> language -> WhatsApp: the message carries only the ticket reference, in the chosen
 //     language; the ticket has an English summary for the team;
 //   - call back: an invalid number, a missing consent or a time not on offer is refused; the
@@ -118,10 +118,17 @@ try {
   const solvedId = solved.data.conversationId;
   const fee = await chat(ana, { action: 'send', conversationId: solvedId, message: 'How much is the FLOQQ fee and when is it charged?', language: 'en' });
   console.log(`      > ${fee.data?.message?.content?.replace(/\n/g, ' ')}`);
-  check('a complete answer asks "Did this solve your problem?"', fee.data?.resolutionCheck === true && fee.data?.handoverReason == null, JSON.stringify({ check: fee.data?.resolutionCheck, handover: fee.data?.handoverReason }));
+  check(
+    'a complete answer asks nothing and offers no team',
+    fee.data?.handoverReason == null && fee.data?.message?.followup == null && fee.data?.conversation?.state === 'active',
+    JSON.stringify({ followup: fee.data?.message?.followup, handover: fee.data?.handoverReason })
+  );
   const yes = await chat(ana, { action: 'resolve', conversationId: solvedId });
-  const { data: solvedRow } = await service.from('help_conversations').select('resolved_at, resolved_by').eq('id', solvedId).single();
-  check('"Yes" marks the conversation resolved by the assistant', yes.status === 200 && solvedRow?.resolved_by === 'assistant' && solvedRow.resolved_at != null);
+  const { data: solvedRow } = await service.from('help_conversations').select('state, resolved_at, resolved_by').eq('id', solvedId).single();
+  check(
+    '"No, that\'s all" marks the conversation resolved by the assistant',
+    yes.status === 200 && solvedRow?.state === 'resolved_by_assistant' && solvedRow.resolved_by === 'assistant' && solvedRow.resolved_at != null
+  );
 
   // --- "No" -> language -> WhatsApp ---
   const ben = await passenger('Ben', 30);
@@ -238,8 +245,10 @@ try {
   // --- The assistant hands over by itself ---
   const money = await chat(dani, { action: 'send', conversationId: daniStart.data.conversationId, message: 'I was charged twice for this ride! Two payments on my card.', language: 'en' });
   console.log(`      > ${money.data?.message?.content?.replace(/\n/g, ' ')}`);
-  check('a money problem: the assistant hands over by itself', money.data?.handoverReason === 'money_problem' && money.data?.resolutionCheck === false, money.data?.handoverReason);
-  const undecided = await chat(ana, { action: 'send', conversationId: solvedId, message: "If someone in my group doesn't show up, do I get my €2.49 back?", language: 'en' });
+  check('a money problem: the assistant hands over by itself', money.data?.handoverReason === 'money_problem' && money.data?.message?.followup == null, money.data?.handoverReason);
+  // Ana's first conversation is resolved, so read-only: a new one, as after "New conversation".
+  const anaAgain = await chat(ana, { action: 'start', language: 'en', fresh: true });
+  const undecided = await chat(ana, { action: 'send', conversationId: anaAgain.data.conversationId, message: "If someone in my group doesn't show up, do I get my €2.49 back?", language: 'en' });
   console.log(`      > ${undecided.data?.message?.content?.replace(/\n/g, ' ')}`);
   check(
     'a TO DECIDE question: no promise, handed over',

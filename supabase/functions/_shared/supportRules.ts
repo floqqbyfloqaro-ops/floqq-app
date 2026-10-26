@@ -24,11 +24,13 @@ export const DEFAULT_SCHEDULE: SupportSchedule = {
   sun: ALL_DAY,
 };
 
-// Why the conversation goes to a person; the assistant gives one of these, "Talk to a person"
-// and "No" to "Did this solve your problem?" have their own.
+// Why the conversation goes to a person; the assistant gives one of these, "Contact the FLOQQ
+// team" (the … menu) and "No, still a problem" have their own.
 export const HANDOVER_REASONS = [
   'user_asked',
   'not_solved',
+  // Frustrated or urgent: stuck at the airport, upset, the same message again.
+  'urgent',
   'money_problem',
   'safety',
   'dispute',

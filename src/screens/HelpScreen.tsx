@@ -19,19 +19,29 @@ import {
 
 import ErrorNotice from '../components/ErrorNotice';
 import HelpAvatar from '../components/HelpAvatar';
+import HelpClosingCard from '../components/HelpClosingCard';
 import HelpComposer from '../components/HelpComposer';
+import HelpFollowupButtons from '../components/HelpFollowupButtons';
 import HelpHandover from '../components/HelpHandover';
 import HelpMessageRow from '../components/HelpMessageRow';
+import HelpRequestItem from '../components/HelpRequestItem';
 import HelpTicketCard from '../components/HelpTicketCard';
+import PrimaryButton from '../components/PrimaryButton';
 import SecondaryButton from '../components/SecondaryButton';
 import StatusPill from '../components/StatusPill';
 import {
   fetchHelpTopic,
+  fetchMyHelpRequests,
   HelpAction,
+  HelpConversation,
   helpLanguageFor,
   HelpMessage,
-  markHelpResolved,
-  sendHelpFeedback,
+  HelpRequest,
+  isArchived,
+  isResolved,
+  openHelpConversation,
+  rateHelpConversation,
+  resolveHelpConversation,
   sendHelpMessageStreamed,
   startHelpConversation,
 } from '../services/helpChat';
@@ -40,7 +50,7 @@ import { plainText } from '../services/helpMarkdown';
 import { fetchMyGroupStatus, fetchMyLatestRequest, MyPassengerRequest } from '../services/passengerRequests';
 import { supabase } from '../services/supabase';
 import { fetchMyLatestTicket, fetchMyTickets, MyTicket } from '../services/supportInbox';
-import { baseText, borders, colors, radii, spacing } from '../theme/colors';
+import { baseText, borders, colors, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
   onBack: () => void;
@@ -53,9 +63,9 @@ type Props = {
 
 type Item =
   | { kind: 'message'; message: HelpMessage; firstInGroup: boolean; lastInGroup: boolean; streaming: boolean }
-  | { kind: 'check' }
-  | { kind: 'glad' }
-  | { kind: 'offer' }
+  | { kind: 'followup'; messageId: string; followup: 'question' | 'problem' }
+  | { kind: 'closing' }
+  | { kind: 'closed' }
   | { kind: 'retry' }
   | { kind: 'handover' }
   | { kind: 'ticket' };
@@ -68,10 +78,16 @@ const SEND_ERRORS: Record<string, string> = {
 const TICKET_REFRESH_MS = 20_000;
 const STREAMING_ID = 'streaming';
 
+type StartOptions = { fresh?: boolean; previousConversationId?: string };
+
 // "Help": the FLOQQ Assistant, a full-screen chat. It greets the passenger by name, knows their
 // current ride (a context card, and suggested questions that follow the ride), streams its answers,
-// shows the passenger's own data as cards and offers buttons to the right screen. "Did this solve
-// your problem?", the handover to the team and the ticket all happen inside the conversation. Typed
+// shows the passenger's own data as cards and offers buttons to the right screen. A conversation
+// ends like with a good human agent: the passenger says they're done (a warm closing and a closing
+// card with "Was this helpful?"), the one "Anything else?" is answered, or it goes quiet (archived).
+// The team is offered only when it makes sense - and is always reachable from the … menu. Archived
+// conversations are read-only, in "Your requests", each with "I still need help with this" (a new
+// conversation that knows the earlier one); writing below an archived one does the same. Typed
 // text is never lost, a message written offline goes out once the phone is back online, and when
 // the assistant can't be reached the suggested questions still get the knowledge base's answer.
 export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPaymentMethods, onShowBadge }: Props) {
@@ -82,6 +98,7 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
 
   const [userId, setUserId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversation, setConversation] = useState<HelpConversation | null>(null);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [messages, setMessages] = useState<HelpMessage[]>([]);
   const [startFailed, setStartFailed] = useState(false);
@@ -90,20 +107,24 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
   const [streaming, setStreaming] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [failures, setFailures] = useState(0);
-  const [checkFor, setCheckFor] = useState<string | null>(null);
-  const [resolved, setResolved] = useState(false);
-  const [offerFor, setOfferFor] = useState<{ messageId: string; reason: string } | null>(null);
+  // "Yes, another question": the two answers go away, the conversation carries on.
+  const [followupDismissed, setFollowupDismissed] = useState<string | null>(null);
   const [handoverReason, setHandoverReason] = useState<string | null>(null);
   const [ticket, setTicket] = useState<MyTicket | null>(null);
   const [changingChannel, setChangingChannel] = useState(false);
   const [ride, setRide] = useState<{ request: MyPassengerRequest; facts: HelpRideFacts } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [requestsOpen, setRequestsOpen] = useState(false);
-  const [requests, setRequests] = useState<MyTicket[]>([]);
+  const [requests, setRequests] = useState<HelpRequest[]>([]);
+  const [requestTickets, setRequestTickets] = useState<MyTicket[]>([]);
+  // A conversation from "Your requests", opened to read.
+  const [viewing, setViewing] = useState<{ conversation: HelpConversation; messages: HelpMessage[] } | null>(null);
   const listRef = useRef<FlatList<Item>>(null);
   const sendingRef = useRef(false);
 
   const draftKey = userId ? `help-draft:${userId}` : null;
   const queueKey = userId ? `help-queue:${userId}` : null;
+  const archived = isArchived(conversation?.state);
 
   // --- Loading ---
 
@@ -126,21 +147,26 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
     });
   }, []);
 
+  // fresh: a new conversation; previousConversationId: "I still need help with this". Returns the
+  // conversation now shown.
   const start = useCallback(
-    async (fresh = false) => {
+    async (options: StartOptions = {}) => {
       setStartFailed(false);
-      setCheckFor(null);
-      setResolved(false);
-      setOfferFor(null);
+      setFollowupDismissed(null);
       setHandoverReason(null);
       setSendError(null);
       setFailures(0);
-      const result = await startHelpConversation(language, fresh);
-      if (result.error || !result.conversationId) return setStartFailed(true);
+      const result = await startHelpConversation(language, options);
+      if (result.error || !result.conversationId) {
+        setStartFailed(true);
+        return null;
+      }
       setConversationId(result.conversationId);
+      setConversation(result.conversation);
       setMessages(result.messages);
       setFirstName(result.firstName);
       loadTicket();
+      return result.conversationId;
     },
     [language, loadTicket]
   );
@@ -187,12 +213,10 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
   // --- Sending ---
 
   const send = useCallback(
-    async (text: string) => {
-      if (!conversationId || sendingRef.current) return;
+    async (text: string, target: string | null) => {
+      if (!target || sendingRef.current) return;
       sendingRef.current = true;
       setSendError(null);
-      setCheckFor(null);
-      setResolved(false);
       const local: HelpMessage = { id: `local-${Date.now()}`, role: 'user', content: text, created_at: new Date().toISOString() };
       const placeholder: HelpMessage = { id: STREAMING_ID, role: 'assistant', content: '', created_at: new Date().toISOString() };
       setMessages((current) => [...current, local, placeholder]);
@@ -207,7 +231,7 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
         setMessages((current) => current.map((m) => (m.id === STREAMING_ID ? { ...m, content: text } : m)));
       };
 
-      const { answer, error } = await sendHelpMessageStreamed(conversationId, text, language, {
+      const { answer, error } = await sendHelpMessageStreamed(target, text, language, {
         onEmergency: () => setMessages((current) => current.map((m) => (m.id === STREAMING_ID ? { ...m, emergency: true } : m))),
         onText: (delta) => {
           buffered += delta;
@@ -226,9 +250,8 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
         setFailures(0);
         setMessages((current) => current.map((m) => (m.id === STREAMING_ID ? answer.message : m)));
         AccessibilityInfo.announceForAccessibility(plainText(answer.message.content));
+        if (answer.conversation) setConversation(answer.conversation);
         if (answer.handoverReason) setHandoverReason((reason) => reason ?? answer.handoverReason);
-        else if (answer.offerHandover) setOfferFor({ messageId: answer.message.id, reason: answer.emergency ? 'safety' : 'user_asked' });
-        else if (answer.resolutionCheck) setCheckFor(answer.message.id);
         return;
       }
 
@@ -237,6 +260,12 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
       if (error === 'interrupted') {
         // The server still finished and stored it: show what it has.
         start();
+        return;
+      }
+      if (error === 'conversation_closed') {
+        // Archived meanwhile (it went quiet): carry on in a new conversation that knows it.
+        const next = await start({ previousConversationId: target });
+        if (next) send(text, next);
         return;
       }
       if (error === 'offline') {
@@ -251,7 +280,20 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
       }
       setFailures((count) => count + 1);
     },
-    [conversationId, language, queueKey, start, t]
+    [language, queueKey, start, t]
+  );
+
+  // Below an archived conversation, writing again starts a new one that knows it.
+  const sendToCurrent = useCallback(
+    async (text: string) => {
+      if (archived && conversationId) {
+        const next = await start({ previousConversationId: conversationId });
+        if (next) send(text, next);
+        return;
+      }
+      send(text, conversationId);
+    },
+    [archived, conversationId, send, start]
   );
 
   const sendDraft = () => {
@@ -263,7 +305,7 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
       if (queueKey) AsyncStorage.setItem(queueKey, text).catch(() => {});
       return;
     }
-    send(text);
+    sendToCurrent(text);
   };
 
   // Back online: the waiting message goes out by itself.
@@ -272,21 +314,21 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
     const text = queued;
     setQueued(null);
     if (queueKey) AsyncStorage.removeItem(queueKey).catch(() => {});
-    send(text);
-  }, [offline, queued, conversationId, queueKey, send]);
+    sendToCurrent(text);
+  }, [offline, queued, conversationId, queueKey, sendToCurrent]);
 
   const retry = () => {
     const text = draft.trim();
     if (!text) return;
     setDraft('');
-    send(text);
+    sendToCurrent(text);
   };
 
   // Suggested questions: asked like any message - or, when the assistant can't be reached, answered
   // straight from the knowledge base.
   const askTopic = async (topic: HelpTopic) => {
     const question = t(`help.chip.${topic}`);
-    if (failures < 2) return send(question);
+    if (failures < 2) return sendToCurrent(question);
     const { article } = await fetchHelpTopic(topic, language);
     const now = new Date().toISOString();
     setMessages((current) => [
@@ -296,15 +338,33 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
     ]);
   };
 
-  const answerCheck = async (solved: boolean) => {
+  // "No, that's all" / "Yes, it's solved": the closing, resolved. "Yes, another question": carry on.
+  // "No, still a problem": the team.
+  const answerFollowup = async (messageId: string, kind: 'question' | 'problem', done: boolean) => {
     if (!conversationId) return;
-    setCheckFor(null);
-    if (solved) {
-      setResolved(true);
-      await markHelpResolved(conversationId);
-    } else {
-      setHandoverReason('not_solved');
+    setFollowupDismissed(messageId);
+    if (!done) {
+      if (kind === 'problem') setHandoverReason('not_solved');
+      return;
     }
+    const result = await resolveHelpConversation(conversationId, language);
+    if (result.conversation) setConversation(result.conversation);
+    if (result.message) setMessages((current) => [...current, result.message!]);
+  };
+
+  const rate = (id: string, value: 'up' | 'down') => {
+    rateHelpConversation(id, value);
+  };
+
+  // The … menu's "Contact the FLOQQ team": always honoured. From an archived conversation, in a new
+  // one that knows it.
+  const contactTeam = async () => {
+    setMenuOpen(false);
+    if (archived && conversationId) {
+      const next = await start({ previousConversationId: conversationId });
+      if (!next) return;
+    }
+    setHandoverReason('user_asked');
   };
 
   const onAction = (action: HelpAction) => {
@@ -315,14 +375,30 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
     else if (action === 'location_settings') Linking.openSettings().catch(() => {});
   };
 
-  const onFeedback = useCallback((messageId: string, value: 'up' | 'down' | null, note?: string) => {
-    if (messageId === STREAMING_ID || messageId.startsWith('local-') || messageId.startsWith('topic-')) return;
-    sendHelpFeedback(messageId, value, note);
-  }, []);
+  // --- "Your requests" ---
 
   const openRequests = async () => {
+    setViewing(null);
     setRequestsOpen(true);
-    setRequests(await fetchMyTickets());
+    const [conversations, tickets] = await Promise.all([fetchMyHelpRequests(), fetchMyTickets()]);
+    setRequests(conversations);
+    setRequestTickets(tickets);
+  };
+
+  const openTicketFor = (id: string) => requestTickets.find((item) => item.conversation_id === id && item.status !== 'resolved') ?? null;
+  // Waiting for our team first, then newest first (the order they came in).
+  const sortedRequests = [...requests].sort((a, b) => Number(openTicketFor(b.id) != null) - Number(openTicketFor(a.id) != null));
+
+  const viewRequest = async (id: string) => {
+    const opened = await openHelpConversation(id);
+    if (opened.conversation) setViewing({ conversation: opened.conversation, messages: opened.messages });
+  };
+
+  // "I still need help with this": a new conversation linked to the one being read.
+  const stillNeedHelp = async (previousConversationId: string) => {
+    setRequestsOpen(false);
+    setViewing(null);
+    await start({ previousConversationId });
   };
 
   // --- What the list shows ---
@@ -338,13 +414,17 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
       streaming: message.id === STREAMING_ID,
     }));
     if (failures > 0 && !streaming) list.push({ kind: 'retry' });
-    if (checkFor && !handoverReason && !openTicket) list.push({ kind: 'check' });
-    if (resolved) list.push({ kind: 'glad' });
-    if (offerFor && !handoverReason && !openTicket) list.push({ kind: 'offer' });
+    // The one "are you done?": its two answers, while it is the last thing said.
+    const last = messages[messages.length - 1];
+    if (last?.role === 'assistant' && last.followup && last.id !== followupDismissed && conversation?.state === 'active' && !streaming && !handoverReason) {
+      list.push({ kind: 'followup', messageId: last.id, followup: last.followup });
+    }
+    if (isResolved(conversation?.state)) list.push({ kind: 'closing' });
+    else if (conversation?.state === 'closed_no_reply' && messages.length > 0) list.push({ kind: 'closed' });
     if (((handoverReason || failures >= 2) && !openTicket) || changingChannel) list.push({ kind: 'handover' });
     if (showTicket) list.push({ kind: 'ticket' });
     return list;
-  }, [messages, failures, streaming, checkFor, handoverReason, openTicket, resolved, offerFor, changingChannel, showTicket]);
+  }, [messages, failures, streaming, followupDismissed, conversation?.state, handoverReason, openTicket, changingChannel, showTicket]);
 
   const stage = rideStage(ride?.facts ?? null, Date.now());
   const pill = stagePill(stage);
@@ -358,6 +438,7 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
           {firstName ? t('help.greetingName', { name: firstName }) : t('help.greeting')}
         </Text>
       </View>
+      {conversation?.previous_conversation_id ? <Text style={styles.continuing}>{t('help.continuing')}</Text> : null}
       {ride && stage !== 'none' ? (
         <View style={styles.context}>
           <Text style={styles.contextLabel}>{t('help.yourRide')}</Text>
@@ -369,7 +450,7 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
           </Text>
           <View style={styles.contextFooter}>
             {pill ? <StatusPill status={pill} label={t(`help.stage.${stage}`)} /> : <View />}
-            <Pressable onPress={() => send(t('help.helpWithRideQuestion'))} style={styles.contextButton} accessibilityRole="button" disabled={streaming}>
+            <Pressable onPress={() => sendToCurrent(t('help.helpWithRideQuestion'))} style={styles.contextButton} accessibilityRole="button" disabled={streaming}>
               <Text style={styles.contextButtonText}>{t('help.helpWithRide')}</Text>
             </Pressable>
           </View>
@@ -396,7 +477,6 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
             lastInGroup={item.lastInGroup}
             streaming={item.streaming}
             onAction={onAction}
-            onFeedback={onFeedback}
           />
         );
       case 'retry':
@@ -406,33 +486,26 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
             {draft.trim() ? <SecondaryButton label={t('help.tryAgain')} icon="refresh" onPress={retry} /> : null}
           </View>
         );
-      case 'check':
+      case 'followup':
         return (
-          <View style={styles.inlineCard}>
-            <Text style={styles.inlineTitle}>{t('help_resolved_question')}</Text>
-            <View style={styles.checkButtons}>
-              <View style={styles.flex}>
-                <SecondaryButton label={t('help.yes')} icon="thumbs-up-outline" onPress={() => answerCheck(true)} />
-              </View>
-              <View style={styles.flex}>
-                <SecondaryButton label={t('help.no')} icon="thumbs-down-outline" onPress={() => answerCheck(false)} />
-              </View>
-            </View>
-          </View>
+          <HelpFollowupButtons
+            kind={item.followup}
+            onDone={() => answerFollowup(item.messageId, item.followup, true)}
+            onMore={() => answerFollowup(item.messageId, item.followup, false)}
+          />
         );
-      case 'glad':
-        return (
-          <Text style={styles.glad} accessibilityLiveRegion="polite">
-            {t('help.gladWeHelped')}
-          </Text>
-        );
-      case 'offer':
-        return (
-          <View style={styles.inlineCard}>
-            <Text style={styles.inlineText}>{t('help.offerTeam')}</Text>
-            <SecondaryButton label={t('help.talkToPerson')} icon="person-outline" onPress={() => setHandoverReason(offerFor?.reason ?? 'user_asked')} />
-          </View>
-        );
+      case 'closing':
+        return conversation ? (
+          <HelpClosingCard
+            key={conversation.id}
+            title={conversation.title}
+            helpful={conversation.helpful}
+            byTeam={conversation.state === 'resolved_by_team'}
+            onRate={(value) => rate(conversation.id, value)}
+          />
+        ) : null;
+      case 'closed':
+        return <Text style={styles.closed}>{t('help.closedNoReply')}</Text>;
       case 'handover':
         return conversationId ? (
           <HelpHandover
@@ -469,19 +542,13 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
               <Text style={styles.aiBadgeText}>{t('help.aiBadge')}</Text>
             </View>
           </View>
-          <Pressable onPress={openRequests} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('help.yourRequests')}>
+          <Pressable onPress={openRequests} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('your_requests')}>
             <Ionicons name="file-tray-outline" size={22} color={colors.textPrimary} />
           </Pressable>
-          <Pressable onPress={() => start(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('help.newConversation')} disabled={streaming}>
-            <Ionicons name="create-outline" size={22} color={colors.textPrimary} />
+          <Pressable onPress={() => setMenuOpen(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('help.menu')}>
+            <Ionicons name="ellipsis-horizontal" size={22} color={colors.textPrimary} />
           </Pressable>
         </View>
-        {!openTicket && !handoverReason ? (
-          <Pressable onPress={() => setHandoverReason('user_asked')} style={styles.person} accessibilityRole="button" disabled={!conversationId}>
-            <Ionicons name="person-outline" size={16} color={colors.accentPrimaryStrong} />
-            <Text style={styles.personText}>{t('help.talkToPerson')}</Text>
-          </Pressable>
-        ) : null}
 
         <FlatList
           ref={listRef}
@@ -509,23 +576,96 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
         </View>
       </KeyboardAvoidingView>
 
-      <Modal visible={requestsOpen} animationType="slide" transparent onRequestClose={() => setRequestsOpen(false)}>
+      {/* The … menu: a new conversation, and the team - reachable, never pushed. */}
+      <Modal visible={menuOpen} animationType="fade" transparent onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)} accessibilityRole="button" accessibilityLabel={t('help.close')}>
+          <View style={styles.menu}>
+            <Pressable
+              onPress={() => {
+                setMenuOpen(false);
+                start({ fresh: true });
+              }}
+              style={styles.menuItem}
+              accessibilityRole="button"
+              disabled={streaming}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.textPrimary} />
+              <Text style={styles.menuText}>{t('help.newConversation')}</Text>
+            </Pressable>
+            {!openTicket ? (
+              <Pressable onPress={contactTeam} style={styles.menuItem} accessibilityRole="button" disabled={!conversationId}>
+                <Ionicons name="person-outline" size={20} color={colors.textPrimary} />
+                <Text style={styles.menuText}>{t('help.contactTeam')}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={requestsOpen} animationType="slide" transparent onRequestClose={() => (viewing ? setViewing(null) : setRequestsOpen(false))}>
         <View style={styles.requestsBackdrop}>
           <View style={styles.requestsSheet}>
             <View style={styles.requestsHeader}>
-              <Text style={styles.title} accessibilityRole="header">
-                {t('help.yourRequests')}
+              {viewing ? (
+                <Pressable onPress={() => setViewing(null)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('admin.back')}>
+                  <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+                </Pressable>
+              ) : null}
+              <Text style={[styles.title, styles.flex]} accessibilityRole="header" numberOfLines={1}>
+                {viewing ? (viewing.conversation.title ?? t('help.untitled')) : t('your_requests')}
               </Text>
               <Pressable onPress={() => setRequestsOpen(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('help.close')}>
                 <Ionicons name="close" size={24} color={colors.textPrimary} />
               </Pressable>
             </View>
-            {requests.length === 0 ? <Text style={styles.inlineText}>{t('help.noRequests')}</Text> : null}
-            <FlatList
-              data={requests}
-              keyExtractor={(request) => request.reference}
-              renderItem={({ item }) => <HelpTicketCard ticket={item} />}
-            />
+            {viewing ? (
+              <FlatList
+                data={viewing.messages}
+                keyExtractor={(message) => message.id}
+                renderItem={({ item, index }) => (
+                  <HelpMessageRow
+                    message={item}
+                    firstInGroup={index === 0 || viewing.messages[index - 1].role !== item.role}
+                    lastInGroup={index === viewing.messages.length - 1 || viewing.messages[index + 1].role !== item.role}
+                    onAction={() => {}}
+                  />
+                )}
+                ListFooterComponent={
+                  <View style={styles.viewingFooter}>
+                    {isResolved(viewing.conversation.state) ? (
+                      <HelpClosingCard
+                        key={viewing.conversation.id}
+                        title={viewing.conversation.title}
+                        helpful={viewing.conversation.helpful}
+                        byTeam={viewing.conversation.state === 'resolved_by_team'}
+                        onRate={(value) => rate(viewing.conversation.id, value)}
+                      />
+                    ) : null}
+                    {isArchived(viewing.conversation.state) ? (
+                      <PrimaryButton label={t('help.stillNeedHelp')} onPress={() => stillNeedHelp(viewing.conversation.id)} />
+                    ) : (
+                      <SecondaryButton
+                        label={t('help.backToConversation')}
+                        onPress={() => {
+                          setRequestsOpen(false);
+                          setViewing(null);
+                          start();
+                        }}
+                      />
+                    )}
+                  </View>
+                }
+              />
+            ) : (
+              <>
+                {requests.length === 0 ? <Text style={styles.inlineText}>{t('help.noRequests')}</Text> : null}
+                <FlatList
+                  data={sortedRequests}
+                  keyExtractor={(request) => request.id}
+                  renderItem={({ item }) => <HelpRequestItem request={item} openTicket={openTicketFor(item.id)} onOpen={() => viewRequest(item.id)} />}
+                />
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -572,19 +712,6 @@ const styles = StyleSheet.create({
     color: colors.accentPrimaryStrong,
     fontWeight: '700',
   },
-  person: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
-    gap: spacing.x1,
-    paddingHorizontal: spacing.x4,
-    paddingVertical: spacing.x2,
-  },
-  personText: {
-    ...baseText.bodySmall,
-    fontWeight: '700',
-    color: colors.accentPrimaryStrong,
-  },
   content: {
     paddingHorizontal: spacing.x4,
     paddingBottom: spacing.x6,
@@ -605,6 +732,11 @@ const styles = StyleSheet.create({
   greeting: {
     ...baseText.h3,
     flex: 1,
+  },
+  continuing: {
+    ...baseText.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.x3,
   },
   context: {
     padding: spacing.x4,
@@ -675,22 +807,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceCard,
     gap: spacing.x3,
   },
-  inlineTitle: {
-    ...baseText.body,
-    fontWeight: '700',
-  },
   inlineText: {
     ...baseText.body,
   },
-  checkButtons: {
-    flexDirection: 'row',
-    gap: spacing.x2,
-  },
-  glad: {
-    ...baseText.bodySmall,
-    color: colors.success,
+  closed: {
+    ...baseText.caption,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginTop: spacing.x3,
+    marginTop: spacing.x4,
   },
   footer: {
     paddingHorizontal: spacing.x4,
@@ -705,6 +829,31 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.x2,
   },
+  menuBackdrop: {
+    flex: 1,
+    alignItems: 'flex-end',
+    paddingTop: spacing.x12 + spacing.x8,
+    paddingHorizontal: spacing.x4,
+    backgroundColor: overlays.scrimLight,
+  },
+  menu: {
+    minWidth: 240,
+    borderRadius: radii.lg,
+    borderWidth: borders.regular,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceCardSolid,
+    paddingVertical: spacing.x1,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.x3,
+    minHeight: 48,
+    paddingHorizontal: spacing.x4,
+  },
+  menuText: {
+    ...baseText.body,
+  },
   requestsBackdrop: {
     flex: 1,
     backgroundColor: colors.bgPrimary,
@@ -718,6 +867,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.x3,
     marginBottom: spacing.x3,
+  },
+  viewingFooter: {
+    gap: spacing.x4,
+    paddingVertical: spacing.x6,
   },
 });

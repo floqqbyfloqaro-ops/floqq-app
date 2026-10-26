@@ -1,4 +1,5 @@
 {
+  "your_requests": "Your requests",
   "common": {
     "retry": "Try again",
     "comingSoon": "Coming soon"
@@ -660,16 +661,33 @@
     "warning": "Low ratings in the last {{days}} days: {{count}}",
     "warningDetail": "Ratings of 1-2 stars need a look. Open the History tab to review them."
   },
-  "help_resolved_question": "Did this solve your problem?",
   "help": {
+    "menu": "More options",
+    "contactTeam": "Contact the FLOQQ team",
+    "wasHelpful": "Was this helpful?",
+    "untitled": "Help request",
+    "rideOf": "Ride of {{date}}",
+    "stillNeedHelp": "I still need help with this",
+    "backToConversation": "Back to the conversation",
+    "closedNoReply": "This conversation was closed. Write below to start a new one - I’ll remember it.",
+    "continuing": "Picking up from your earlier request.",
+    "followup": {
+      "thatsAll": "No, that’s all",
+      "anotherQuestion": "Yes, another question",
+      "solvedYes": "Yes, it’s solved",
+      "solvedNo": "No, still a problem"
+    },
+    "status": {
+      "resolved": "Resolved",
+      "resolvedByTeam": "Resolved by our team",
+      "waitingForTeam": "Waiting for our team",
+      "closed": "Closed",
+      "inProgress": "In progress"
+    },
     "title": "Help",
     "inputPlaceholder": "Ask a question…",
     "send": "Send",
     "typing": "The assistant is writing…",
-    "talkToPerson": "Talk to a person",
-    "yes": "Yes",
-    "no": "No",
-    "gladWeHelped": "Glad we could help!",
     "startError": "We couldn't open the help chat.",
     "sendError": "Your message didn't go through. Please try again.",
     "rateLimited": "You've sent a lot of messages in a short time. Please wait a little and try again, or talk to a person.",
@@ -761,15 +779,12 @@
     "charactersLeft": "{{count}} characters left",
     "tryAgain": "Try again",
     "stillUnavailable": "The assistant still can't be reached. Tap a suggested question above for our written answer, or talk to our team below.",
-    "offerTeam": "Since you're at the airport, our team can help you right away.",
-    "yourRequests": "Your requests",
     "noRequests": "You haven't asked our team anything yet.",
     "newConversation": "New conversation",
     "youSaid": "You, {{time}}: {{text}}",
     "assistantSaid": "FLOQQ Assistant, {{time}}: {{text}}",
     "thumbsUp": "Helpful",
     "thumbsDown": "Not helpful",
-    "whatWasMissing": "What was missing? (optional)",
     "thanksForFeedback": "Thanks - this helps us improve.",
     "card": {
       "ride": "Your ride",
@@ -820,6 +835,10 @@
     }
   },
   "adminHelpMetrics": {
+    "resolvedByTeam": "Resolved by the team",
+    "closedNoReply": "Closed without reply",
+    "personAfterResolved": "Asked for a person after \"resolved\"",
+    "personAfterResolvedHint": "within 24 h - closed too early?",
     "tab": "Overview",
     "title": "This month",
     "loadError": "We couldn't load the figures.",
@@ -840,6 +859,9 @@
     "missing": "What was missing: {{note}}"
   },
   "adminSupportSettings": {
+    "noReply": "Close after no reply (minutes)",
+    "noReplyHint": "After a complete answer, a conversation with no reply for this long is archived as \"Closed\". No notification is sent.",
+    "invalidNoReply": "Enter between 1 and 1440 minutes.",
     "title": "Support settings",
     "loadError": "We couldn't load the support settings.",
     "whatsapp": "Team WhatsApp number",
@@ -885,6 +907,7 @@
       "days": "{{count}} days ago"
     },
     "reason": {
+      "urgent": "Frustrated or urgent",
       "user_asked": "Asked for a person",
       "not_solved": "Not solved by the assistant",
       "money_problem": "Money problem",
