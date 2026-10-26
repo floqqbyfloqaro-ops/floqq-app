@@ -267,7 +267,6 @@ function AppContent() {
         onOpenMyRide={() => setMainScreen('myRide')}
         isAdmin={isAdmin}
         onOpenAdmin={() => setMainScreen('admin')}
-        showProfile={PAYMENTS_ENABLED}
         onOpenProfile={() => setMainScreen('profile')}
         showEmailVerified={showEmailVerified}
         onDismissEmailVerified={() => setShowEmailVerified(false)}
