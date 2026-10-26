@@ -928,6 +928,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.x2,
   },
   chip: {
+    // A long translation (or large text) wraps inside the chip instead of running off the screen.
+    maxWidth: '100%',
     minHeight: 40,
     justifyContent: 'center',
     paddingHorizontal: spacing.x4,
