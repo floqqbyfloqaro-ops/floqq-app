@@ -257,7 +257,7 @@ try {
   );
   const meetingAt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' }).format(new Date(Date.now() + HOUR));
   const q8b = await ask(ben, 'What time do I meet my group?', 'en');
-  check(`Q8b times in Barcelona time: meeting at ${meetingAt}, not passed`, q8b.text.includes(meetingAt) && !/already passed|has passed/i.test(q8b.text), meetingAt);
+  check(`Q8b times in Barcelona time: meeting at ${meetingAt}, not passed`, q8b.text.includes(meetingAt) && !/already passed|has passed/i.test(q8b.text), q8b.text);
   const q9 = await ask(ben, "The arrow isn't working", 'en');
   check('Q9 the arrow: a "Location settings" button', q9.actions.includes('location_settings'), q9.actions.join(','));
   const q10 = await ask(ben, "Je suis à l'aéroport et je ne trouve pas mon groupe, ça fait 20 minutes !", 'fr');
@@ -346,7 +346,7 @@ try {
   );
 
   // --- Without the AI ---
-  const topic = await call(ana.client, 'help-chat', { action: 'topic', topic: 'fee', language: 'fr' });
+  const topic = await call(ana.client, 'help-chat', { action: 'topic', topic: 'cost', language: 'fr' });
   check('without the AI: a suggested question still gets the knowledge base answer', topic.status === 200 && /2[.,]49/.test(topic.data?.content ?? ''), topic.data?.title);
 
   // --- "Was this helpful?" and the admin's figures ---

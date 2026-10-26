@@ -224,3 +224,15 @@ export const SUMMARY_INSTRUCTIONS = `You write the summary on a support ticket f
 export function transcript(messages: { role: string; content: string }[]): string {
   return messages.map((m) => `${m.role === 'user' ? 'Passenger' : 'Assistant'}: ${m.content}`).join('\n\n');
 }
+
+// --- The passenger closes their request ---
+
+// A call back planned within this long (or "as soon as possible"): the team is told by email when
+// the passenger closes the request, so nobody calls them for nothing.
+export const CLOSE_ALERT_WITHIN_HOURS = 2;
+
+export function closeNeedsAlert(ticket: { channel: string; callbackAt: string | null }, nowMs: number): boolean {
+  if (ticket.channel !== 'callback') return false;
+  if (!ticket.callbackAt) return true;
+  return Date.parse(ticket.callbackAt) <= nowMs + CLOSE_ALERT_WITHIN_HOURS * HOUR_MS;
+}

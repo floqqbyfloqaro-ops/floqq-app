@@ -12,6 +12,8 @@ type Props = {
   // Its ticket while the team is on it: shown live ("We'll call you at 15:00").
   openTicket?: MyTicket | null;
   onOpen: () => void;
+  // "Close request" - only on a pending item (still going, or waiting for our team).
+  onClose?: () => void;
 };
 
 // The pill's look and label for each state (the pill styles are the ride ones: green done, amber
@@ -21,11 +23,12 @@ const STATE_PILL: Record<HelpConversationState, { status: StatusName; label: str
   resolved_by_team: { status: 'Group Confirmed', label: 'help.status.resolvedByTeam' },
   handed_over: { status: 'Driver En Route', label: 'help.status.waitingForTeam' },
   closed_no_reply: { status: 'Cancelled', label: 'help.status.closed' },
+  closed_by_user: { status: 'Cancelled', label: 'help.status.closedByYou' },
   active: { status: 'Searching', label: 'help.status.inProgress' },
 };
 
 // One line of "Your requests": what it was about, when, how it stands, and its ride.
-export default function HelpRequestItem({ request, openTicket, onOpen }: Props) {
+export default function HelpRequestItem({ request, openTicket, onOpen, onClose }: Props) {
   const { t, i18n } = useTranslation();
   const pill = STATE_PILL[request.state];
   const when = new Date(request.last_message_at).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' });
@@ -48,6 +51,11 @@ export default function HelpRequestItem({ request, openTicket, onOpen }: Props) 
         <StatusPill status={pill.status} label={t(pill.label)} />
       </View>
       {openTicket ? <HelpTicketCard ticket={openTicket} /> : null}
+      {onClose ? (
+        <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" style={styles.close}>
+          <Text style={styles.closeText}>{t('help.closeRequest')}</Text>
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -82,5 +90,16 @@ const styles = StyleSheet.create({
   },
   pill: {
     flexDirection: 'row',
+  },
+  close: {
+    alignSelf: 'flex-start',
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  closeText: {
+    ...baseText.bodySmall,
+    fontWeight: '700',
+    color: colors.dangerStrong,
+    textDecorationLine: 'underline',
   },
 });

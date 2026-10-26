@@ -662,6 +662,27 @@
     "warningDetail": "Les notes de 1-2 étoiles sont à examiner. Ouvrez l’onglet Historique pour les voir."
   },
   "help": {
+    "moreTopics": "Plus de sujets",
+    "allTopics": "Tous les sujets",
+    "topicGroup": {
+      "ride": "Votre trajet",
+      "meetup": "Retrouver son groupe",
+      "money": "Argent",
+      "account": "Compte",
+      "general": "Général"
+    },
+    "endChat": "Terminer la discussion",
+    "endConfirmTitle": "Terminer cette discussion ?",
+    "endConfirm": "Terminer",
+    "endContinue": "Continuer",
+    "endTicketQuestion": "Voulez-vous aussi annuler votre demande à notre équipe ?",
+    "endTicketCancel": "L’annuler",
+    "endTicketKeep": "La garder ouverte",
+    "closeRequest": "Clore la demande",
+    "closeRequestTitle": "Clore cette demande ?",
+    "closeRequestMessage": "Notre équipe ne vous contactera pas à ce sujet.",
+    "closeRequestKeep": "La garder",
+    "ticketClosedByYou": "Fermée par vous. Demande #{{reference}}",
     "menu": "Plus d’options",
     "contactTeam": "Contacter l’équipe FLOQQ",
     "wasHelpful": "Cela vous a-t-il aidé ?",
@@ -672,6 +693,7 @@
     "closedNoReply": "Cette conversation est terminée. Écrivez ci-dessous pour en commencer une nouvelle - je m’en souviendrai.",
     "continuing": "Suite de votre demande précédente.",
     "status": {
+      "closedByYou": "Fermée par vous",
       "resolved": "Résolue",
       "resolvedByTeam": "Résolue par notre équipe",
       "waitingForTeam": "En attente de notre équipe",
@@ -757,16 +779,26 @@
     "helpWithRide": "Aide pour ce trajet",
     "helpWithRideQuestion": "J’ai besoin d’aide pour mon trajet en cours.",
     "chip": {
+      "cancel": "Annuler ma demande",
+      "change_ride": "Modifier mon trajet",
       "why_no_match": "Pourquoi pas encore de groupe ?",
-      "change_ride": "Puis-je modifier mon trajet ?",
-      "fee": "Comment fonctionnent les frais ?",
-      "cancel": "Puis-je annuler ?",
+      "how_matching": "Comment se forment les groupes ?",
+      "flight_delayed": "Mon vol est en retard",
+      "meeting_point": "Où retrouver mon groupe ?",
       "find_group": "Je ne trouve pas mon groupe",
-      "arrow": "La flèche ne fonctionne pas",
+      "arrow": "La flèche ne marche pas",
+      "someone_missing": "Quelqu’un n’est pas là",
+      "cost": "Combien ça coûte ?",
+      "who_pays": "Qui paie le taxi ?",
+      "fare_split": "Comment le prix est partagé ?",
       "refund": "Où est mon remboursement ?",
-      "share_wrong": "Ma part semble fausse",
-      "how_it_works": "Comment fonctionne FLOQQ ?",
-      "cost": "Combien ça coûte ?"
+      "payment_failed": "Mon paiement a échoué",
+      "change_password": "Changer mon mot de passe",
+      "no_email": "Je n’ai pas reçu l’e-mail",
+      "change_email": "Changer mon e-mail",
+      "how_it_works": "Comment marche FLOQQ ?",
+      "is_it_safe": "C’est sûr ?",
+      "book_new_ride": "Réserver un nouveau trajet"
     },
     "offline": "Vous êtes hors ligne - votre message sera envoyé dès votre retour en ligne.",
     "queued": "En attente d’envoi : « {{text}} »",
@@ -891,6 +923,7 @@
     "saveError": "Impossible d’enregistrer les réglages. Veuillez réessayer."
   },
   "adminSupport": {
+    "closedByUser": "Fermée par l’utilisateur",
     "tab": "Tickets",
     "status": {
       "active": "Non résolus",

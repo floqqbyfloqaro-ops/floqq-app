@@ -266,6 +266,7 @@ function AppContent() {
             onEditRide={(requestId) => openNewRequest(requestId)}
             onOpenPaymentMethods={() => setMainScreen('profile')}
             onShowBadge={() => goToFindGroup('button')}
+            onNewRide={() => openNewRequest()}
           />
         </SlideInScreen>
       );

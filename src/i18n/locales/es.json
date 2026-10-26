@@ -658,6 +658,27 @@
     "warningDetail": "Las valoraciones de 1-2 estrellas necesitan revisión. Abre la pestaña Historial para verlas."
   },
   "help": {
+    "moreTopics": "Más temas",
+    "allTopics": "Todos los temas",
+    "topicGroup": {
+      "ride": "Tu trayecto",
+      "meetup": "Encontrar al grupo",
+      "money": "Dinero",
+      "account": "Cuenta",
+      "general": "General"
+    },
+    "endChat": "Finalizar chat",
+    "endConfirmTitle": "¿Finalizar este chat?",
+    "endConfirm": "Finalizar",
+    "endContinue": "Continuar",
+    "endTicketQuestion": "¿Quieres cancelar también tu solicitud a nuestro equipo?",
+    "endTicketCancel": "Cancelarla",
+    "endTicketKeep": "Mantenerla abierta",
+    "closeRequest": "Cerrar solicitud",
+    "closeRequestTitle": "¿Cerrar esta solicitud?",
+    "closeRequestMessage": "Nuestro equipo no te contactará por esto.",
+    "closeRequestKeep": "Mantenerla",
+    "ticketClosedByYou": "Cerrada por ti. Solicitud #{{reference}}",
     "menu": "Más opciones",
     "contactTeam": "Contactar con el equipo de FLOQQ",
     "wasHelpful": "¿Te ha sido útil?",
@@ -668,6 +689,7 @@
     "closedNoReply": "Esta conversación se cerró. Escribe abajo para empezar una nueva; la tendré en cuenta.",
     "continuing": "Seguimos con tu solicitud anterior.",
     "status": {
+      "closedByYou": "Cerrada por ti",
       "resolved": "Resuelta",
       "resolvedByTeam": "Resuelta por nuestro equipo",
       "waitingForTeam": "Esperando a nuestro equipo",
@@ -753,16 +775,26 @@
     "helpWithRide": "Ayuda con este trayecto",
     "helpWithRideQuestion": "Necesito ayuda con mi trayecto actual.",
     "chip": {
+      "cancel": "Cancelar mi solicitud",
+      "change_ride": "Cambiar mi trayecto",
       "why_no_match": "¿Por qué aún no hay grupo?",
-      "change_ride": "¿Puedo cambiar mi trayecto?",
-      "fee": "¿Cómo funciona la tarifa?",
-      "cancel": "¿Puedo cancelar?",
+      "how_matching": "¿Cómo se forman los grupos?",
+      "flight_delayed": "Mi vuelo va con retraso",
+      "meeting_point": "¿Dónde encuentro a mi grupo?",
       "find_group": "No encuentro a mi grupo",
       "arrow": "La flecha no funciona",
+      "someone_missing": "Falta alguien",
+      "cost": "¿Cuánto cuesta?",
+      "who_pays": "¿Quién paga el taxi?",
+      "fare_split": "¿Cómo se reparte el precio?",
       "refund": "¿Dónde está mi reembolso?",
-      "share_wrong": "Mi parte parece incorrecta",
+      "payment_failed": "Mi pago ha fallado",
+      "change_password": "Cambiar mi contraseña",
+      "no_email": "No me ha llegado el correo",
+      "change_email": "Cambiar mi correo",
       "how_it_works": "¿Cómo funciona FLOQQ?",
-      "cost": "¿Cuánto cuesta?"
+      "is_it_safe": "¿Es seguro?",
+      "book_new_ride": "Reservar un nuevo trayecto"
     },
     "offline": "Estás sin conexión: tu mensaje se enviará cuando vuelvas a estar en línea.",
     "queued": "Pendiente de enviar: «{{text}}»",
@@ -887,6 +919,7 @@
     "saveError": "No pudimos guardar los ajustes. Inténtalo de nuevo."
   },
   "adminSupport": {
+    "closedByUser": "Cerrada por el usuario",
     "tab": "Tickets",
     "status": {
       "active": "Sin resolver",

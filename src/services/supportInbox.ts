@@ -31,7 +31,8 @@ export type SupportTicket = {
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
-  resolution_category: ResolutionCategory | null;
+  // 'closed_by_user' when the passenger closed it themselves (never chosen by the admin).
+  resolution_category: ResolutionCategory | 'closed_by_user' | null;
   first_contact_at: string | null;
   call_attempts: number;
   last_call_at: string | null;
@@ -169,7 +170,9 @@ export async function runTicketAction(ticketId: string, request: TicketActionReq
   return { error: (body?.error as string | undefined) ?? 'action_failed' };
 }
 
+// resolution_category 'closed_by_user': the passenger closed it themselves ("Closed by you").
 export type MyTicket = Pick<SupportTicket, 'reference' | 'channel' | 'status' | 'callback_at' | 'resolved_at' | 'conversation_id'> & {
+  resolution_category?: string | null;
   created_at?: string;
 };
 
@@ -182,7 +185,7 @@ export async function fetchMyTickets(): Promise<MyTicket[]> {
   // Filtered on the user too: an admin may read everyone's tickets.
   const { data } = await supabase
     .from('support_tickets')
-    .select('reference, channel, status, callback_at, resolved_at, conversation_id, created_at')
+    .select('reference, channel, status, callback_at, resolved_at, conversation_id, created_at, resolution_category')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(20)
@@ -199,7 +202,7 @@ export async function fetchMyLatestTicket(): Promise<MyTicket | null> {
   // Filtered on the user too: an admin may read everyone's tickets.
   const { data } = await supabase
     .from('support_tickets')
-    .select('reference, channel, status, callback_at, resolved_at, conversation_id')
+    .select('reference, channel, status, callback_at, resolved_at, conversation_id, resolution_category')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(1)

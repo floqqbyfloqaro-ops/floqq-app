@@ -47,11 +47,13 @@ export type HelpMessage = {
   handover_reason?: string | null;
   cards?: HelpCard[] | null;
   actions?: HelpAction[] | null;
+  // Up to 3 suggested questions under an answer (src/services/helpChips.ts).
+  followup_topics?: string[] | null;
 };
 
 // How a conversation stands (supabase/migrations/20261027000000_help_conversation_states.sql).
 // Every state but active and handed_over is archived and read-only.
-export type HelpConversationState = 'active' | 'resolved_by_assistant' | 'handed_over' | 'resolved_by_team' | 'closed_no_reply';
+export type HelpConversationState = 'active' | 'resolved_by_assistant' | 'handed_over' | 'resolved_by_team' | 'closed_no_reply' | 'closed_by_user';
 
 export type HelpConversation = {
   id: string;
@@ -67,8 +69,10 @@ export type HelpConversation = {
 };
 
 export const isArchived = (state: HelpConversationState | null | undefined) =>
-  state === 'resolved_by_assistant' || state === 'resolved_by_team' || state === 'closed_no_reply';
+  state === 'resolved_by_assistant' || state === 'resolved_by_team' || state === 'closed_no_reply' || state === 'closed_by_user';
 export const isResolved = (state: HelpConversationState | null | undefined) => state === 'resolved_by_assistant' || state === 'resolved_by_team';
+// Ended by the passenger ("End chat" / "Close request"): it gets the closing card too.
+export const hasClosingCard = (state: HelpConversationState | null | undefined) => isResolved(state) || state === 'closed_by_user';
 
 // "Talk to a person": the team also replies in Italian and Dutch (the app itself is en/fr/es).
 export const TEAM_LANGUAGES = ['en', 'fr', 'es', 'it', 'nl'] as const;
@@ -207,6 +211,14 @@ export async function decideHelpAction(actionId: string, decision: 'confirm' | '
     conversation: (data.conversation ?? null) as HelpConversation | null,
     error: null,
   };
+}
+
+// "End chat" / "Close request": the conversation is archived as closed by the passenger; with
+// cancelTicket their open request to the team is closed too (the call back is off).
+export async function endHelpConversation(conversationId: string, cancelTicket: boolean, language: HelpLanguage) {
+  const { data, error } = await supabase.functions.invoke('help-chat', { body: { action: 'end', conversationId, cancelTicket, language } });
+  if (error || !data?.conversation) return { conversation: null as HelpConversation | null, message: null as HelpMessage | null, error: (await errorCode(error)) ?? 'end_failed' };
+  return { conversation: data.conversation as HelpConversation, message: (data.message ?? null) as HelpMessage | null, error: null };
 }
 
 // "Was this helpful?" on the closing card - once per conversation.

@@ -86,19 +86,23 @@ export const CONTACT_TEAM_LABEL: Record<HelpLanguage, string> = {
 // chatting with an AI assistant" line are the app's own texts; "Call 112" is the app's card.)
 // refusal: when the model can't answer; closing: the "resolve" action's closing, without a model call.
 // ack: the whole reply when the model only wrote a generic "let me know if...".
-export const HELP_TEXTS: Record<HelpLanguage, { refusal: string; closing: string; ack: string }> = {
+// ended: when the passenger taps "End chat" (or closes the request from "Your requests").
+export const HELP_TEXTS: Record<HelpLanguage, { refusal: string; closing: string; ack: string; ended: string }> = {
   en: {
     ack: 'Great!',
+    ended: 'Thanks for chatting - this conversation is closed. Have a good trip!',
     refusal: `I can't help with that here. Open the … menu and choose "${CONTACT_TEAM_LABEL.en}" - someone from the team will reply.`,
     closing: 'Glad that’s sorted! Have a great trip.',
   },
   fr: {
     ack: 'Parfait !',
+    ended: 'Merci pour cet échange, la conversation est terminée. Bon voyage !',
     refusal: `Je ne peux pas vous aider pour cela ici. Ouvrez le menu … et choisissez « ${CONTACT_TEAM_LABEL.fr} » : quelqu’un de l’équipe vous répondra.`,
     closing: 'Parfait, c’est réglé ! Bon voyage.',
   },
   es: {
     ack: '¡Perfecto!',
+    ended: 'Gracias por escribir, la conversación está cerrada. ¡Buen viaje!',
     refusal: `No puedo ayudarte con eso aquí. Abre el menú … y elige «${CONTACT_TEAM_LABEL.es}»: alguien del equipo te responderá.`,
     closing: '¡Genial, resuelto! Buen viaje.',
   },
@@ -131,18 +135,37 @@ export function previousConversationText(title: string | null, messages: { role:
 // The suggested questions' knowledge base sections: what the help screen shows when the
 // assistant can't be reached (the app's chips use the same topic names).
 export const HELP_TOPICS = {
-  why_no_match: 'how_matching_works',
-  change_ride: 'requesting_a_ride',
-  fee: 'match_found_and_securing_your_spot',
   cancel: 'cancellations_refunds_and_delays',
+  change_ride: 'requesting_a_ride',
+  why_no_match: 'how_matching_works',
+  how_matching: 'how_matching_works',
+  flight_delayed: 'cancellations_refunds_and_delays',
+  meeting_point: 'meeting_your_group',
   find_group: 'meeting_your_group',
   arrow: 'troubleshooting',
-  refund: 'cancellations_refunds_and_delays',
-  share_wrong: 'the_ride_and_payments',
-  how_it_works: 'what_floqq_is',
+  someone_missing: 'meeting_your_group',
   cost: 'what_floqq_is',
+  who_pays: 'the_ride_and_payments',
+  fare_split: 'the_ride_and_payments',
+  refund: 'cancellations_refunds_and_delays',
+  payment_failed: 'the_ride_and_payments',
+  change_password: 'account_and_profile',
+  no_email: 'account_and_profile',
+  change_email: 'account_and_profile',
+  how_it_works: 'what_floqq_is',
+  is_it_safe: 'safety_privacy_and_data',
 } as const;
 export type HelpTopic = keyof typeof HELP_TOPICS;
+
+// Under an answer, the assistant may suggest up to 3 of these (src/services/helpChips.ts):
+// a topic, or "Book a new ride" (opens the new ride screen).
+export const FOLLOWUP_TOPICS = [...(Object.keys(HELP_TOPICS) as HelpTopic[]), 'book_new_ride'] as const;
+
+export function parseFollowups(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const valid = value.filter((topic): topic is string => (FOLLOWUP_TOPICS as readonly string[]).includes(topic));
+  return [...new Set(valid)].slice(0, 3);
+}
 
 const LANGUAGE_NAMES: Record<HelpLanguage, string> = { en: 'English', fr: 'French', es: 'Spanish' };
 
@@ -242,6 +265,7 @@ What you can do:
 - Cancel their current ride: call offer_cancel_ride. The app shows a confirmation card with the ride and exactly what cancelling does to their money, with "Cancel my ride" and "Keep it". Only a tap on that button cancels. Your text: one short sentence ("You can cancel your ride to Eixample right here."), and don't repeat what the card says. If they then type "yes" or "do it", reply that they need to tap "Cancel my ride" on the card above - you can't cancel from a typed message. If they have no active ride, say so simply and explain how cancelling works.
 - Resend the confirmation email of an email change that is waiting (the <app_context> says if one is): call offer_resend_email_change - the app shows a card with "Resend email".
 - Everything else they do themselves on the right screen: call suggest_action (My ride, editing the ride, payment methods, the badge, location settings) - the app adds a button. Never refund, charge or change payments, and never say you did or will.
+- With every complete answer to a question, also call suggest_followups with 1 to 3 questions they are likely to ask next (after explaining the fee: who_pays, fare_split; after a cancellation: book_new_ride) - never the question just answered, and none with a hand-over or a closing.
 - When your answer is about their own ride, payment or refund, call show_card: the app shows their real figures under your answer; keep your text to one or two sentences and don't repeat the card.
 - After the app says it cancelled the ride or sent the email ("Done - ..."), carry on naturally.
 

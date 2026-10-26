@@ -52,6 +52,8 @@ import {
   HELP_RATE_LIMIT_PER_HOUR,
   HELP_TEXTS,
   HELP_TOPICS,
+  FOLLOWUP_TOPICS,
+  parseFollowups,
   HelpEnding,
   HelpUsage,
   KnowledgeArticle,
@@ -66,7 +68,7 @@ import {
   withoutToolNames,
 } from '../_shared/helpChatRules.ts';
 import type { HelpLanguage } from '../_shared/helpKnowledgeBase.ts';
-import { HandoverReason, isUrgent, parseHandoverReason } from '../_shared/supportRules.ts';
+import { closeNeedsAlert, HandoverReason, isUrgent, parseHandoverReason } from '../_shared/supportRules.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -125,6 +127,19 @@ const TOOLS: Anthropic.Tool[] = [
       type: 'object',
       properties: { title: { type: 'string', description: "The conversation's title: what it is about, in the passenger's language, at most 6 words." } },
       required: ['title'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'suggest_followups',
+    description:
+      'Adds 1 to 3 suggested questions under your answer, from the fixed list - what the passenger is likely to ask next. The app shows them as chips with its own wording.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        topics: { type: 'array', items: { type: 'string', enum: [...FOLLOWUP_TOPICS] }, maxItems: 3 },
+      },
+      required: ['topics'],
       additionalProperties: false,
     },
   },
@@ -193,6 +208,7 @@ const SIGNAL_TOOLS = new Set([
   'suggest_action',
   'offer_cancel_ride',
   'offer_resend_email_change',
+  'suggest_followups',
 ]);
 
 // Where the email change confirmation link lands (as in src/services/profile.ts).
@@ -213,7 +229,7 @@ const euros = (cents: number | null | undefined) => (cents == null ? null : `€
 const shortId = (id: string | null | undefined) => (id ? id.slice(0, 8) : null);
 
 // What the app shows of a stored message.
-const MESSAGE_COLUMNS = 'id, role, content, created_at, emergency, followup, handover_reason, cards, actions';
+const MESSAGE_COLUMNS = 'id, role, content, created_at, emergency, followup, handover_reason, cards, actions, followup_topics';
 // What the app shows of a conversation.
 const CONVERSATION_COLUMNS = 'id, state, title, created_at, closed_at, previous_conversation_id, helpful, request_id';
 
@@ -320,7 +336,8 @@ async function describeRide(admin: SupabaseClient, ride: Ride, language: HelpLan
     flight: ride.flight_number || null,
     terminal: ride.arrival_terminal,
     arrival_time: local(ride.arrival_at),
-    ready_at_meeting_point_from: local(ride.ready_at),
+    // Once the group has a meeting time, their own earliest time only confused the model's answers.
+    ready_at_meeting_point_from: g?.meeting_time ? null : local(ride.ready_at),
     destination: ride.destination_address,
     marked_no_show: ride.no_show_at != null,
     group,
@@ -538,6 +555,8 @@ type Answer = {
   // The confirmation cards it asked for (the passenger confirms with a tap).
   offerCancel: boolean;
   offerResend: boolean;
+  // Suggested questions under the answer (topic names).
+  followups: string[];
   title: string | null;
   handoverReason: HandoverReason | null;
   cardTypes: Set<CardType>;
@@ -637,6 +656,7 @@ async function answer(args: {
     ending: null,
     offerCancel: false,
     offerResend: false,
+    followups: [],
     title: null,
     handoverReason: null,
     cardTypes: new Set(),
@@ -687,6 +707,7 @@ async function answer(args: {
       if (call.name === 'person_requested' && result.ending !== 'done') result.ending = 'person';
       if (call.name === 'offer_cancel_ride') result.offerCancel = true;
       if (call.name === 'offer_resend_email_change') result.offerResend = true;
+      if (call.name === 'suggest_followups') result.followups = parseFollowups(input.topics);
       if (call.name === 'hand_over') result.handoverReason = parseHandoverReason(input.reason);
       if (call.name === 'show_card' && CARD_TYPES.includes(input.type as CardType)) result.cardTypes.add(input.type as CardType);
       if (call.name === 'suggest_action') {
@@ -884,6 +905,8 @@ async function send(args: {
       tools_used: result?.toolsUsed.length ? result.toolsUsed : null,
       emergency,
       handover_reason: handoverReason,
+      // No suggestions under a hand-over or a closing.
+      followup_topics: !handoverReason && ending !== 'done' && result?.followups.length ? result.followups : null,
       cards: cards.length ? cards : null,
       actions: result?.actions.length ? result.actions : null,
       input_tokens: result?.usage.input_tokens ?? null,
@@ -968,7 +991,10 @@ Deno.serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (openTicket?.conversation_id) return show(openTicket.conversation_id, true);
+    if (openTicket?.conversation_id) {
+      const { data: ticketConversation } = await admin.from('help_conversations').select('state').eq('id', openTicket.conversation_id).maybeSingle();
+      if (ticketConversation && ticketConversation.state !== 'closed_by_user') return show(openTicket.conversation_id, true);
+    }
 
     // Back within 24 hours: the last conversation continues if it is still going, unless they
     // asked for a new one. An archived one is never continued - it's in "Your requests".
@@ -1110,7 +1136,14 @@ Deno.serve(async (req) => {
     const now = new Date().toISOString();
     const { data: message } = await admin
       .from('help_messages')
-      .insert({ conversation_id: action.conversation_id, user_id: user.id, role: 'assistant', content: reply, created_at: now })
+      .insert({
+        conversation_id: action.conversation_id,
+        user_id: user.id,
+        role: 'assistant',
+        content: reply,
+        created_at: now,
+        followup_topics: status === 'done' && action.kind === 'cancel_ride' ? ['book_new_ride'] : null,
+      })
       .select(MESSAGE_COLUMNS)
       .single();
     // Done: the conversation carries on; quiet for 10 minutes, it closes as usual.
@@ -1123,6 +1156,72 @@ Deno.serve(async (req) => {
     return jsonResponse({ status, message, card: holder ? { messageId: holder.id, cards } : null, conversation: updated });
   }
 
+  // "End chat" (header) or "Close request" ("Your requests"): the conversation is archived as
+  // closed_by_user, with a short closing; with cancelTicket, the passenger's open request to the
+  // team is closed too (resolved, 'closed_by_user' - the call back is off) and, if a call was
+  // planned within 2 hours, the team is told by email. Without it the ticket stays open.
+  if (body.action === 'end') {
+    const conversationId = typeof body.conversationId === 'string' ? body.conversationId : '';
+    const cancelTicket = body.cancelTicket === true;
+    const { data: conversation } = await admin.from('help_conversations').select('id, user_id, state').eq('id', conversationId).maybeSingle();
+    if (!conversation || conversation.user_id !== user.id) return jsonResponse({ error: 'not_found' }, 404);
+    const now = new Date().toISOString();
+
+    let message = null;
+    if (conversation.state === 'active' || conversation.state === 'handed_over') {
+      const { data: closing } = await admin
+        .from('help_messages')
+        .insert({ conversation_id: conversationId, user_id: user.id, role: 'assistant', content: HELP_TEXTS[language].ended, created_at: now })
+        .select(MESSAGE_COLUMNS)
+        .single();
+      message = closing;
+      await admin
+        .from('help_conversations')
+        .update({ state: 'closed_by_user', closed_at: now, answered_at: null, last_message_at: now })
+        .eq('id', conversationId);
+    }
+
+    let ticketClosed = false;
+    let teamAlerted = false;
+    if (cancelTicket) {
+      const { data: ticket } = await admin
+        .from('support_tickets')
+        .select('id, reference, channel, callback_at, status')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', user.id)
+        .neq('status', 'resolved')
+        .maybeSingle();
+      if (ticket) {
+        const { data: closed } = await admin
+          .from('support_tickets')
+          .update({ status: 'resolved', resolution_category: 'closed_by_user', resolved_at: now, updated_at: now })
+          .eq('id', ticket.id)
+          .neq('status', 'resolved')
+          .select('id');
+        ticketClosed = (closed?.length ?? 0) > 0;
+        if (ticketClosed) {
+          await admin.from('support_ticket_events').insert({ ticket_id: ticket.id, kind: 'closed_by_user', body: null });
+          if (closeNeedsAlert({ channel: ticket.channel, callbackAt: ticket.callback_at }, Date.now())) {
+            const { data: settings } = await admin.from('support_settings').select('alert_email').eq('id', 1).maybeSingle();
+            if (settings?.alert_email) {
+              const when = ticket.callback_at
+                ? new Date(ticket.callback_at).toLocaleString('en-GB', { timeZone: 'Europe/Madrid', dateStyle: 'medium', timeStyle: 'short' }) + ' (Barcelona)'
+                : 'as soon as possible';
+              teamAlerted = await sendEmail({
+                to: settings.alert_email,
+                subject: `Ticket #${ticket.reference} closed by the passenger - don't call`,
+                text: `The passenger closed ticket #${ticket.reference} themselves. The call back planned for ${when} is cancelled - please don't call them.\n\nThe ticket now shows "Closed by user" in the FLOQQ admin.`,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    const { data: updated } = await admin.from('help_conversations').select(CONVERSATION_COLUMNS).eq('id', conversationId).single();
+    return jsonResponse({ conversation: updated, message, ticketClosed, teamAlerted });
+  }
+
   // "Was this helpful?" on the closing card: once per resolved conversation.
   if (body.action === 'rate') {
     const value = body.value === 'up' || body.value === 'down' ? body.value : null;
@@ -1132,7 +1231,7 @@ Deno.serve(async (req) => {
       .update({ helpful: value, helpful_at: new Date().toISOString() })
       .eq('id', typeof body.conversationId === 'string' ? body.conversationId : '')
       .eq('user_id', user.id)
-      .in('state', ['resolved_by_assistant', 'resolved_by_team'])
+      .in('state', ['resolved_by_assistant', 'resolved_by_team', 'closed_by_user'])
       .is('helpful', null)
       .select('id');
     if (!rated?.length) return jsonResponse({ error: 'not_found' }, 404);

@@ -662,6 +662,27 @@
     "warningDetail": "Ratings of 1-2 stars need a look. Open the History tab to review them."
   },
   "help": {
+    "moreTopics": "More topics",
+    "allTopics": "All topics",
+    "topicGroup": {
+      "ride": "Your ride",
+      "meetup": "Meeting your group",
+      "money": "Money",
+      "account": "Account",
+      "general": "General"
+    },
+    "endChat": "End chat",
+    "endConfirmTitle": "End this chat?",
+    "endConfirm": "End chat",
+    "endContinue": "Continue",
+    "endTicketQuestion": "Do you also want to cancel your request to our team?",
+    "endTicketCancel": "Cancel it",
+    "endTicketKeep": "Keep it open",
+    "closeRequest": "Close request",
+    "closeRequestTitle": "Close this request?",
+    "closeRequestMessage": "Our team won't contact you about it.",
+    "closeRequestKeep": "Keep it",
+    "ticketClosedByYou": "Closed by you. Ticket #{{reference}}",
     "menu": "More options",
     "contactTeam": "Contact the FLOQQ team",
     "wasHelpful": "Was this helpful?",
@@ -672,6 +693,7 @@
     "closedNoReply": "This conversation was closed. Write below to start a new one - I’ll remember it.",
     "continuing": "Picking up from your earlier request.",
     "status": {
+      "closedByYou": "Closed by you",
       "resolved": "Resolved",
       "resolvedByTeam": "Resolved by our team",
       "waitingForTeam": "Waiting for our team",
@@ -757,16 +779,26 @@
     "helpWithRide": "Help with this ride",
     "helpWithRideQuestion": "I need help with my current ride.",
     "chip": {
+      "cancel": "Cancel my request",
+      "change_ride": "Change my ride",
       "why_no_match": "Why no match yet?",
-      "change_ride": "Can I change my ride?",
-      "fee": "How does the fee work?",
-      "cancel": "Can I cancel?",
+      "how_matching": "How does matching work?",
+      "flight_delayed": "My flight is delayed",
+      "meeting_point": "Where do I meet my group?",
       "find_group": "I can't find my group",
       "arrow": "The arrow isn't working",
-      "refund": "Where is my refund?",
-      "share_wrong": "My share looks wrong",
+      "someone_missing": "Someone isn't here",
+      "cost": "How much does it cost?",
+      "who_pays": "Who pays the taxi?",
+      "fare_split": "How is the fare split?",
+      "refund": "Where's my refund?",
+      "payment_failed": "My payment failed",
+      "change_password": "Change my password",
+      "no_email": "I didn't get the email",
+      "change_email": "Change my email",
       "how_it_works": "How does FLOQQ work?",
-      "cost": "How much does it cost?"
+      "is_it_safe": "Is it safe?",
+      "book_new_ride": "Book a new ride"
     },
     "offline": "You're offline - your message will be sent when you're back online.",
     "queued": "Waiting to send: \"{{text}}\"",
@@ -891,6 +923,7 @@
     "saveError": "We couldn't save the settings. Please try again."
   },
   "adminSupport": {
+    "closedByUser": "Closed by user",
     "tab": "Tickets",
     "status": {
       "active": "Not resolved",

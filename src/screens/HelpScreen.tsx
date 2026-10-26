@@ -30,12 +30,14 @@ import SecondaryButton from '../components/SecondaryButton';
 import StatusPill from '../components/StatusPill';
 import {
   decideHelpAction,
+  endHelpConversation,
   fetchHelpTopic,
   fetchMyHelpRequests,
   HelpAction,
   HelpConversation,
   helpLanguageFor,
   HelpMessage,
+  hasClosingCard,
   HelpRequest,
   isArchived,
   isResolved,
@@ -44,7 +46,7 @@ import {
   sendHelpMessageStreamed,
   startHelpConversation,
 } from '../services/helpChat';
-import { chipsFor, HelpRideFacts, HelpTopic, rideStage, stagePill } from '../services/helpChips';
+import { BOOK_NEW_RIDE, chipsFor, HelpFollowup, HelpRideFacts, HelpTopic, HelpTopicGroup, isFollowup, rideStage, stagePill, TOPIC_GROUPS } from '../services/helpChips';
 import { plainText } from '../services/helpMarkdown';
 import { fetchMyGroupStatus, fetchMyLatestRequest, MyPassengerRequest } from '../services/passengerRequests';
 import { supabase } from '../services/supabase';
@@ -58,10 +60,13 @@ type Props = {
   onEditRide: (requestId: string) => void;
   onOpenPaymentMethods: () => void;
   onShowBadge: () => void;
+  // "Book a new ride" (a follow-up chip after a cancellation).
+  onNewRide: () => void;
 };
 
 type Item =
   | { kind: 'message'; message: HelpMessage; firstInGroup: boolean; lastInGroup: boolean; streaming: boolean }
+  | { kind: 'followups'; topics: HelpFollowup[] }
   | { kind: 'closing' }
   | { kind: 'closed' }
   | { kind: 'retry' }
@@ -78,6 +83,10 @@ const STREAMING_ID = 'streaming';
 
 type StartOptions = { fresh?: boolean; previousConversationId?: string };
 
+// The light confirmations: "End this chat?", then (with a request to the team waiting) "Cancel it
+// too?"; "Close this request?" from "Your requests".
+type Confirm = { kind: 'end' } | { kind: 'endTicket' } | { kind: 'close'; conversationId: string };
+
 // "Help": the FLOQQ Assistant, a full-screen chat. It greets the passenger by name, knows their
 // current ride (a context card, and suggested questions that follow the ride), streams its answers,
 // shows the passenger's own data as cards and offers buttons to the right screen. A conversation
@@ -90,7 +99,7 @@ type StartOptions = { fresh?: boolean; previousConversationId?: string };
 // conversation that knows the earlier one); writing below an archived one does the same. Typed
 // text is never lost, a message written offline goes out once the phone is back online, and when
 // the assistant can't be reached the suggested questions still get the knowledge base's answer.
-export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPaymentMethods, onShowBadge }: Props) {
+export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPaymentMethods, onShowBadge, onNewRide }: Props) {
   const { t, i18n } = useTranslation();
   const language = helpLanguageFor(i18n.language);
   const network = useNetworkState();
@@ -112,6 +121,8 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
   const [changingChannel, setChangingChannel] = useState(false);
   const [ride, setRide] = useState<{ request: MyPassengerRequest; facts: HelpRideFacts } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [topicsOpen, setTopicsOpen] = useState(false);
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [requests, setRequests] = useState<HelpRequest[]>([]);
   const [requestTickets, setRequestTickets] = useState<MyTicket[]>([]);
@@ -335,6 +346,41 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
     ]);
   };
 
+  const tapChip = (chip: HelpFollowup) => {
+    setTopicsOpen(false);
+    if (chip === BOOK_NEW_RIDE) return onNewRide();
+    askTopic(chip);
+  };
+
+  // "End chat": archived as closed by the passenger, with a short closing and "Was this helpful?";
+  // cancelTicket also closes their waiting request to the team.
+  const endChat = async (cancelTicket: boolean) => {
+    setConfirm(null);
+    if (!conversationId) return;
+    const result = await endHelpConversation(conversationId, cancelTicket, language);
+    if (!result.conversation) return setSendError(t('help.card.error'));
+    setConversation(result.conversation);
+    if (result.message) setMessages((current) => [...current, result.message!]);
+    setHandoverReason(null);
+    loadTicket();
+  };
+
+  // "Close request" in "Your requests": the conversation and its request to the team.
+  const closeRequest = async (id: string) => {
+    setConfirm(null);
+    const result = await endHelpConversation(id, true, language);
+    if (!result.conversation) return setSendError(t('help.card.error'));
+    if (id === conversationId) {
+      setConversation(result.conversation);
+      if (result.message) setMessages((current) => [...current, result.message!]);
+      loadTicket();
+    }
+    const [conversations, tickets] = await Promise.all([fetchMyHelpRequests(), fetchMyTickets()]);
+    setRequests(conversations);
+    setRequestTickets(tickets);
+    if (viewing?.conversation.id === id) viewRequest(id);
+  };
+
   // A tap on a confirmation card ("Cancel my ride" / "Keep it", "Resend email" / "Not now"): the
   // server does it, the card shows how it ended and the assistant says what happened.
   const decide = useCallback(
@@ -394,6 +440,10 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
   // Waiting for our team first, then newest first (the order they came in).
   const sortedRequests = [...requests].sort((a, b) => Number(openTicketFor(b.id) != null) - Number(openTicketFor(a.id) != null));
 
+  // Still going, or waiting for our team: it can be closed.
+  const isPending = (request: { id: string; state: string }) =>
+    request.state === 'active' || request.state === 'handed_over' || openTicketFor(request.id) != null;
+
   const viewRequest = async (id: string) => {
     const opened = await openHelpConversation(id);
     if (opened.conversation) setViewing({ conversation: opened.conversation, messages: opened.messages });
@@ -409,6 +459,8 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
   // --- What the list shows ---
 
   const openTicket = ticket != null && ticket.status !== 'resolved';
+  const ticketForThisChat = openTicket && ticket?.conversation_id === conversationId;
+  const canEnd = (conversation?.state === 'active' || conversation?.state === 'handed_over') && messages.length > 0 && !streaming;
   const showTicket = ticket != null && (openTicket || ticket.conversation_id === conversationId);
   const items = useMemo<Item[]>(() => {
     const list: Item[] = messages.map((message, index) => ({
@@ -419,7 +471,13 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
       streaming: message.id === STREAMING_ID,
     }));
     if (failures > 0 && !streaming) list.push({ kind: 'retry' });
-    if (isResolved(conversation?.state)) list.push({ kind: 'closing' });
+    // Suggested next questions under the latest answer.
+    const last = messages[messages.length - 1];
+    const next = (last?.role === 'assistant' ? (last.followup_topics ?? []) : []).filter(isFollowup);
+    if (next.length && !streaming && !handoverReason && (conversation?.state === 'active' || conversation?.state === 'handed_over')) {
+      list.push({ kind: 'followups', topics: next });
+    }
+    if (hasClosingCard(conversation?.state)) list.push({ kind: 'closing' });
     else if (conversation?.state === 'closed_no_reply' && messages.length > 0) list.push({ kind: 'closed' });
     if (((handoverReason || failures >= 2) && !openTicket) || changingChannel) list.push({ kind: 'handover' });
     if (showTicket) list.push({ kind: 'ticket' });
@@ -456,13 +514,18 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
           </View>
         </View>
       ) : null}
-      <View style={styles.chips}>
-        {chipsFor(stage).map((topic) => (
-          <Pressable key={topic} onPress={() => askTopic(topic)} style={styles.chip} accessibilityRole="button" disabled={streaming || !conversationId}>
-            <Text style={styles.chipText}>{t(`help.chip.${topic}`)}</Text>
+      {messages.length === 0 ? (
+        <View style={styles.chips}>
+          {chipsFor(stage).map((topic) => (
+            <Pressable key={topic} onPress={() => tapChip(topic)} style={styles.chip} accessibilityRole="button" disabled={streaming || !conversationId}>
+              <Text style={styles.chipText}>{t(`help.chip.${topic}`)}</Text>
+            </Pressable>
+          ))}
+          <Pressable onPress={() => setTopicsOpen(true)} style={[styles.chip, styles.moreChip]} accessibilityRole="button">
+            <Text style={styles.chipText}>{t('help.moreTopics')}</Text>
           </Pressable>
-        ))}
-      </View>
+        </View>
+      ) : null}
       {startFailed ? <ErrorNotice message={t('help.startError')} onRetry={() => start()} retryLabel={t('common.retry')} /> : null}
     </View>
   );
@@ -485,6 +548,16 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
           <View style={styles.inlineCard}>
             <Text style={styles.inlineText}>{t(failures >= 2 ? 'help.stillUnavailable' : 'help.unavailable')}</Text>
             {draft.trim() ? <SecondaryButton label={t('help.tryAgain')} icon="refresh" onPress={retry} /> : null}
+          </View>
+        );
+      case 'followups':
+        return (
+          <View style={[styles.chips, styles.followups]}>
+            {item.topics.map((topic) => (
+              <Pressable key={topic} onPress={() => tapChip(topic)} style={styles.chip} accessibilityRole="button" disabled={streaming}>
+                <Text style={styles.chipText}>{t(`help.chip.${topic}`)}</Text>
+              </Pressable>
+            ))}
           </View>
         );
       case 'closing':
@@ -542,6 +615,14 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
             <Ionicons name="ellipsis-horizontal" size={22} color={colors.textPrimary} />
           </Pressable>
         </View>
+        {canEnd ? (
+          <View style={styles.endBar}>
+            <Pressable onPress={() => setConfirm({ kind: 'end' })} hitSlop={8} accessibilityRole="button" style={styles.endButton}>
+              <Ionicons name="checkmark-done-outline" size={16} color={colors.textSecondary} />
+              <Text style={styles.endText}>{t('help.endChat')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <FlatList
           ref={listRef}
@@ -595,6 +676,64 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
         </Pressable>
       </Modal>
 
+      <Modal visible={topicsOpen} animationType="slide" transparent onRequestClose={() => setTopicsOpen(false)}>
+        <View style={styles.requestsBackdrop}>
+          <View style={styles.requestsSheet}>
+            <View style={styles.requestsHeader}>
+              <Text style={[styles.title, styles.flex]} accessibilityRole="header">
+                {t('help.allTopics')}
+              </Text>
+              <Pressable onPress={() => setTopicsOpen(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('help.close')}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </Pressable>
+            </View>
+            <FlatList
+              data={Object.keys(TOPIC_GROUPS) as HelpTopicGroup[]}
+              keyExtractor={(group) => group}
+              renderItem={({ item: group }) => (
+                <View style={styles.topicGroup}>
+                  <Text style={styles.topicGroupTitle}>{t(`help.topicGroup.${group}`)}</Text>
+                  <View style={styles.chips}>
+                    {(TOPIC_GROUPS[group] as readonly HelpTopic[]).map((topic) => (
+                      <Pressable key={topic} onPress={() => tapChip(topic)} style={styles.chip} accessibilityRole="button" disabled={streaming || !conversationId}>
+                        <Text style={styles.chipText}>{t(`help.chip.${topic}`)}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={confirm != null} animationType="fade" transparent onRequestClose={() => setConfirm(null)}>
+        <View style={styles.confirmBackdrop}>
+          <View style={styles.confirmCard} accessibilityViewIsModal>
+            {confirm?.kind === 'end' ? (
+              <>
+                <Text style={styles.confirmTitle}>{t('help.endConfirmTitle')}</Text>
+                <PrimaryButton label={t('help.endConfirm')} onPress={() => (ticketForThisChat ? setConfirm({ kind: 'endTicket' }) : endChat(false))} />
+                <SecondaryButton label={t('help.endContinue')} onPress={() => setConfirm(null)} />
+              </>
+            ) : confirm?.kind === 'endTicket' ? (
+              <>
+                <Text style={styles.confirmTitle}>{t('help.endTicketQuestion')}</Text>
+                <PrimaryButton label={t('help.endTicketCancel')} onPress={() => endChat(true)} />
+                <SecondaryButton label={t('help.endTicketKeep')} onPress={() => endChat(false)} />
+              </>
+            ) : confirm?.kind === 'close' ? (
+              <>
+                <Text style={styles.confirmTitle}>{t('help.closeRequestTitle')}</Text>
+                <Text style={styles.inlineText}>{t('help.closeRequestMessage')}</Text>
+                <PrimaryButton label={t('help.closeRequest')} onPress={() => closeRequest(confirm.conversationId)} />
+                <SecondaryButton label={t('help.closeRequestKeep')} onPress={() => setConfirm(null)} />
+              </>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={requestsOpen} animationType="slide" transparent onRequestClose={() => (viewing ? setViewing(null) : setRequestsOpen(false))}>
         <View style={styles.requestsBackdrop}>
           <View style={styles.requestsSheet}>
@@ -625,7 +764,10 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
                 )}
                 ListFooterComponent={
                   <View style={styles.viewingFooter}>
-                    {isResolved(viewing.conversation.state) ? (
+                    {isPending(viewing.conversation) ? (
+                      <SecondaryButton label={t('help.closeRequest')} icon="close-circle-outline" onPress={() => setConfirm({ kind: 'close', conversationId: viewing.conversation.id })} />
+                    ) : null}
+                    {hasClosingCard(viewing.conversation.state) ? (
                       <HelpClosingCard
                         key={viewing.conversation.id}
                         title={viewing.conversation.title}
@@ -655,7 +797,14 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
                 <FlatList
                   data={sortedRequests}
                   keyExtractor={(request) => request.id}
-                  renderItem={({ item }) => <HelpRequestItem request={item} openTicket={openTicketFor(item.id)} onOpen={() => viewRequest(item.id)} />}
+                  renderItem={({ item }) => (
+                    <HelpRequestItem
+                      request={item}
+                      openTicket={openTicketFor(item.id)}
+                      onOpen={() => viewRequest(item.id)}
+                      onClose={isPending(item) ? () => setConfirm({ kind: 'close', conversationId: item.id }) : undefined}
+                    />
+                  )}
                 />
               </>
             )}
@@ -790,6 +939,57 @@ const styles = StyleSheet.create({
   chipText: {
     ...baseText.bodySmall,
     fontWeight: '600',
+  },
+  moreChip: {
+    borderColor: colors.accentPrimaryStrong,
+  },
+  followups: {
+    marginTop: spacing.x3,
+    marginLeft: 40,
+  },
+  endBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.x4,
+    paddingVertical: spacing.x2,
+    borderBottomWidth: borders.hairline,
+    borderBottomColor: colors.borderSubtle,
+  },
+  endButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.x1,
+    minHeight: 32,
+  },
+  endText: {
+    ...baseText.bodySmall,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  topicGroup: {
+    marginBottom: spacing.x6,
+  },
+  topicGroupTitle: {
+    ...baseText.label,
+    color: colors.textSecondary,
+    marginBottom: spacing.x2,
+  },
+  confirmBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.x6,
+    backgroundColor: overlays.scrimLight,
+  },
+  confirmCard: {
+    padding: spacing.x6,
+    borderRadius: radii.lg,
+    borderWidth: borders.regular,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceCardSolid,
+    gap: spacing.x3,
+  },
+  confirmTitle: {
+    ...baseText.h3,
   },
   inlineCard: {
     marginTop: spacing.x3,
