@@ -23,8 +23,11 @@ export default function HelpTicketCard({ ticket, onChangeChannel }: Props) {
         return t('help.weekdayTime', { weekday: barcelonaWeekday(ticket.callback_at, i18n.language), time: `${hour}:${minute}` });
       })()
     : null;
+  const closedByYou = ticket.status === 'resolved' && ticket.resolution_category === 'closed_by_user';
   const text =
-    ticket.status === 'resolved'
+    closedByYou
+      ? t('help.ticketClosedByYou', { reference })
+      : ticket.status === 'resolved'
       ? t('help.ticketResolved', { reference })
       : ticket.status === 'no_answer'
         ? t('help.ticketNoAnswer', { reference })

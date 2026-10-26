@@ -96,7 +96,7 @@ export default function AdminSupportInbox({ onOpen, refreshKey }: Props) {
 
       {tickets.map((ticket) => {
         const waiting = waitingFor(ticket.created_at);
-        const statusLabel = t(`adminSupport.status.${ticket.status}`);
+        const statusLabel = ticket.resolution_category === 'closed_by_user' ? t('adminSupport.closedByUser') : t(`adminSupport.status.${ticket.status}`);
         return (
           <Card
             key={ticket.id}

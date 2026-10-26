@@ -62,6 +62,7 @@ export default function AdminHelpMetrics({ refreshKey }: Props) {
   }
 
   const solved = percent(metrics.resolved_by_assistant, metrics.conversations);
+  const withoutPerson = percent(metrics.without_person, metrics.conversations);
   const handover = percent(metrics.handed_over, metrics.conversations);
   const channelTotal = (metrics.channels.whatsapp ?? 0) + (metrics.channels.callback ?? 0);
   const reasons = Object.entries(metrics.handover_reasons).sort((a, b) => b[1] - a[1]);
@@ -73,7 +74,28 @@ export default function AdminHelpMetrics({ refreshKey }: Props) {
       </Text>
       <View style={styles.tiles}>
         <Tile label={t('adminHelpMetrics.conversations')} value={String(metrics.conversations)} />
+        <Tile
+          label={t('adminHelpMetrics.withoutPerson')}
+          value={withoutPerson != null ? `${withoutPerson}%` : '-'}
+          hint={t('adminHelpMetrics.ofConversations', { count: metrics.without_person })}
+        />
+        <Tile
+          label={t('adminHelpMetrics.assistantActions')}
+          value={String((metrics.assistant_actions.cancel_ride ?? 0) + (metrics.assistant_actions.resend_email_change ?? 0))}
+          hint={t('adminHelpMetrics.assistantActionsHint', {
+            cancels: metrics.assistant_actions.cancel_ride ?? 0,
+            emails: metrics.assistant_actions.resend_email_change ?? 0,
+          })}
+        />
+        <Tile label={t('adminHelpMetrics.askedPersonTwice')} value={String(metrics.asked_person_twice)} />
         <Tile label={t('adminHelpMetrics.solvedByAssistant')} value={solved != null ? `${solved}%` : '-'} hint={t('adminHelpMetrics.ofConversations', { count: metrics.resolved_by_assistant })} />
+        <Tile label={t('adminHelpMetrics.resolvedByTeam')} value={String(metrics.resolved_by_team)} />
+        <Tile label={t('adminHelpMetrics.closedNoReply')} value={String(metrics.closed_no_reply)} />
+        <Tile
+          label={t('adminHelpMetrics.personAfterResolved')}
+          value={String(metrics.person_after_resolved)}
+          hint={t('adminHelpMetrics.personAfterResolvedHint')}
+        />
         <Tile label={t('adminHelpMetrics.handoverRate')} value={handover != null ? `${handover}%` : '-'} hint={t('adminHelpMetrics.ofConversations', { count: metrics.handed_over })} />
         <Tile
           label={t('adminHelpMetrics.firstContact')}
@@ -113,6 +135,7 @@ export default function AdminHelpMetrics({ refreshKey }: Props) {
 
       <Card style={styles.card}>
         <Text style={styles.cardTitle}>{t('adminHelpMetrics.feedback', { up: metrics.thumbs_up, down: metrics.thumbs_down })}</Text>
+        {/* "Was this helpful?" -> no: the conversation's title, under its first question. */}
         {metrics.thumbs_down_answers.length === 0 ? <Text style={styles.meta}>{t('adminHelpMetrics.noThumbsDown')}</Text> : null}
         {metrics.thumbs_down_answers.map((item, index) => (
           <View key={`${item.at}-${index}`} style={styles.feedbackItem}>

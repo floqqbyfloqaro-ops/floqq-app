@@ -1,13 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import type { HelpAction, HelpMessage } from '../services/helpChat';
+import { HelpAction, HelpMessage, isConfirmCard } from '../services/helpChat';
 import { plainText } from '../services/helpMarkdown';
 import { baseText, borders, colors, radii, spacing } from '../theme/colors';
 import HelpActionButtons from './HelpActionButtons';
 import HelpAvatar from './HelpAvatar';
+import HelpConfirmCard from './HelpConfirmCard';
 import HelpDataCard from './HelpDataCard';
 import HelpEmergencyCard from './HelpEmergencyCard';
 import HelpMarkdown from './HelpMarkdown';
@@ -18,30 +18,20 @@ type Props = {
   // Consecutive messages from the same side are grouped: one avatar, one time.
   firstInGroup: boolean;
   lastInGroup: boolean;
-  // The answer still being written: no time, no feedback yet; dots until its first word.
+  // The answer still being written: no time yet; dots until its first word.
   streaming?: boolean;
   onAction: (action: HelpAction) => void;
-  onFeedback: (messageId: string, value: 'up' | 'down' | null, note?: string) => void;
+  // A tap on a confirmation card's button; absent where the conversation is only read.
+  onDecide?: (actionId: string, decision: 'confirm' | 'keep') => Promise<void>;
 };
 
 // One message in the help chat: the assistant's on the left with the F glyph, the passenger's on the
-// right in the accent colour. Under an answer: its cards, its buttons, and a small thumbs up / down.
-function HelpMessageRow({ message, firstInGroup, lastInGroup, streaming = false, onAction, onFeedback }: Props) {
+// right in the accent colour. Under an answer: its cards and its buttons. ("Was this helpful?" is
+// asked once, on the closing card - not under every answer.)
+function HelpMessageRow({ message, firstInGroup, lastInGroup, streaming = false, onAction, onDecide }: Props) {
   const { t, i18n } = useTranslation();
-  const [feedback, setFeedback] = useState<'up' | 'down' | null>(message.feedback ?? null);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [note, setNote] = useState('');
-  const [noteSent, setNoteSent] = useState(false);
   const isUser = message.role === 'user';
   const time = new Date(message.created_at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
-
-  const rate = (value: 'up' | 'down') => {
-    const next = feedback === value ? null : value;
-    setFeedback(next);
-    setNoteOpen(next === 'down');
-    setNoteSent(false);
-    onFeedback(message.id, next);
-  };
 
   if (isUser) {
     return (
@@ -71,54 +61,14 @@ function HelpMessageRow({ message, firstInGroup, lastInGroup, streaming = false,
           {waitingForFirstWord ? <TypingDots /> : <HelpMarkdown text={message.content} />}
         </View>
         {(message.cards ?? []).map((card, index) => (
-          <HelpDataCard key={`${card.type}-${index}`} card={card} />
+          isConfirmCard(card) ? (
+            <HelpConfirmCard key={card.actionId} card={card} onDecide={onDecide} />
+          ) : (
+            <HelpDataCard key={`${card.type}-${index}`} card={card} />
+          )
         ))}
         {message.actions?.length ? <HelpActionButtons actions={message.actions} onAction={onAction} /> : null}
-        {!streaming && lastInGroup ? (
-          <View style={styles.footer}>
-            <Text style={styles.time}>{time}</Text>
-            <View style={styles.thumbs}>
-              <Pressable
-                onPress={() => rate('up')}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t('help.thumbsUp')}
-                accessibilityState={{ selected: feedback === 'up' }}
-              >
-                <Ionicons name={feedback === 'up' ? 'thumbs-up' : 'thumbs-up-outline'} size={16} color={feedback === 'up' ? colors.accentPrimaryStrong : colors.textDisabled} />
-              </Pressable>
-              <Pressable
-                onPress={() => rate('down')}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t('help.thumbsDown')}
-                accessibilityState={{ selected: feedback === 'down' }}
-              >
-                <Ionicons name={feedback === 'down' ? 'thumbs-down' : 'thumbs-down-outline'} size={16} color={feedback === 'down' ? colors.accentPrimaryStrong : colors.textDisabled} />
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
-        {noteOpen && !noteSent ? (
-          <View style={styles.noteRow}>
-            <TextInput
-              value={note}
-              onChangeText={setNote}
-              placeholder={t('help.whatWasMissing')}
-              placeholderTextColor={colors.textSecondary}
-              style={styles.noteInput}
-              maxLength={500}
-              accessibilityLabel={t('help.whatWasMissing')}
-              returnKeyType="send"
-              onSubmitEditing={() => {
-                if (!note.trim()) return;
-                onFeedback(message.id, 'down', note.trim());
-                setNoteSent(true);
-              }}
-            />
-          </View>
-        ) : null}
-        {noteSent ? <Text style={styles.thanks}>{t('help.thanksForFeedback')}</Text> : null}
+        {!streaming && lastInGroup ? <Text style={[styles.time, styles.timeLeft]}>{time}</Text> : null}
       </View>
     </View>
   );
@@ -169,16 +119,6 @@ const styles = StyleSheet.create({
     borderWidth: borders.regular,
     borderColor: colors.borderSubtle,
   },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.x3,
-    marginTop: spacing.x1,
-  },
-  thumbs: {
-    flexDirection: 'row',
-    gap: spacing.x3,
-  },
   time: {
     ...baseText.caption,
     color: colors.textDisabled,
@@ -186,22 +126,7 @@ const styles = StyleSheet.create({
   timeRight: {
     marginTop: spacing.x1,
   },
-  noteRow: {
-    marginTop: spacing.x2,
-  },
-  noteInput: {
-    ...baseText.bodySmall,
-    color: colors.textPrimary,
-    paddingVertical: spacing.x2,
-    paddingHorizontal: spacing.x3,
-    borderRadius: radii.md,
-    borderWidth: borders.regular,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceCard,
-  },
-  thanks: {
-    ...baseText.caption,
-    color: colors.success,
+  timeLeft: {
     marginTop: spacing.x1,
   },
 });

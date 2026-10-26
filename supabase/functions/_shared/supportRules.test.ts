@@ -5,6 +5,7 @@ import { test } from 'node:test';
 
 import {
   callbackSlots,
+  closeNeedsAlert,
   DEFAULT_SCHEDULE,
   isOfferedSlot,
   isOpen,
@@ -125,4 +126,13 @@ test('unknown handover reasons become "other"; the transcript names who said wha
   assert.equal(parseHandoverReason('money_problem'), 'money_problem');
   assert.equal(parseHandoverReason('drop table'), 'other');
   assert.equal(transcript([{ role: 'user', content: 'Hi' }, { role: 'assistant', content: 'Hello' }]), 'Passenger: Hi\n\nAssistant: Hello');
+});
+
+test('closing a request alerts the team only for a call back planned within 2 hours (or as soon as possible)', () => {
+  const now = Date.parse('2026-10-28T10:00:00Z');
+  const at = (hours) => new Date(now + hours * 60 * 60_000).toISOString();
+  assert.equal(closeNeedsAlert({ channel: 'callback', callbackAt: at(1) }, now), true);
+  assert.equal(closeNeedsAlert({ channel: 'callback', callbackAt: null }, now), true);
+  assert.equal(closeNeedsAlert({ channel: 'callback', callbackAt: at(3) }, now), false);
+  assert.equal(closeNeedsAlert({ channel: 'whatsapp', callbackAt: null }, now), false);
 });

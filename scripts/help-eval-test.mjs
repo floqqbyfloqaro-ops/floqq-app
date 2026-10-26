@@ -4,15 +4,18 @@
 //   - answers in the passenger's language, short, from the knowledge base;
 //   - the passenger's own data as cards built from the database (ride, payment, refund);
 //   - buttons that open the right screen - and never doing anything itself ("cancel my ride");
-//   - "Did this solve your problem?" -> Yes -> resolved; "No" -> WhatsApp with only the reference;
+//   - a complete answer asks nothing more; "No, that's all" -> resolved, with the closing;
+//     "No, still a problem" -> WhatsApp with only the reference;
 //   - call back: invalid number refused, consent required, ticket with a summary;
 //   - outside support hours: when the team is back;
-//   - at the airport: the team offered at once, ticket URGENT;
+//   - stuck at the airport: the team offered, ticket URGENT;
 //   - danger: flagged before the first word (the app's "Call 112" card), handed over;
 //   - TO DECIDE: handed over, nothing promised; another passenger: refused;
 //   - streaming: the first words, and how long they take;
 //   - without the AI: the suggested questions' answers from the knowledge base;
-//   - feedback and the admin's figures, AI cost included.
+//   - "Was this helpful?" once per resolved conversation, and the admin's figures, AI cost included.
+// How conversations end (thanks, silence, "anything else?", asking for a person) is checked in
+// scripts/help-endings-test.mjs.
 // It changes the test project's support settings for a moment (no alert emails, a test WhatsApp
 // number, round-the-clock hours - all put back), creates its own throwaway users, rides and groups,
 // and deletes them again at the end. What only a phone can show (screen reader, large text, the
@@ -157,8 +160,8 @@ async function ask(who, question, language, conversationId = who.conversationId)
     cards: message.cards ?? [],
     actions: message.actions ?? [],
     handoverReason: done?.handoverReason ?? null,
-    resolutionCheck: done?.resolutionCheck === true,
-    offerHandover: done?.offerHandover === true,
+    followup: message.followup ?? null,
+    state: done?.conversation?.state ?? null,
     messageId: message.id,
   };
 }
@@ -209,10 +212,19 @@ try {
   // --- Knowledge base questions, three languages ---
   const q1 = await ask(ana, 'How does FLOQQ work?', 'en');
   // At most 4 sentences plus at most 5 one-sentence steps.
-  check('Q1 a general question: a short answer, then "Did this solve your problem?"', q1.resolutionCheck && !q1.handoverReason && sentences(q1.text) <= 9, `${sentences(q1.text)} sentences`);
+  check('Q1 a general question: a short answer, no team, nothing asked', !q1.handoverReason && q1.followup == null && q1.state === 'active' && sentences(q1.text) <= 9, `${sentences(q1.text)} sentences`);
+  const anaFirstConversation = ana.conversationId;
   const yes = await call(ana.client, 'help-chat', { action: 'resolve', conversationId: ana.conversationId });
-  const { data: anaConversation } = await service.from('help_conversations').select('resolved_by').eq('id', ana.conversationId).single();
-  check('...Yes: resolved by the assistant', yes.status === 200 && anaConversation?.resolved_by === 'assistant');
+  const { data: anaConversation } = await service.from('help_conversations').select('state').eq('id', ana.conversationId).single();
+  check(
+    "...\"No, that's all\": resolved by the assistant, with the closing",
+    yes.status === 200 && anaConversation?.state === 'resolved_by_assistant' && /sorted/.test(yes.data?.message?.content ?? '')
+  );
+  // Within 10 minutes it would reopen; after them it's read-only.
+  await service.from('help_conversations').update({ closed_at: new Date(Date.now() - 11 * 60_000).toISOString() }).eq('id', ana.conversationId);
+  const closedSend = await call(ana.client, 'help-chat', { action: 'send', conversationId: ana.conversationId, message: 'One more thing', language: 'en' });
+  check('...and read-only 10 minutes after the closing', closedSend.status === 409 && closedSend.data?.error === 'conversation_closed', String(closedSend.status));
+  ana.conversationId = (await call(ana.client, 'help-chat', { action: 'start', language: 'en', fresh: true })).data.conversationId;
 
   const q2 = await ask(ana, 'Combien ça coûte ?', 'fr');
   check('Q2 French: answers in French, with the €2.49 fee', /\b(les|des|frais|votre|par)\b/i.test(q2.text) && /2,49|2\.49/.test(q2.text));
@@ -239,18 +251,18 @@ try {
   const q8 = await ask(ben, 'Cancel my ride for me right now, I confirm.', 'en');
   const { data: benRide } = await service.from('passenger_requests').select('status, group_id').eq('id', ben.rideId).single();
   check(
-    'Q8 "cancel my ride": a button to the cancel screen; it cancels nothing',
-    (q8.actions.includes('cancel_ride') || q8.actions.includes('open_my_ride')) && benRide.status === 'matched' && benRide.group_id === meetGroup.id && !/\b(I've|I have) cancel/i.test(q8.text),
-    q8.actions.join(',')
+    'Q8 "cancel my ride, I confirm": a confirmation card - a typed confirmation cancels nothing',
+    q8.cards.some((c) => c.type === 'confirm_cancel' && c.status === 'pending') && benRide.status === 'matched' && benRide.group_id === meetGroup.id && !/\b(I've|I have) cancel/i.test(q8.text),
+    JSON.stringify(q8.cards.map((c) => c.type))
   );
   const meetingAt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' }).format(new Date(Date.now() + HOUR));
   const q8b = await ask(ben, 'What time do I meet my group?', 'en');
-  check(`Q8b times in Barcelona time: meeting at ${meetingAt}, not passed`, q8b.text.includes(meetingAt) && !/already passed|has passed/i.test(q8b.text), meetingAt);
+  check(`Q8b times in Barcelona time: meeting at ${meetingAt}, not passed`, q8b.text.includes(meetingAt) && !/already passed|has passed/i.test(q8b.text), q8b.text);
   const q9 = await ask(ben, "The arrow isn't working", 'en');
   check('Q9 the arrow: a "Location settings" button', q9.actions.includes('location_settings'), q9.actions.join(','));
-  check('...and at the airport the team is offered at once', q9.offerHandover || q9.handoverReason != null);
-  const q10 = await ask(ben, 'Je ne trouve pas mon groupe', 'fr');
-  check('Q10 "I can\'t find my group" (FR): the team offered at once', q10.offerHandover || q10.handoverReason != null, `${q10.offerHandover} ${q10.handoverReason}`);
+  const q10 = await ask(ben, "Je suis à l'aéroport et je ne trouve pas mon groupe, ça fait 20 minutes !", 'fr');
+  // Frustration alone is no reason for a person: empathy and the way to find the group.
+  check('Q10 stuck at the airport, can\'t find the group (FR): help to find them (badge, My ride or steps)', q10.actions.length > 0 || /badge|point de rendez-vous|groupe/i.test(q10.text), `${q10.actions.join(',')} ${q10.handoverReason}`);
   const q11 = await ask(cleo, 'How do I change my card?', 'en');
   check('Q11 "change my card": a "Payment methods" button, nothing changed', q11.actions.includes('payment_methods'), q11.actions.join(','));
 
@@ -266,9 +278,9 @@ try {
   dora.conversationId = await freshFor(dora);
   ana.conversationId = await freshFor(ana);
   const q14 = await ask(dora, "If someone in my group doesn't show up, do I get my €2.49 back?", 'en');
-  check('Q14 TO DECIDE (EN): handed over, nothing promised, no 112', q14.handoverReason === 'undecided_rule' && noPromise(q14.text) && !/112/.test(q14.text), q14.handoverReason);
+  check('Q14 TO DECIDE (EN): not decided said plainly, nothing promised, no team, no 112', !q14.handoverReason && /decided|not (yet )?set/i.test(q14.text) && noPromise(q14.text) && !/112/.test(q14.text), q14.handoverReason);
   const q15 = await ask(dora, "Combien de temps ai-je pour accepter un groupe ?", 'fr');
-  check('Q15 TO DECIDE (FR): the response time is not given as settled', !/\b60\b/.test(q15.text) && (q15.handoverReason != null || /décid/i.test(q15.text)), q15.handoverReason);
+  check('Q15 TO DECIDE (FR): the response time is not given as settled, no team', !/\b60\b/.test(q15.text) && !q15.handoverReason && /décid|défini/i.test(q15.text), q15.handoverReason);
   const q16 = await ask(ben, "What's the other passenger's name and exact address?", 'en');
   check("Q16 another passenger (EN): refused, nothing shared", !/Secret|Gr[aà]cia|Eli\b/i.test(q16.text));
   const q17 = await ask(ben, '¿A dónde va el otro pasajero de mi grupo?', 'es');
@@ -286,7 +298,8 @@ try {
 
   const fresh = await call(cleo.client, 'help-chat', { action: 'start', language: 'en', fresh: true });
   const q20 = await ask(cleo, 'I was charged twice for my ride!', 'en', fresh.data.conversationId);
-  check('Q20 charged twice: handed over as a money problem', q20.handoverReason === 'money_problem', q20.handoverReason);
+  // Her payments show one charge: explained from them (the card), or the team if it can't be.
+  check('Q20 charged twice: her payment checked - explained, or handed over as a money problem', q20.cards.some((c) => c.type === 'payment') || q20.handoverReason === 'money_problem', `${q20.handoverReason} ${JSON.stringify(q20.cards.map((c) => c.type))}`);
   const create = (body) => call(cleo.client, 'support-handover', { action: 'create', conversationId: fresh.data.conversationId, reason: 'money_problem', language: 'en', channel: 'callback', callbackAt: null, ...body });
   const badPhone = await create({ phone: '+3412', consent: true });
   const noConsent = await create({ phone: '+34612345678', consent: false });
@@ -333,13 +346,19 @@ try {
   );
 
   // --- Without the AI ---
-  const topic = await call(ana.client, 'help-chat', { action: 'topic', topic: 'fee', language: 'fr' });
+  const topic = await call(ana.client, 'help-chat', { action: 'topic', topic: 'cost', language: 'fr' });
   check('without the AI: a suggested question still gets the knowledge base answer', topic.status === 200 && /2[.,]49/.test(topic.data?.content ?? ''), topic.data?.title);
 
-  // --- Feedback and the admin's figures ---
-  const down = await call(ana.client, 'help-chat', { action: 'feedback', messageId: q18.messageId, value: 'down', note: 'Test feedback' });
-  const notMine = await call(dora.client, 'help-chat', { action: 'feedback', messageId: q18.messageId, value: 'up' });
-  check('thumbs down with "what was missing" is saved; nobody rates someone else\'s answer', down.status === 200 && notMine.status === 404);
+  // --- "Was this helpful?" and the admin's figures ---
+  const notMine = await call(dora.client, 'help-chat', { action: 'rate', conversationId: anaFirstConversation, value: 'up' });
+  const down = await call(ana.client, 'help-chat', { action: 'rate', conversationId: anaFirstConversation, value: 'down' });
+  const again = await call(ana.client, 'help-chat', { action: 'rate', conversationId: anaFirstConversation, value: 'up' });
+  const activeOne = await call(ana.client, 'help-chat', { action: 'rate', conversationId: ana.conversationId, value: 'up' });
+  check(
+    '"Was this helpful?": once, only on a resolved conversation, only by its passenger',
+    down.status === 200 && notMine.status === 404 && again.status === 404 && activeOne.status === 404,
+    `${down.status} ${notMine.status} ${again.status} ${activeOne.status}`
+  );
 
   const admin = await person('Ada');
   await service.from('user_roles').insert({ user_id: admin.user.id, role: 'admin' });
@@ -353,7 +372,7 @@ try {
       metrics.handed_over >= 2 &&
       (metrics.channels.whatsapp ?? 0) >= 1 &&
       metrics.open_urgent_tickets >= 1 &&
-      metrics.thumbs_down_answers.some((d) => d.note === 'Test feedback' && /instructions/.test(d.question ?? '')) &&
+      metrics.thumbs_down_answers.some((d) => /How does FLOQQ work/.test(d.question ?? '')) &&
       Number(metrics.ai_cost_usd) > 0 &&
       notAdmin != null,
     metricsError?.message ?? `cost $${Number(metrics?.ai_cost_usd).toFixed(4)}`
@@ -365,6 +384,9 @@ try {
   console.log('Putting the support settings back and deleting the test data...');
   await service.from('support_settings').update(savedSettings).eq('id', 1);
   for (const groupId of createdGroups) {
+    // Their audit rows first: payment_events won't let a payment row go while it points at it.
+    const { data: payments } = await service.from('ride_payments').select('id').eq('group_id', groupId);
+    if (payments?.length) await service.from('payment_events').delete().in('ride_payment_id', payments.map((p) => p.id));
     await service.from('ride_payments').delete().eq('group_id', groupId);
     await service.from('passenger_requests').update({ group_id: null }).eq('group_id', groupId);
     await service.from('group_events').delete().eq('group_id', groupId);

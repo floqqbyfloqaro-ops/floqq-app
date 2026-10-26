@@ -24,11 +24,13 @@ export const DEFAULT_SCHEDULE: SupportSchedule = {
   sun: ALL_DAY,
 };
 
-// Why the conversation goes to a person; the assistant gives one of these, "Talk to a person"
-// and "No" to "Did this solve your problem?" have their own.
+// Why the conversation goes to a person; the assistant gives one of these, "Contact the FLOQQ
+// team" (the … menu) and "No, still a problem" have their own.
 export const HANDOVER_REASONS = [
   'user_asked',
   'not_solved',
+  // Frustrated or urgent: stuck at the airport, upset, the same message again.
+  'urgent',
   'money_problem',
   'safety',
   'dispute',
@@ -221,4 +223,16 @@ export const SUMMARY_INSTRUCTIONS = `You write the summary on a support ticket f
 
 export function transcript(messages: { role: string; content: string }[]): string {
   return messages.map((m) => `${m.role === 'user' ? 'Passenger' : 'Assistant'}: ${m.content}`).join('\n\n');
+}
+
+// --- The passenger closes their request ---
+
+// A call back planned within this long (or "as soon as possible"): the team is told by email when
+// the passenger closes the request, so nobody calls them for nothing.
+export const CLOSE_ALERT_WITHIN_HOURS = 2;
+
+export function closeNeedsAlert(ticket: { channel: string; callbackAt: string | null }, nowMs: number): boolean {
+  if (ticket.channel !== 'callback') return false;
+  if (!ticket.callbackAt) return true;
+  return Date.parse(ticket.callbackAt) <= nowMs + CLOSE_ALERT_WITHIN_HOURS * HOUR_MS;
 }

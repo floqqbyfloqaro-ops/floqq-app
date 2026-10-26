@@ -1,8 +1,10 @@
 // The cards the help assistant shows in the conversation instead of describing the passenger's
 // own data in text: their ride, their payment, their refund. Built here from the database rows -
 // the assistant only says which card belongs with its answer, it never writes a card's content -
-// so an amount or a status can't be invented. No imports, so a plain Node test
+// so an amount or a status can't be invented. Only a type import, so a plain Node test
 // (helpCards.test.ts) runs it.
+
+import type { CancelConsequence } from './helpActions.ts';
 
 export type CardStatus = 'paid' | 'pending' | 'refunded' | 'released' | 'failed' | 'paid_to_taxi';
 export type RideStatus = 'searching' | 'match_found' | 'confirmed' | 'on_the_way' | 'completed' | 'cancelled' | 'expired';
@@ -20,7 +22,23 @@ export type PaymentLine = { kind: 'fee' | 'share'; amountCents: number | null; s
 export type PaymentCard = { type: 'payment'; lines: PaymentLine[] };
 export type RefundCard = { type: 'refund'; amountCents: number | null; status: 'released' | 'refunded' | 'pending' | 'none'; date: string | null };
 
-export type HelpCard = RideCard | PaymentCard | RefundCard;
+// A confirmation card for something the assistant can do on the passenger's behalf: only their tap
+// on its button does it (help-chat 'decide'). status: still waiting, done, kept as it is, or it
+// couldn't be done.
+export type ActionStatus = 'pending' | 'done' | 'kept' | 'failed';
+export type ConfirmCancelCard = {
+  type: 'confirm_cancel';
+  actionId: string;
+  status: ActionStatus;
+  destination: string;
+  at: string;
+  rideStatus: 'searching' | 'grouped';
+  // What cancelling does to their money, as the app's own cancel screens say it.
+  consequence: CancelConsequence;
+};
+export type ConfirmEmailResendCard = { type: 'confirm_email_resend'; actionId: string; status: ActionStatus; email: string };
+
+export type HelpCard = RideCard | PaymentCard | RefundCard | ConfirmCancelCard | ConfirmEmailResendCard;
 export const CARD_TYPES = ['ride', 'payment', 'refund'] as const;
 export type CardType = (typeof CARD_TYPES)[number];
 

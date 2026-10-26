@@ -142,7 +142,10 @@ export default function SupportTicketScreen({ ticketId, onBack }: Props) {
                 </View>
               ) : null}
             </View>
-            <StatusPill status={ticketStatusPill(ticket.status)} label={t(`adminSupport.status.${ticket.status}`)} />
+            <StatusPill
+              status={ticketStatusPill(ticket.status)}
+              label={ticket.resolution_category === 'closed_by_user' ? t('adminSupport.closedByUser') : t(`adminSupport.status.${ticket.status}`)}
+            />
             <Text style={styles.meta}>
               {t('adminSupport.openedAt', { when: formatBarcelonaDateTime(ticket.created_at) })} ·{' '}
               {t(`adminSupport.reason.${ticket.category}`, { defaultValue: ticket.category })} · {ticket.language.toUpperCase()}
