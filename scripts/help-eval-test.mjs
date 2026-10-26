@@ -220,8 +220,10 @@ try {
     "...\"No, that's all\": resolved by the assistant, with the closing",
     yes.status === 200 && anaConversation?.state === 'resolved_by_assistant' && /sorted/.test(yes.data?.message?.content ?? '')
   );
+  // Within 10 minutes it would reopen; after them it's read-only.
+  await service.from('help_conversations').update({ closed_at: new Date(Date.now() - 11 * 60_000).toISOString() }).eq('id', ana.conversationId);
   const closedSend = await call(ana.client, 'help-chat', { action: 'send', conversationId: ana.conversationId, message: 'One more thing', language: 'en' });
-  check('...and it is read-only now', closedSend.status === 409 && closedSend.data?.error === 'conversation_closed', String(closedSend.status));
+  check('...and read-only 10 minutes after the closing', closedSend.status === 409 && closedSend.data?.error === 'conversation_closed', String(closedSend.status));
   ana.conversationId = (await call(ana.client, 'help-chat', { action: 'start', language: 'en', fresh: true })).data.conversationId;
 
   const q2 = await ask(ana, 'Combien ça coûte ?', 'fr');
@@ -249,9 +251,9 @@ try {
   const q8 = await ask(ben, 'Cancel my ride for me right now, I confirm.', 'en');
   const { data: benRide } = await service.from('passenger_requests').select('status, group_id').eq('id', ben.rideId).single();
   check(
-    'Q8 "cancel my ride": a button to the cancel screen; it cancels nothing',
-    (q8.actions.includes('cancel_ride') || q8.actions.includes('open_my_ride')) && benRide.status === 'matched' && benRide.group_id === meetGroup.id && !/\b(I've|I have) cancel/i.test(q8.text),
-    q8.actions.join(',')
+    'Q8 "cancel my ride, I confirm": a confirmation card - a typed confirmation cancels nothing',
+    q8.cards.some((c) => c.type === 'confirm_cancel' && c.status === 'pending') && benRide.status === 'matched' && benRide.group_id === meetGroup.id && !/\b(I've|I have) cancel/i.test(q8.text),
+    JSON.stringify(q8.cards.map((c) => c.type))
   );
   const meetingAt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' }).format(new Date(Date.now() + HOUR));
   const q8b = await ask(ben, 'What time do I meet my group?', 'en');
@@ -259,7 +261,8 @@ try {
   const q9 = await ask(ben, "The arrow isn't working", 'en');
   check('Q9 the arrow: a "Location settings" button', q9.actions.includes('location_settings'), q9.actions.join(','));
   const q10 = await ask(ben, "Je suis à l'aéroport et je ne trouve pas mon groupe, ça fait 20 minutes !", 'fr');
-  check('Q10 stuck at the airport, can\'t find the group (FR): the team offered', q10.handoverReason != null, String(q10.handoverReason));
+  // Frustration alone is no reason for a person: empathy and the way to find the group.
+  check('Q10 stuck at the airport, can\'t find the group (FR): help to find them (badge, My ride or steps)', q10.actions.length > 0 || /badge|point de rendez-vous|groupe/i.test(q10.text), `${q10.actions.join(',')} ${q10.handoverReason}`);
   const q11 = await ask(cleo, 'How do I change my card?', 'en');
   check('Q11 "change my card": a "Payment methods" button, nothing changed', q11.actions.includes('payment_methods'), q11.actions.join(','));
 
@@ -275,9 +278,9 @@ try {
   dora.conversationId = await freshFor(dora);
   ana.conversationId = await freshFor(ana);
   const q14 = await ask(dora, "If someone in my group doesn't show up, do I get my €2.49 back?", 'en');
-  check('Q14 TO DECIDE (EN): handed over, nothing promised, no 112', q14.handoverReason === 'undecided_rule' && noPromise(q14.text) && !/112/.test(q14.text), q14.handoverReason);
+  check('Q14 TO DECIDE (EN): not decided said plainly, nothing promised, no team, no 112', !q14.handoverReason && /decided|not (yet )?set/i.test(q14.text) && noPromise(q14.text) && !/112/.test(q14.text), q14.handoverReason);
   const q15 = await ask(dora, "Combien de temps ai-je pour accepter un groupe ?", 'fr');
-  check('Q15 TO DECIDE (FR): the response time is not given as settled', !/\b60\b/.test(q15.text) && (q15.handoverReason != null || /décid/i.test(q15.text)), q15.handoverReason);
+  check('Q15 TO DECIDE (FR): the response time is not given as settled, no team', !/\b60\b/.test(q15.text) && !q15.handoverReason && /décid|défini/i.test(q15.text), q15.handoverReason);
   const q16 = await ask(ben, "What's the other passenger's name and exact address?", 'en');
   check("Q16 another passenger (EN): refused, nothing shared", !/Secret|Gr[aà]cia|Eli\b/i.test(q16.text));
   const q17 = await ask(ben, '¿A dónde va el otro pasajero de mi grupo?', 'es');
@@ -295,7 +298,8 @@ try {
 
   const fresh = await call(cleo.client, 'help-chat', { action: 'start', language: 'en', fresh: true });
   const q20 = await ask(cleo, 'I was charged twice for my ride!', 'en', fresh.data.conversationId);
-  check('Q20 charged twice: handed over as a money problem', q20.handoverReason === 'money_problem', q20.handoverReason);
+  // Her payments show one charge: explained from them (the card), or the team if it can't be.
+  check('Q20 charged twice: her payment checked - explained, or handed over as a money problem', q20.cards.some((c) => c.type === 'payment') || q20.handoverReason === 'money_problem', `${q20.handoverReason} ${JSON.stringify(q20.cards.map((c) => c.type))}`);
   const create = (body) => call(cleo.client, 'support-handover', { action: 'create', conversationId: fresh.data.conversationId, reason: 'money_problem', language: 'en', channel: 'callback', callbackAt: null, ...body });
   const badPhone = await create({ phone: '+3412', consent: true });
   const noConsent = await create({ phone: '+34612345678', consent: false });
@@ -380,6 +384,9 @@ try {
   console.log('Putting the support settings back and deleting the test data...');
   await service.from('support_settings').update(savedSettings).eq('id', 1);
   for (const groupId of createdGroups) {
+    // Their audit rows first: payment_events won't let a payment row go while it points at it.
+    const { data: payments } = await service.from('ride_payments').select('id').eq('group_id', groupId);
+    if (payments?.length) await service.from('payment_events').delete().in('ride_payment_id', payments.map((p) => p.id));
     await service.from('ride_payments').delete().eq('group_id', groupId);
     await service.from('passenger_requests').update({ group_id: null }).eq('group_id', groupId);
     await service.from('group_events').delete().eq('group_id', groupId);

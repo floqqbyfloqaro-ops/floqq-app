@@ -36,7 +36,10 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'unauthorized' }, 401);
   }
 
-  let body: { requestId?: unknown };
+  // via: 'assistant' when the help assistant asks for it on the passenger's behalf (help-chat,
+  // after the passenger tapped "Cancel my ride" on its card) - recorded on the 'ride_cancelled'
+  // event; everything else is exactly as with the app's own cancel button.
+  let body: { requestId?: unknown; via?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -53,7 +56,9 @@ Deno.serve(async (req) => {
 
   // Runs as the calling passenger so auth.uid() inside begin_passenger_request_cancel resolves
   // to them - it authorizes itself against that rather than relying on RLS.
-  const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader, ...(body.via === 'assistant' ? { 'x-floqq-via': 'assistant' } : {}) } },
+  });
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
   // Once the taxi receipt is in, the ride is over: its shares are fixed by that receipt. While it

@@ -2,11 +2,12 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
-import type { HelpAction, HelpMessage } from '../services/helpChat';
+import { HelpAction, HelpMessage, isConfirmCard } from '../services/helpChat';
 import { plainText } from '../services/helpMarkdown';
 import { baseText, borders, colors, radii, spacing } from '../theme/colors';
 import HelpActionButtons from './HelpActionButtons';
 import HelpAvatar from './HelpAvatar';
+import HelpConfirmCard from './HelpConfirmCard';
 import HelpDataCard from './HelpDataCard';
 import HelpEmergencyCard from './HelpEmergencyCard';
 import HelpMarkdown from './HelpMarkdown';
@@ -20,12 +21,14 @@ type Props = {
   // The answer still being written: no time yet; dots until its first word.
   streaming?: boolean;
   onAction: (action: HelpAction) => void;
+  // A tap on a confirmation card's button; absent where the conversation is only read.
+  onDecide?: (actionId: string, decision: 'confirm' | 'keep') => Promise<void>;
 };
 
 // One message in the help chat: the assistant's on the left with the F glyph, the passenger's on the
 // right in the accent colour. Under an answer: its cards and its buttons. ("Was this helpful?" is
 // asked once, on the closing card - not under every answer.)
-function HelpMessageRow({ message, firstInGroup, lastInGroup, streaming = false, onAction }: Props) {
+function HelpMessageRow({ message, firstInGroup, lastInGroup, streaming = false, onAction, onDecide }: Props) {
   const { t, i18n } = useTranslation();
   const isUser = message.role === 'user';
   const time = new Date(message.created_at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
@@ -58,7 +61,11 @@ function HelpMessageRow({ message, firstInGroup, lastInGroup, streaming = false,
           {waitingForFirstWord ? <TypingDots /> : <HelpMarkdown text={message.content} />}
         </View>
         {(message.cards ?? []).map((card, index) => (
-          <HelpDataCard key={`${card.type}-${index}`} card={card} />
+          isConfirmCard(card) ? (
+            <HelpConfirmCard key={card.actionId} card={card} onDecide={onDecide} />
+          ) : (
+            <HelpDataCard key={`${card.type}-${index}`} card={card} />
+          )
         ))}
         {message.actions?.length ? <HelpActionButtons actions={message.actions} onAction={onAction} /> : null}
         {!streaming && lastInGroup ? <Text style={[styles.time, styles.timeLeft]}>{time}</Text> : null}

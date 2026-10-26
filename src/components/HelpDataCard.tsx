@@ -92,6 +92,9 @@ export default function HelpDataCard({ card }: Props) {
     );
   }
 
+  // Confirmation cards are HelpConfirmCard's (HelpMessageRow picks it).
+  if (card.type !== 'refund') return null;
+
   const amount = card.amountCents != null ? `€${formatCents(card.amountCents)}` : null;
   const status = t(`help.refundStatus.${card.status}`);
   return (

@@ -671,12 +671,6 @@
     "backToConversation": "Revenir à la conversation",
     "closedNoReply": "Cette conversation est terminée. Écrivez ci-dessous pour en commencer une nouvelle - je m’en souviendrai.",
     "continuing": "Suite de votre demande précédente.",
-    "followup": {
-      "thatsAll": "Non, c’est tout",
-      "anotherQuestion": "Oui, une autre question",
-      "solvedYes": "Oui, c’est réglé",
-      "solvedNo": "Non, toujours un problème"
-    },
     "status": {
       "resolved": "Résolue",
       "resolvedByTeam": "Résolue par notre équipe",
@@ -787,6 +781,19 @@
     "thumbsDown": "Pas utile",
     "thanksForFeedback": "Merci - cela nous aide à nous améliorer.",
     "card": {
+      "cancelMyRide": "Annuler mon trajet",
+      "keepIt": "Le garder",
+      "cancelled": "Trajet annulé",
+      "kept": "Gardé - rien n’a changé",
+      "failed": "Cela n’a pas pu être fait",
+      "searching": "Recherche d’un groupe",
+      "grouped": "Dans un groupe",
+      "resendTitle": "Renvoyer l’e-mail de confirmation à",
+      "resendEmail": "Renvoyer l’e-mail",
+      "notNow": "Pas maintenant",
+      "resent": "E-mail envoyé",
+      "notSent": "Non envoyé",
+      "error": "Cela n’a pas fonctionné. Veuillez réessayer.",
       "ride": "Votre trajet",
       "payment": "Votre paiement",
       "refund": "Votre remboursement",
@@ -835,6 +842,10 @@
     }
   },
   "adminHelpMetrics": {
+    "withoutPerson": "Résolues sans une personne",
+    "assistantActions": "Faites par l’assistant",
+    "assistantActionsHint": "{{cancels}} annulations, {{emails}} e-mails envoyés",
+    "askedPersonTwice": "Personne demandée deux fois",
     "resolvedByTeam": "Résolues par l’équipe",
     "closedNoReply": "Terminées sans réponse",
     "personAfterResolved": "Personne demandée après « résolue »",

@@ -251,8 +251,8 @@ try {
   const undecided = await chat(ana, { action: 'send', conversationId: anaAgain.data.conversationId, message: "If someone in my group doesn't show up, do I get my €2.49 back?", language: 'en' });
   console.log(`      > ${undecided.data?.message?.content?.replace(/\n/g, ' ')}`);
   check(
-    'a TO DECIDE question: no promise, handed over',
-    undecided.data?.handoverReason != null && !/you will (get|receive) (it|your|the €?2[.,]49) back/i.test(undecided.data?.message?.content ?? ''),
+    'a TO DECIDE question: no promise, and no team just for that',
+    undecided.data?.handoverReason == null && !/you will (get|receive) (it|your|the €?2[.,]49) back/i.test(undecided.data?.message?.content ?? ''),
     undecided.data?.handoverReason
   );
 

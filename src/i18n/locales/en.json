@@ -671,12 +671,6 @@
     "backToConversation": "Back to the conversation",
     "closedNoReply": "This conversation was closed. Write below to start a new one - I’ll remember it.",
     "continuing": "Picking up from your earlier request.",
-    "followup": {
-      "thatsAll": "No, that’s all",
-      "anotherQuestion": "Yes, another question",
-      "solvedYes": "Yes, it’s solved",
-      "solvedNo": "No, still a problem"
-    },
     "status": {
       "resolved": "Resolved",
       "resolvedByTeam": "Resolved by our team",
@@ -787,6 +781,19 @@
     "thumbsDown": "Not helpful",
     "thanksForFeedback": "Thanks - this helps us improve.",
     "card": {
+      "cancelMyRide": "Cancel my ride",
+      "keepIt": "Keep it",
+      "cancelled": "Ride cancelled",
+      "kept": "Kept - nothing changed",
+      "failed": "This couldn’t be done",
+      "searching": "Searching for a match",
+      "grouped": "In a group",
+      "resendTitle": "Resend the confirmation email to",
+      "resendEmail": "Resend email",
+      "notNow": "Not now",
+      "resent": "Email sent",
+      "notSent": "Not sent",
+      "error": "That didn’t go through. Please try again.",
       "ride": "Your ride",
       "payment": "Your payment",
       "refund": "Your refund",
@@ -835,6 +842,10 @@
     }
   },
   "adminHelpMetrics": {
+    "withoutPerson": "Resolved without a person",
+    "assistantActions": "Done by the assistant",
+    "assistantActionsHint": "{{cancels}} cancellations, {{emails}} emails sent",
+    "askedPersonTwice": "Asked for a person twice",
     "resolvedByTeam": "Resolved by the team",
     "closedNoReply": "Closed without reply",
     "personAfterResolved": "Asked for a person after \"resolved\"",

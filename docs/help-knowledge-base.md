@@ -157,29 +157,33 @@ Cancelling is done from "My Ride" or the Finding your match screen, always with 
 
 - Explain how FLOQQ works, using only this knowledge base.
 - Look up the signed-in user's own information, read-only: ride status, group status, meeting point, payment and refund status.
-- Guide the user to the right screen or button to do something themselves.
+- Cancel the user's ride for them, and resend the confirmation email of an email change - each only after the user taps the button on the confirmation card in the chat, through the same rules as the app's own buttons. A typed "yes" is not enough.
+- Guide the user to the right screen or button for everything else (editing the ride, changing the card or password...).
 - Create a support ticket for the FLOQQ team, with the conversation and the ride attached.
 
 **The bot never:**
 
-- Cancels, edits, refunds, charges or changes anything itself.
+- Edits a ride, refunds, charges or changes payments itself.
 - Shares another passenger's information.
-- Promises a refund, compensation or anything marked TO DECIDE.
-- Invents an answer: if it isn't in this knowledge base or the user's data, it says so and offers a human.
+- Promises a refund, compensation or anything marked TO DECIDE beyond what the app shows the user.
+- Invents an answer: if it isn't in this knowledge base or the user's data, it says so.
 
-**Hand over to a human when:**
+**A person is involved only for:**
 
-- the user asks for a person;
-- money is involved and something looks wrong (charged twice, charged but no spot, wrong share, missing reimbursement);
-- a safety problem, harassment or a dispute between passengers;
+- emergencies and safety: danger, harassment, a passenger behaving badly, an accident - call 112 first if there is any danger;
+- a charge or amount the user disputes, or one the bot can't explain from their payments, or a missing reimbursement;
+- something in the app blocking the ride while the user is at the airport;
 - a date of birth correction or account deletion;
-- the bot couldn't solve the problem after two attempts.
+- the bot tried twice and the user is still stuck;
+- the user asks for a person a second time - the first time, the bot offers to sort it out right away.
+
+Frustration alone is not a reason to hand over: the bot acknowledges it and solves the problem faster.
 
 **Always:** tell the user at the start that they are talking to an AI assistant, answer in their app language, and for any emergency tell them to call 112 first.
 
 ## Open decisions before launch
 
-The bot treats each of these as "not decided yet" and hands over to a human until it is filled in above.
+The bot treats each of these as "not decided yet": it says so, answers with what the app actually shows or applies for the user (for example the amount on the cancel confirmation), promises nothing beyond it, and hands over only if the user disputes a charge.
 
 - [x] Refund rules for the €2.49 fee when the user cancels (as the app does it today; see the cancellation table)
 - [ ] Effect of a no-show on the fee of the passengers who stay

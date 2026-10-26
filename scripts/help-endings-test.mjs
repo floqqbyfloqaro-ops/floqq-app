@@ -4,9 +4,10 @@
 //   - "Merci, c'est parfait" after an answer -> a warm closing, resolved, in "Your requests", no
 //     team offered;
 //   - a complete answer, then silence for the timer -> closed_no_reply (the silence job);
-//   - an unclear reaction -> "Anything else?" once, never twice;
-//   - "This didn't help" -> the team; "Quiero hablar con una persona" right after a correct answer
-//     -> the team at once; a frustrated passenger at the airport -> the team;
+//   - an unclear reaction -> no generic "Anything else?": the passenger leads;
+//   - "This didn't help" -> it tries again; still stuck -> the team; "Quiero hablar con una
+//     persona" right after a correct answer -> it offers to sort it out first; a frustrated
+//     passenger at the airport -> empathy and a solution, no team just for that;
 //   - a successful answer never offers the team;
 //   - "I still need help with this" -> a new conversation that knows the earlier one;
 //   - it never asks for ride details the app already has;
@@ -116,6 +117,7 @@ async function say(who, conversationId, message, language) {
     text,
     followup: answer.data?.message?.followup ?? null,
     handoverReason: answer.data?.handoverReason ?? null,
+    actions: answer.data?.message?.actions ?? [],
     state: answer.data?.conversation?.state ?? null,
     title: answer.data?.conversation?.title ?? null,
   };
@@ -153,8 +155,10 @@ try {
     // In "Your requests": the passenger reads it themselves (row level security).
     const { data: archive } = await who.client.from('help_conversations').select('id, state, title').eq('id', conversationId);
     check(`${language}: ...in "Your requests"`, archive?.[0]?.state === 'resolved_by_assistant');
+    // Within 10 minutes it would reopen (help-ai-first-test checks that); after them it's read-only.
+    await service.from('help_conversations').update({ closed_at: new Date(Date.now() - 11 * 60_000).toISOString() }).eq('id', conversationId);
     const afterwards = await call(who.client, { action: 'send', conversationId, message: 'one more', language });
-    check(`${language}: ...and read-only`, afterwards.status === 409 && afterwards.data?.error === 'conversation_closed');
+    check(`${language}: ...and read-only after 10 minutes`, afterwards.status === 409 && afterwards.data?.error === 'conversation_closed');
     resolvedIds.push({ who, conversationId, language });
   }
 
@@ -175,25 +179,25 @@ try {
   const afterSilence = await conversationRow(silentId);
   check(`...closed without reply after ${settings.no_reply_close_minutes} minutes, with a title`, afterSilence?.state === 'closed_no_reply' && afterSilence.title != null, afterSilence?.state);
 
-  // --- An unclear reaction: asked once ---
+  // --- An unclear reaction: no "Anything else?" ---
   const uma = await person('Uma');
   const unclearId = await start(uma, 'en');
   await say(uma, unclearId, 'How do I cancel my ride?', 'en');
   const unclear = await say(uma, unclearId, 'ok', 'en');
   check(
-    'an unclear "ok" -> "Anything else?" with the two buttons',
-    unclear.followup != null && unclear.state === 'active' && /Anything else I can help with\?|Did that solve it\?/.test(unclear.text),
-    unclear.followup
+    'an unclear "ok" -> no generic "Anything else?" (it carries on, or takes it as a sign-off)',
+    (unclear.state === 'active' || unclear.state === 'resolved_by_assistant') && !/anything else|let me know if|would you like more/i.test(unclear.text),
+    unclear.text.slice(0, 80)
   );
-  const again = await say(uma, unclearId, 'hmm', 'en');
-  check('...never asked twice', again.followup == null && (await conversationRow(unclearId))?.followup_asked === true);
 
   // --- "This didn't help" ---
   const nia = await person('Nia', { hoursAhead: 72 });
   const notHelpedId = await start(nia, 'en');
   await say(nia, notHelpedId, "Why haven't I been matched yet?", 'en');
   const notHelped = await say(nia, notHelpedId, "This didn't help at all, I still have no group.", 'en');
-  check('"This didn\'t help" -> the team', notHelped.handoverReason != null, notHelped.handoverReason);
+  check('"This didn\'t help" once -> it tries again, no team yet', !notHelped.handoverReason, String(notHelped.handoverReason));
+  const stillStuck = await say(nia, notHelpedId, "That still doesn't help me, I'm still stuck without a group.", 'en');
+  check('...still stuck after two tries -> the team', stillStuck.handoverReason != null, String(stillStuck.handoverReason));
 
   // --- "Quiero hablar con una persona" right after a correct answer ---
   const pau = await person('Pau');
@@ -201,7 +205,9 @@ try {
   const correct = await say(pau, personId, '¿Cómo cambio mi tarjeta?', 'es');
   check('es: the correct answer offers no team', !correct.handoverReason && !asksForPerson(correct.text));
   const asked = await say(pau, personId, 'Quiero hablar con una persona', 'es');
-  check('"Quiero hablar con una persona" -> the team at once', asked.handoverReason === 'user_asked', asked.handoverReason);
+  check('"Quiero hablar con una persona" the first time -> it offers to sort it out, no team yet', !asked.handoverReason, String(asked.handoverReason));
+  const askedAgain = await say(pau, personId, 'No, quiero hablar con una persona, por favor', 'es');
+  check('...asked again -> the team at once', askedAgain.handoverReason === 'user_asked', String(askedAgain.handoverReason));
 
   // --- Frustrated at the airport ---
   const fay = await person('Fay', { hoursAhead: 0.5 });
@@ -213,8 +219,14 @@ try {
   createdGroups.push(group.id);
   await service.from('passenger_requests').update({ group_id: group.id, status: 'matched' }).eq('id', fay.rideId);
   const frustratedId = await start(fay, 'en');
-  const frustrated = await say(fay, frustratedId, "I'M AT THE AIRPORT AND I CAN'T FIND ANYONE. THIS IS RIDICULOUS, I'VE BEEN WAITING FOR AGES", 'en');
-  check('a frustrated passenger at the airport -> the team, promptly', frustrated.handoverReason != null, frustrated.handoverReason);
+  // Frustration alone (not something broken): their group is still being looked for.
+  await service.from('passenger_requests').update({ group_id: null, status: 'pending' }).eq('id', fay.rideId);
+  const frustrated = await say(fay, frustratedId, 'THIS IS SO ANNOYING!!! WHY IS IT TAKING SO LONG TO FIND ME A GROUP???', 'en');
+  check(
+    'a frustrated passenger -> empathy and an explanation, no team just for that',
+    /sorry|let's|frustrat|stress|understand|hear you|annoying/i.test(frustrated.text) && /5 minutes|match|group/i.test(frustrated.text) && frustrated.handoverReason == null,
+    `${frustrated.handoverReason} ${frustrated.actions.join(',')}`
+  );
 
   // --- It never asks for ride details the app already has ---
   const ray = await person('Ray', { hoursAhead: 26 });

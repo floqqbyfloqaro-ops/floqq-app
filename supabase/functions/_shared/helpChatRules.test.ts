@@ -12,13 +12,14 @@ import {
   HELP_TEXTS,
   HELP_TOPICS,
   knowledgeBaseText,
-  parseFollowupKind,
   parseHelpLanguage,
   previousConversationText,
   replayedAnswer,
+  replayHistory,
   sanitizeUserText,
   systemPrompt,
-  withFollowupQuestion,
+  withoutGenericCloser,
+  withoutToolNames,
 } from './helpChatRules.ts';
 
 test('danger in any of the three languages is caught, accents or not', () => {
@@ -119,11 +120,15 @@ test('the fixed refusal always points to the team, in every language; the closin
   }
 });
 
-test('the context says whether they are at the airport, whether "anything else?" was asked, and the earlier conversation', () => {
+test('the context says whether they are at the airport, how often they asked for a person, a waiting email change, and the earlier conversation', () => {
   const base = { language: 'en', nowIso: '2026-10-23T10:00:00Z', currentRide: 'none', emergencyLineShown: false };
   assert.match(appContext({ ...base, atAirport: true }), /At the airport now[^\n]*: yes/);
   assert.match(appContext(base), /At the airport now[^\n]*: no/);
-  assert.match(appContext({ ...base, followupAsked: true }), /whether they're done: yes/);
+  assert.match(appContext({ ...base, personRequests: 1 }), /asked for a person in this conversation: 1/);
+  assert.match(appContext(base), /asked for a person in this conversation: 0/);
+  assert.match(appContext({ ...base, answersGiven: 2 }), /Answers you already gave in this conversation: 2/);
+  assert.match(appContext({ ...base, pendingEmailChange: 'new@example.com' }), /Email change waiting for confirmation: yes, to new@example.com/);
+  assert.match(appContext(base), /Email change waiting for confirmation: no/);
   const earlier = previousConversationText('Refund for ride of 24 Oct', [
     { role: 'user', content: 'Where is my refund?' },
     { role: 'assistant', content: 'It was released on 25 Oct.' },
@@ -141,10 +146,36 @@ test('the earlier conversation: its last 12 messages, each kept short', () => {
   assert.ok(text.split('\n').every((line) => line.length < 640));
 });
 
-test('"are you done?": the fixed question added on its own line, in the language', () => {
-  assert.equal(withFollowupQuestion('Got it.', 'question', 'en'), 'Got it.\n\nAnything else I can help with?');
-  assert.equal(withFollowupQuestion('', 'problem', 'fr'), 'Est-ce que c’est réglé ?');
-  assert.equal(withFollowupQuestion('  ', 'question', 'es'), '¿Te puedo ayudar con algo más?');
+test("the history: the app's own messages are marked as the app's, and same-side messages are joined", () => {
+  const turns = replayHistory([
+    { role: 'assistant', content: 'Hi!', tools_used: null, model: 'claude' },
+    { role: 'user', content: 'How do I cancel?', tools_used: null, model: null },
+    { role: 'assistant', content: 'You can cancel your ride right here.', tools_used: ['get_my_rides'], model: 'claude' },
+    { role: 'assistant', content: 'Done - your ride is cancelled.', tools_used: null, model: null },
+    { role: 'user', content: 'Thanks!', tools_used: null, model: null },
+  ]);
+  assert.deepEqual(turns.map((t) => t.role), ['user', 'assistant', 'user']);
+  assert.match(turns[1].content, /^\(Looked up: get_my_rides\)\nYou can cancel your ride right here\.\n\n\(The app, after the passenger tapped a button: "Done - your ride is cancelled\."\)$/);
+});
+
+test('a tool name written as text never reaches the passenger', () => {
+  assert.equal(withoutToolNames('conversation_done for the ride cancellation.'), null);
+  assert.equal(withoutToolNames("You're welcome! hand_over now. Have a good trip."), "You're welcome! Have a good trip.");
+  assert.equal(withoutToolNames('The fee is €2.49.'), 'The fee is €2.49.');
+});
+
+test('a generic "anything else?" at the end is dropped (an answer of only that comes back empty)', () => {
+  assert.equal(withoutGenericCloser('Open My Ride to cancel. Is there anything else I can help you with?'), 'Open My Ride to cancel.');
+  assert.equal(withoutGenericCloser("C'est fait. Je peux vous aider pour autre chose ?"), "C'est fait.");
+  assert.equal(withoutGenericCloser('Listo. ¿Te puedo ayudar con algo más?'), 'Listo.');
+  assert.equal(withoutGenericCloser('The fee is €2.49. Let me know if you need more.'), 'The fee is €2.49.');
+  assert.equal(withoutGenericCloser('Anything else?'), '');
+  assert.equal(withoutGenericCloser('Let me know whenever you need anything else with your rides.'), '');
+  assert.equal(withoutGenericCloser('Sounds good. If you need anything else with FLOQQ, just let me know.'), 'Sounds good.');
+  // Line breaks and numbered steps stay exactly as written.
+  assert.equal(withoutGenericCloser('To cancel:\n\n1. Open My Ride.\n2. Tap Cancel.\n\nAnything else?'), 'To cancel:\n\n1. Open My Ride.\n2. Tap Cancel.');
+  assert.equal(withoutToolNames('Steps:\n1. Open it. hand_over now.\n2. Tap it.'), 'Steps:\n1. Open it.\n2. Tap it.');
+  assert.equal(withoutGenericCloser('Which terminal are you at?'), 'Which terminal are you at?');
 });
 
 test('titles: one clean line of at most 60 characters', () => {
@@ -153,8 +184,6 @@ test('titles: one clean line of at most 60 characters', () => {
   assert.equal(cleanTitle('x'.repeat(80))?.length, 60);
   assert.equal(cleanTitle(''), null);
   assert.equal(cleanTitle(42), null);
-  assert.equal(parseFollowupKind('problem'), 'problem');
-  assert.equal(parseFollowupKind('anything'), 'question');
 });
 
 test('every suggested question has a knowledge base section to fall back on', async () => {

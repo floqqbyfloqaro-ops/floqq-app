@@ -6,7 +6,8 @@
 //   - nothing about another passenger is ever shared;
 //   - danger gets the fixed "call 112 now" line first;
 //   - it refuses to cancel the ride and points to the button - and the ride is untouched;
-//   - it answers in the app language; a TO DECIDE question is not promised but handed over;
+//   - it answers in the app language; a TO DECIDE question is said plainly, not promised, and
+//     doesn't go to a person just for that;
 //   - limits: message length, rate per hour, someone else's conversation, reading only your own;
 //   - each answer records its cost, and the knowledge base is read from the cache.
 // It creates its own throwaway users, rides and group and deletes them again at the end.
@@ -98,7 +99,7 @@ async function ask(who, conversationId, message, language = 'en') {
   const { data: row } = data?.message?.id
     ? await service.from('help_messages').select('tools_used, cost_usd, cache_read_tokens, emergency').eq('id', data.message.id).single()
     : { data: null };
-  return { status, reply: data?.message?.content ?? '', emergency: data?.emergency, handoverReason: data?.handoverReason ?? null, row, error: data?.error };
+  return { status, reply: data?.message?.content ?? '', cards: data?.message?.cards ?? [], emergency: data?.emergency, handoverReason: data?.handoverReason ?? null, row, error: data?.error };
 }
 
 try {
@@ -174,16 +175,16 @@ try {
     cancel.status === 200 && annaRide?.status === 'matched' && annaRide.group_id === group.id && !/\b(I've|I have) cancel/i.test(cancel.reply),
     annaRide?.status
   );
-  check('...and points to the "Cancel ride" button', /Cancel ride|My ride/i.test(cancel.reply), cancel.reply.slice(0, 80));
+  check('...and shows the cancel confirmation card (or points to My ride)', cancel.cards?.some((c) => c.type === 'confirm_cancel') || /Cancel ride|My ride/i.test(cancel.reply), cancel.reply.slice(0, 80));
 
   // --- TO DECIDE ---
   const undecided = await ask(anna, conversationId, "If someone in my group doesn't show up, do I get my €2.49 back?");
   console.log(`      > ${undecided.reply.replace(/\n/g, ' ')}`);
   check(
-    'a TO DECIDE question is not promised; it goes to a person',
+    'a TO DECIDE question is said plainly and not promised, and goes to nobody just for that',
     undecided.status === 200 &&
-      (undecided.handoverReason != null || /Talk to a person/i.test(undecided.reply)) &&
-      /(not|n't) (been |yet been )?decided|not settled|not yet/i.test(undecided.reply),
+      undecided.handoverReason == null &&
+      /(not|n't) (been |yet been )?decided|to be decided|undecided|not settled|not yet/i.test(undecided.reply),
     `${undecided.handoverReason} - ${undecided.reply.slice(0, 80)}`
   );
 

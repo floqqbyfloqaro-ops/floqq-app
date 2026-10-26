@@ -21,7 +21,6 @@ import ErrorNotice from '../components/ErrorNotice';
 import HelpAvatar from '../components/HelpAvatar';
 import HelpClosingCard from '../components/HelpClosingCard';
 import HelpComposer from '../components/HelpComposer';
-import HelpFollowupButtons from '../components/HelpFollowupButtons';
 import HelpHandover from '../components/HelpHandover';
 import HelpMessageRow from '../components/HelpMessageRow';
 import HelpRequestItem from '../components/HelpRequestItem';
@@ -30,6 +29,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import SecondaryButton from '../components/SecondaryButton';
 import StatusPill from '../components/StatusPill';
 import {
+  decideHelpAction,
   fetchHelpTopic,
   fetchMyHelpRequests,
   HelpAction,
@@ -41,7 +41,6 @@ import {
   isResolved,
   openHelpConversation,
   rateHelpConversation,
-  resolveHelpConversation,
   sendHelpMessageStreamed,
   startHelpConversation,
 } from '../services/helpChat';
@@ -63,7 +62,6 @@ type Props = {
 
 type Item =
   | { kind: 'message'; message: HelpMessage; firstInGroup: boolean; lastInGroup: boolean; streaming: boolean }
-  | { kind: 'followup'; messageId: string; followup: 'question' | 'problem' }
   | { kind: 'closing' }
   | { kind: 'closed' }
   | { kind: 'retry' }
@@ -84,7 +82,9 @@ type StartOptions = { fresh?: boolean; previousConversationId?: string };
 // current ride (a context card, and suggested questions that follow the ride), streams its answers,
 // shows the passenger's own data as cards and offers buttons to the right screen. A conversation
 // ends like with a good human agent: the passenger says they're done (a warm closing and a closing
-// card with "Was this helpful?"), the one "Anything else?" is answered, or it goes quiet (archived).
+// card with "Was this helpful?"), or it goes quiet (archived). The assistant can also do some
+// things itself - cancel the ride, resend the email change confirmation - each on a confirmation
+// card that only the passenger's tap acts on.
 // The team is offered only when it makes sense - and is always reachable from the … menu. Archived
 // conversations are read-only, in "Your requests", each with "I still need help with this" (a new
 // conversation that knows the earlier one); writing below an archived one does the same. Typed
@@ -107,8 +107,6 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
   const [streaming, setStreaming] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [failures, setFailures] = useState(0);
-  // "Yes, another question": the two answers go away, the conversation carries on.
-  const [followupDismissed, setFollowupDismissed] = useState<string | null>(null);
   const [handoverReason, setHandoverReason] = useState<string | null>(null);
   const [ticket, setTicket] = useState<MyTicket | null>(null);
   const [changingChannel, setChangingChannel] = useState(false);
@@ -152,7 +150,6 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
   const start = useCallback(
     async (options: StartOptions = {}) => {
       setStartFailed(false);
-      setFollowupDismissed(null);
       setHandoverReason(null);
       setSendError(null);
       setFailures(0);
@@ -338,19 +335,27 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
     ]);
   };
 
-  // "No, that's all" / "Yes, it's solved": the closing, resolved. "Yes, another question": carry on.
-  // "No, still a problem": the team.
-  const answerFollowup = async (messageId: string, kind: 'question' | 'problem', done: boolean) => {
-    if (!conversationId) return;
-    setFollowupDismissed(messageId);
-    if (!done) {
-      if (kind === 'problem') setHandoverReason('not_solved');
-      return;
-    }
-    const result = await resolveHelpConversation(conversationId, language);
-    if (result.conversation) setConversation(result.conversation);
-    if (result.message) setMessages((current) => [...current, result.message!]);
-  };
+  // A tap on a confirmation card ("Cancel my ride" / "Keep it", "Resend email" / "Not now"): the
+  // server does it, the card shows how it ended and the assistant says what happened.
+  const decide = useCallback(
+    async (actionId: string, decision: 'confirm' | 'keep') => {
+      const result = await decideHelpAction(actionId, decision, language);
+      if (!result.message) {
+        setSendError(t('help.card.error'));
+        return;
+      }
+      setSendError(null);
+      setMessages((current) => [
+        ...current.map((m) => (result.card && m.id === result.card.messageId ? { ...m, cards: result.card.cards } : m)),
+        result.message!,
+      ]);
+      if (result.conversation) setConversation(result.conversation);
+      AccessibilityInfo.announceForAccessibility(plainText(result.message.content));
+      // A cancelled ride changes the ride card at the top.
+      if (decision === 'confirm') loadRide();
+    },
+    [language, loadRide, t]
+  );
 
   const rate = (id: string, value: 'up' | 'down') => {
     rateHelpConversation(id, value);
@@ -414,17 +419,12 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
       streaming: message.id === STREAMING_ID,
     }));
     if (failures > 0 && !streaming) list.push({ kind: 'retry' });
-    // The one "are you done?": its two answers, while it is the last thing said.
-    const last = messages[messages.length - 1];
-    if (last?.role === 'assistant' && last.followup && last.id !== followupDismissed && conversation?.state === 'active' && !streaming && !handoverReason) {
-      list.push({ kind: 'followup', messageId: last.id, followup: last.followup });
-    }
     if (isResolved(conversation?.state)) list.push({ kind: 'closing' });
     else if (conversation?.state === 'closed_no_reply' && messages.length > 0) list.push({ kind: 'closed' });
     if (((handoverReason || failures >= 2) && !openTicket) || changingChannel) list.push({ kind: 'handover' });
     if (showTicket) list.push({ kind: 'ticket' });
     return list;
-  }, [messages, failures, streaming, followupDismissed, conversation?.state, handoverReason, openTicket, changingChannel, showTicket]);
+  }, [messages, failures, streaming, conversation?.state, handoverReason, openTicket, changingChannel, showTicket]);
 
   const stage = rideStage(ride?.facts ?? null, Date.now());
   const pill = stagePill(stage);
@@ -477,6 +477,7 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
             lastInGroup={item.lastInGroup}
             streaming={item.streaming}
             onAction={onAction}
+            onDecide={archived ? undefined : decide}
           />
         );
       case 'retry':
@@ -485,14 +486,6 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
             <Text style={styles.inlineText}>{t(failures >= 2 ? 'help.stillUnavailable' : 'help.unavailable')}</Text>
             {draft.trim() ? <SecondaryButton label={t('help.tryAgain')} icon="refresh" onPress={retry} /> : null}
           </View>
-        );
-      case 'followup':
-        return (
-          <HelpFollowupButtons
-            kind={item.followup}
-            onDone={() => answerFollowup(item.messageId, item.followup, true)}
-            onMore={() => answerFollowup(item.messageId, item.followup, false)}
-          />
         );
       case 'closing':
         return conversation ? (

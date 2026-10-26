@@ -11,10 +11,26 @@ import { supabase } from './supabase';
 export type HelpLanguage = 'en' | 'fr' | 'es';
 
 export type CardStatus = 'paid' | 'pending' | 'refunded' | 'released' | 'failed' | 'paid_to_taxi';
+
+// What cancelling does to the passenger's money - the same cases as the app's cancel screens
+// (supabase/functions/_shared/helpActions.ts).
+export type CancelConsequence =
+  | { kind: 'searching' }
+  | { kind: 'free'; releasedCents: number }
+  | { kind: 'fee_kept'; feeCents: number; releasedCents: number }
+  | { kind: 'no_charge' };
+export type ActionStatus = 'pending' | 'done' | 'kept' | 'failed';
+export type ConfirmCard =
+  | { type: 'confirm_cancel'; actionId: string; status: ActionStatus; destination: string; at: string; rideStatus: 'searching' | 'grouped'; consequence: CancelConsequence }
+  | { type: 'confirm_email_resend'; actionId: string; status: ActionStatus; email: string };
+
 export type HelpCard =
   | { type: 'ride'; destination: string; at: string; status: 'searching' | 'match_found' | 'confirmed' | 'on_the_way' | 'completed' | 'cancelled' | 'expired'; meetingPoint: string | null }
   | { type: 'payment'; lines: { kind: 'fee' | 'share'; amountCents: number | null; status: CardStatus; date: string | null }[] }
-  | { type: 'refund'; amountCents: number | null; status: 'released' | 'refunded' | 'pending' | 'none'; date: string | null };
+  | { type: 'refund'; amountCents: number | null; status: 'released' | 'refunded' | 'pending' | 'none'; date: string | null }
+  | ConfirmCard;
+
+export const isConfirmCard = (card: HelpCard): card is ConfirmCard => card.type === 'confirm_cancel' || card.type === 'confirm_email_resend';
 
 export type HelpAction = 'open_my_ride' | 'edit_ride' | 'cancel_ride' | 'payment_methods' | 'show_badge' | 'location_settings';
 
@@ -175,6 +191,22 @@ export async function resolveHelpConversation(conversationId: string, language: 
   const { data, error } = await supabase.functions.invoke('help-chat', { body: { action: 'resolve', conversationId, language } });
   if (error || !data?.conversation) return { conversation: null as HelpConversation | null, message: null as HelpMessage | null, error: (await errorCode(error)) ?? 'resolve_failed' };
   return { conversation: data.conversation as HelpConversation, message: (data.message ?? null) as HelpMessage | null, error: null };
+}
+
+// A tap on a confirmation card: 'confirm' does it ("Cancel my ride" / "Resend email") through the
+// same server code as the app's own buttons; 'keep' leaves everything as it is. Returns what the
+// assistant says about it, the card's new state and the conversation.
+export async function decideHelpAction(actionId: string, decision: 'confirm' | 'keep', language: HelpLanguage) {
+  const { data, error } = await supabase.functions.invoke('help-chat', { body: { action: 'decide', actionId, decision, language } });
+  if (error || !data?.message) {
+    return { message: null as HelpMessage | null, card: null as { messageId: string; cards: HelpCard[] } | null, conversation: null as HelpConversation | null, error: (await errorCode(error)) ?? 'decide_failed' };
+  }
+  return {
+    message: data.message as HelpMessage,
+    card: (data.card ?? null) as { messageId: string; cards: HelpCard[] } | null,
+    conversation: (data.conversation ?? null) as HelpConversation | null,
+    error: null,
+  };
 }
 
 // "Was this helpful?" on the closing card - once per conversation.

@@ -37,6 +37,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.128.0';
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import { sendEmail } from '../_shared/email.ts';
+import { ACTION_TEXTS, cancelConsequence, CancelConsequence, cancelDoneText, canReopen } from '../_shared/helpActions.ts';
 import { CARD_TYPES, CardType, HelpAction, HelpCard, parseHelpAction, paymentCard, PaymentFacts, refundCard, rideCard, RideFacts } from '../_shared/helpCards.ts';
 import {
   addUsage,
@@ -44,7 +45,6 @@ import {
   cleanTitle,
   costUsd,
   detectEmergency,
-  FollowupKind,
   HELP_HISTORY_MESSAGES,
   HELP_MAX_MESSAGE_CHARS,
   HELP_MAX_TOOL_ROUNDS,
@@ -55,14 +55,15 @@ import {
   HelpEnding,
   HelpUsage,
   KnowledgeArticle,
-  parseFollowupKind,
   parseHelpLanguage,
   PREVIOUS_CONVERSATION_MESSAGES,
   previousConversationText,
-  replayedAnswer,
+  replayHistory,
   sanitizeUserText,
+  StoredMessage,
   systemPrompt,
-  withFollowupQuestion,
+  withoutGenericCloser,
+  withoutToolNames,
 } from '../_shared/helpChatRules.ts';
 import type { HelpLanguage } from '../_shared/helpKnowledgeBase.ts';
 import { HandoverReason, isUrgent, parseHandoverReason } from '../_shared/supportRules.ts';
@@ -117,18 +118,27 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
-    name: 'ask_if_done',
+    name: 'person_requested',
     description:
-      "Call this when the passenger's reaction to your complete answer is unclear, with your answer ending in one natural question: kind 'question' -> is there anything else you can help with; kind 'problem' -> did that solve it. The app adds two answer buttons. Once per conversation.",
+      'Call this when the passenger asks for a person for the first time and it is not an emergency or a complicated case: you offer to sort it out yourself right away. Never twice in a conversation.',
     input_schema: {
       type: 'object',
-      properties: {
-        kind: { type: 'string', enum: ['question', 'problem'] },
-        title: { type: 'string', description: "The conversation's title: what it is about, in the passenger's language, at most 6 words." },
-      },
-      required: ['kind', 'title'],
+      properties: { title: { type: 'string', description: "The conversation's title: what it is about, in the passenger's language, at most 6 words." } },
+      required: ['title'],
       additionalProperties: false,
     },
+  },
+  {
+    name: 'offer_cancel_ride',
+    description:
+      "Shows a confirmation card for cancelling the passenger's current ride: the ride and exactly what cancelling does to their money, with 'Cancel my ride' and 'Keep it'. Only the passenger's tap on 'Cancel my ride' cancels - nothing happens otherwise.",
+    input_schema: EMPTY_SCHEMA,
+  },
+  {
+    name: 'offer_resend_email_change',
+    description:
+      'Shows a card to resend the confirmation email of the email change that is waiting (only when the app context says one is), with "Resend email". Only the passenger\'s tap sends it.',
+    input_schema: EMPTY_SCHEMA,
   },
   {
     name: 'hand_over',
@@ -174,7 +184,19 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-const SIGNAL_TOOLS = new Set(['answer_complete', 'conversation_done', 'ask_if_done', 'hand_over', 'show_card', 'suggest_action']);
+const SIGNAL_TOOLS = new Set([
+  'answer_complete',
+  'conversation_done',
+  'person_requested',
+  'hand_over',
+  'show_card',
+  'suggest_action',
+  'offer_cancel_ride',
+  'offer_resend_email_change',
+]);
+
+// Where the email change confirmation link lands (as in src/services/profile.ts).
+const EMAIL_CHANGED_PAGE_URL = 'https://floqqbyfloqaro-ops.github.io/floqq-app/email-changed.html';
 
 const PAYMENT_STATUS_MEANING: Record<string, string> = {
   NOT_STARTED: 'nothing reserved on the card yet',
@@ -302,7 +324,27 @@ async function describeRide(admin: SupabaseClient, ride: Ride, language: HelpLan
     destination: ride.destination_address,
     marked_no_show: ride.no_show_at != null,
     group,
+    if_cancelled_now: await cancelOutcome(admin, ride),
   };
+}
+
+// What cancelling this ride now does to the passenger's money, in words - the same rule as the
+// app's cancel screens and the cancel card (null when it can't be cancelled any more).
+async function cancelOutcome(admin: SupabaseClient, ride: Ride): Promise<string | null> {
+  if ((ride.status !== 'pending' && ride.status !== 'matched') || ride.completed_at) return null;
+  const consequence = await consequenceFor(admin, ride.id);
+  if (!consequence) return null;
+  const euro = (cents: number) => `€${(cents / 100).toFixed(2)}`;
+  switch (consequence.kind) {
+    case 'searching':
+      return 'still searching: nothing is charged';
+    case 'no_charge':
+      return 'nothing is reserved on the card: nothing is charged';
+    case 'free':
+      return `more than 24 hours before the ride: free, the whole reservation of ${euro(consequence.releasedCents)} is released`;
+    case 'fee_kept':
+      return `less than 24 hours before the ride: the ${euro(consequence.feeCents)} FLOQQ fee is kept, ${euro(consequence.releasedCents)} is released`;
+  }
 }
 
 async function getMyRides(admin: SupabaseClient, userId: string, language: HelpLanguage) {
@@ -362,6 +404,70 @@ async function getMyPayments(admin: SupabaseClient, userId: string) {
 }
 
 // The cards the assistant asked for, from the passenger's current (or most recent) ride.
+// What cancelling this ride does to the passenger's money right now (the app's own rule).
+async function consequenceFor(admin: SupabaseClient, requestId: string): Promise<CancelConsequence | null> {
+  const { data: ride } = await admin.from('passenger_requests').select('group_id, status').eq('id', requestId).maybeSingle();
+  if (!ride || (ride.status !== 'pending' && ride.status !== 'matched')) return null;
+  const { data: payment } = ride.group_id
+    ? await admin
+        .from('ride_payments')
+        .select('payment_status, hold_amount_cents, platform_fee_cents, free_cancel_until')
+        .eq('request_id', requestId)
+        .eq('group_id', ride.group_id)
+        .maybeSingle()
+    : { data: null };
+  return cancelConsequence(
+    {
+      groupId: ride.group_id,
+      payment: payment
+        ? { status: payment.payment_status, holdCents: payment.hold_amount_cents, feeCents: payment.platform_fee_cents, freeCancelUntil: payment.free_cancel_until }
+        : null,
+    },
+    Date.now()
+  );
+}
+
+// "Cancel my ride" / "Keep it" for the passenger's current ride - none when there is no active one.
+async function cancelCard(admin: SupabaseClient, userId: string, conversationId: string): Promise<HelpCard | null> {
+  const { current } = await loadRides(admin, userId);
+  if (!current || (current.status !== 'pending' && current.status !== 'matched')) return null;
+  // One card at a time: the one above still waits for the tap.
+  const { count: waiting } = await admin
+    .from('help_actions')
+    .select('id', { count: 'exact', head: true })
+    .eq('conversation_id', conversationId)
+    .eq('kind', 'cancel_ride')
+    .eq('status', 'pending');
+  if (waiting) return null;
+  const consequence = await consequenceFor(admin, current.id);
+  if (!consequence) return null;
+  const { data: action } = await admin
+    .from('help_actions')
+    .insert({ conversation_id: conversationId, user_id: userId, kind: 'cancel_ride', request_id: current.id })
+    .select('id')
+    .single();
+  if (!action) return null;
+  return {
+    type: 'confirm_cancel',
+    actionId: action.id,
+    status: 'pending',
+    destination: current.destination_address,
+    at: current.arrival_at,
+    rideStatus: current.group_id ? 'grouped' : 'searching',
+    consequence,
+  };
+}
+
+// "Resend email" for the email change waiting for confirmation.
+async function resendCard(admin: SupabaseClient, userId: string, conversationId: string, email: string): Promise<HelpCard> {
+  const { data: action } = await admin
+    .from('help_actions')
+    .insert({ conversation_id: conversationId, user_id: userId, kind: 'resend_email_change' })
+    .select('id')
+    .single();
+  return { type: 'confirm_email_resend', actionId: action!.id, status: 'pending', email };
+}
+
 async function buildCards(admin: SupabaseClient, userId: string, language: HelpLanguage, types: Set<CardType>): Promise<HelpCard[]> {
   if (types.size === 0) return [];
   const { current, latest } = await loadRides(admin, userId);
@@ -429,7 +535,9 @@ type Answer = {
   refused: boolean;
   // How the answer ends the conversation, if it does (a hand-over wins over the others).
   ending: HelpEnding | null;
-  followupKind: FollowupKind | null;
+  // The confirmation cards it asked for (the passenger confirms with a tap).
+  offerCancel: boolean;
+  offerResend: boolean;
   title: string | null;
   handoverReason: HandoverReason | null;
   cardTypes: Set<CardType>;
@@ -447,7 +555,7 @@ async function prepare(admin: SupabaseClient, userId: string, conversationId: st
     admin.from('help_articles').select('section_key, language, sort_order, title, content, status').eq('status', 'published'),
     admin
       .from('help_messages')
-      .select('role, content, tools_used')
+      .select('role, content, tools_used, model')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
       .limit(HELP_HISTORY_MESSAGES),
@@ -456,11 +564,10 @@ async function prepare(admin: SupabaseClient, userId: string, conversationId: st
     previousConversationId ? loadPreviousConversation(admin, userId, previousConversationId) : Promise.resolve(null),
   ]);
   // The history, rebuilt from what was stored (text only), oldest first, starting with the passenger.
-  const history = ((stored.data ?? []) as { role: 'user' | 'assistant'; content: string; tools_used: string[] | null }[]).reverse();
-  while (history.length && history[0].role === 'assistant') history.shift();
+  const history = replayHistory(((stored.data ?? []) as StoredMessage[]).reverse());
   return {
     articles: (articles.data ?? []) as KnowledgeArticle[],
-    history: history.map((m): Anthropic.MessageParam => ({ role: m.role, content: m.role === 'assistant' ? replayedAnswer(m.content, m.tools_used) : m.content })),
+    history: history as Anthropic.MessageParam[],
     currentRide,
     atAirport,
     previousConversation,
@@ -491,7 +598,8 @@ async function answer(args: {
   history: Anthropic.MessageParam[];
   currentRide: string;
   atAirport: boolean;
-  followupAsked: boolean;
+  personRequests: number;
+  pendingEmailChange: string | null;
   previousConversation: string | null;
   userText: string;
   emergency: boolean;
@@ -511,7 +619,9 @@ async function answer(args: {
     currentRide: args.currentRide,
     emergencyLineShown: args.emergency,
     atAirport: args.atAirport,
-    followupAsked: args.followupAsked,
+    personRequests: args.personRequests,
+    answersGiven: args.history.filter((turn) => turn.role === 'assistant').length,
+    pendingEmailChange: args.pendingEmailChange,
     previousConversation: args.previousConversation,
   });
   const messages: Anthropic.MessageParam[] = [
@@ -525,7 +635,8 @@ async function answer(args: {
     toolsUsed: [],
     refused: false,
     ending: null,
-    followupKind: null,
+    offerCancel: false,
+    offerResend: false,
     title: null,
     handoverReason: null,
     cardTypes: new Set(),
@@ -568,15 +679,14 @@ async function answer(args: {
     const toolCalls = response.content.filter((block): block is Anthropic.ToolUseBlock => block.type === 'tool_use');
     for (const call of toolCalls) {
       const input = (call.input ?? {}) as Record<string, unknown>;
-      if (call.name === 'answer_complete' || call.name === 'conversation_done' || call.name === 'ask_if_done' || call.name === 'hand_over') {
+      if (call.name === 'answer_complete' || call.name === 'conversation_done' || call.name === 'person_requested' || call.name === 'hand_over') {
         result.title = cleanTitle(input.title) ?? result.title;
       }
       if (call.name === 'answer_complete') result.ending = result.ending ?? 'complete';
       if (call.name === 'conversation_done') result.ending = 'done';
-      if (call.name === 'ask_if_done' && result.ending !== 'done') {
-        result.ending = 'ask';
-        result.followupKind = parseFollowupKind(input.kind);
-      }
+      if (call.name === 'person_requested' && result.ending !== 'done') result.ending = 'person';
+      if (call.name === 'offer_cancel_ride') result.offerCancel = true;
+      if (call.name === 'offer_resend_email_change') result.offerResend = true;
       if (call.name === 'hand_over') result.handoverReason = parseHandoverReason(input.reason);
       if (call.name === 'show_card' && CARD_TYPES.includes(input.type as CardType)) result.cardTypes.add(input.type as CardType);
       if (call.name === 'suggest_action') {
@@ -595,12 +705,10 @@ async function answer(args: {
     const onlySignals = toolCalls.every((call) => SIGNAL_TOOLS.has(call.name));
     if (response.stop_reason !== 'tool_use' || toolCalls.length === 0 || (onlySignals && text)) {
       result.text = texts.join(' ').trim();
-      // An "are you done?" may come with no text of its own: the server adds the question.
-      result.refused = result.text.length === 0 && result.ending !== 'ask';
+      result.refused = result.text.length === 0;
       // A hand-over wins: nothing is closed or asked when it goes to a person.
       if (result.handoverReason) {
         result.ending = null;
-        result.followupKind = null;
       }
       // An answer based on their own data always shows that data, even if the model didn't ask.
       if (result.cardTypes.size === 0) {
@@ -682,7 +790,8 @@ type Conversation = {
   id: string;
   state: string;
   title: string | null;
-  followup_asked: boolean;
+  // How often they asked for a person here: the first time the assistant offers to help itself.
+  person_requests: number;
   // The previous answer was complete (the silence timer was running) - the passenger is replying to it.
   answered_at: string | null;
   previous_conversation_id: string | null;
@@ -699,6 +808,8 @@ async function send(args: {
   userText: string;
   language: HelpLanguage;
   emergency: boolean;
+  // The email change waiting for confirmation, if any (for the resend card).
+  pendingEmailChange: string | null;
   onText?: (text: string) => void;
   onReset?: () => void;
 }): Promise<SendOutcome> {
@@ -715,13 +826,18 @@ async function send(args: {
       userId,
       language,
       ...prepared,
-      followupAsked: conversation.followup_asked,
+      personRequests: conversation.person_requests,
+      pendingEmailChange: args.pendingEmailChange,
       userText,
       emergency,
       onText: args.onText,
       onReset: args.onReset,
     });
-    reply = result.refused ? texts.refusal : result.text;
+    // A tool's name written as text is never shown; a closing that was only that gets the fixed one.
+    const named = result.refused ? null : withoutToolNames(result.text);
+    // Only a generic "let me know if...": a short acknowledgement instead.
+    const shown = named == null ? null : withoutGenericCloser(named) || texts.ack;
+    reply = shown ?? (result.ending === 'done' ? texts.closing : texts.refusal);
   } catch (err) {
     console.error('help-chat model call failed', err);
     // Danger is never left unanswered, even without the model: the app shows "Call 112".
@@ -729,23 +845,29 @@ async function send(args: {
     reply = texts.refusal;
   }
 
-  // Danger always goes to the team too, even if the model didn't say so.
-  const handoverReason = result?.handoverReason ?? (emergency ? 'safety' : null);
+  // Danger words always get the "Call 112" card; the team is the assistant's call (a false alarm
+  // like "the police told me to wait" isn't handed over) - unless it couldn't be reached at all.
+  const handoverReason = result ? result.handoverReason : emergency ? 'safety' : null;
   let ending = handoverReason ? null : (result?.ending ?? null);
-  // "Anything else?" is asked once per conversation; a second one counts as a complete answer.
-  if (ending === 'ask' && conversation.followup_asked) ending = 'complete';
-  // ...and only as the reaction to a complete answer they just replied to - never on a first answer.
-  if (ending === 'ask' && !conversation.answered_at) ending = 'complete';
   // The model didn't say, but the answer doesn't end with a question: it waits for nothing, so the
   // silence timer runs (the conversation then gets its first message as its title).
-  if (!ending && !handoverReason && !/\?\s*$/.test(reply.trim())) ending = 'complete';
+  if (!ending && !handoverReason && !result?.offerCancel && !result?.offerResend && !/\?\s*$/.test(reply.trim())) ending = 'complete';
   // In a conversation the team is handling, the passenger's thanks don't close the ticket.
   if (ending === 'done' && conversation.state !== 'active') ending = 'complete';
-  const followup = ending === 'ask' ? (result?.followupKind ?? 'question') : null;
-  if (followup) reply = withFollowupQuestion(reply, followup, language);
-  // Never an empty message (an "are you done?" that was already asked, with no text).
-  if (!reply.trim()) reply = texts.askQuestion;
+  // "I want a person" the first time: it offers to help itself; the next one is a hand-over.
+  const askedForPerson = ending === 'person' || handoverReason === 'user_asked';
   const cards = result ? await buildCards(admin, userId, language, result.cardTypes) : ([] as HelpCard[]);
+  // The confirmation cards: built from the passenger's own data, recorded in help_actions.
+  if (result?.offerCancel) {
+    const card = await cancelCard(admin, userId, conversationId);
+    if (card) cards.push(card);
+  }
+  if (result?.offerResend && args.pendingEmailChange) {
+    cards.push(await resendCard(admin, userId, conversationId, args.pendingEmailChange));
+  }
+  // A card waits for the tap: the conversation doesn't go quiet on its own meanwhile.
+  const cardWaiting = cards.some((card) => card.type === 'confirm_cancel' || card.type === 'confirm_email_resend');
+  if (cardWaiting && ending === 'complete') ending = null;
 
   const now = new Date().toISOString();
   await admin.from('help_messages').insert({ conversation_id: conversationId, user_id: userId, role: 'user', content: userText, created_at: now });
@@ -761,7 +883,6 @@ async function send(args: {
       model: result ? HELP_MODEL : null,
       tools_used: result?.toolsUsed.length ? result.toolsUsed : null,
       emergency,
-      followup,
       handover_reason: handoverReason,
       cards: cards.length ? cards : null,
       actions: result?.actions.length ? result.actions : null,
@@ -782,8 +903,8 @@ async function send(args: {
       language,
       ...(title ? { title } : {}),
       // The passenger replied: the silence timer only runs again after a complete answer.
-      answered_at: ending === 'complete' || ending === 'ask' ? now : null,
-      ...(ending === 'ask' ? { followup_asked: true } : {}),
+      answered_at: ending === 'complete' ? now : null,
+      ...(askedForPerson ? { person_requests: conversation.person_requests + 1 } : {}),
       ...(ending === 'done' ? { state: 'resolved_by_assistant', resolved_at: now, resolved_by: 'assistant', closed_at: now } : {}),
       ...(handoverReason ? { handover_reason: handoverReason } : {}),
     })
@@ -855,13 +976,15 @@ Deno.serve(async (req) => {
     if (body.fresh !== true && !previousId) {
       const { data: recent } = await admin
         .from('help_conversations')
-        .select('id, last_message_at')
+        .select('id, state, closed_at, last_message_at')
         .eq('user_id', user.id)
-        .eq('state', 'active')
+        .in('state', ['active', 'resolved_by_assistant'])
         .order('last_message_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (recent && Date.now() - Date.parse(recent.last_message_at) < RESUME_WITHIN_MS) return show(recent.id, true);
+      // Still going, or resolved less than 10 minutes ago (writing there carries it on).
+      const resumable = recent && (recent.state === 'active' ? Date.now() - Date.parse(recent.last_message_at) < RESUME_WITHIN_MS : canReopen(recent.state, recent.closed_at, Date.now()));
+      if (resumable) return show(recent.id, true);
     }
 
     // "I still need help with this": linked to the earlier conversation, which must be theirs.
@@ -916,6 +1039,90 @@ Deno.serve(async (req) => {
     return jsonResponse({ conversation: resolved[0], message: closing });
   }
 
+  // A tap on a confirmation card: "Cancel my ride" / "Resend email" does it - through the same code
+  // as the app's own buttons, as the passenger - and "Keep it" / "Not now" leaves everything as it
+  // is. Once per card. What it did is then said in the conversation, which carries on.
+  if (body.action === 'decide') {
+    const actionId = typeof body.actionId === 'string' ? body.actionId : '';
+    const confirm = body.decision === 'confirm';
+    const { data: action } = await admin.from('help_actions').select('*').eq('id', actionId).maybeSingle();
+    if (!action || action.user_id !== user.id) return jsonResponse({ error: 'not_found' }, 404);
+    if (action.status !== 'pending') return jsonResponse({ error: 'already_decided', status: action.status }, 409);
+    const { data: conversation } = await admin.from('help_conversations').select('state').eq('id', action.conversation_id).single();
+    if (conversation?.state !== 'active' && conversation?.state !== 'handed_over') return jsonResponse({ error: 'conversation_closed' }, 409);
+    // Claimed first: a double tap can't do it twice.
+    const { data: claimed } = await admin.from('help_actions').update({ status: confirm ? 'done' : 'kept', decided_at: new Date().toISOString() }).eq('id', actionId).eq('status', 'pending').select('id');
+    if (!claimed?.length) return jsonResponse({ error: 'already_decided' }, 409);
+
+    const texts = ACTION_TEXTS[language];
+    let status: 'done' | 'kept' | 'failed' = confirm ? 'done' : 'kept';
+    let reply: string;
+    let failure: string | null = null;
+    if (!confirm) {
+      reply = action.kind === 'cancel_ride' ? texts.kept : texts.resendKept;
+    } else if (action.kind === 'cancel_ride') {
+      // What it does to their money, worked out again at the moment of the tap.
+      const consequence = action.request_id ? await consequenceFor(admin, action.request_id) : null;
+      const cancelled = action.request_id
+        ? await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/cancel-passenger-request`, {
+            method: 'POST',
+            headers: { Authorization: authHeader, apikey: Deno.env.get('SUPABASE_ANON_KEY')!, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requestId: action.request_id, via: 'assistant' }),
+          })
+        : null;
+      if (cancelled?.ok && consequence) {
+        reply = cancelDoneText(consequence, language);
+      } else {
+        status = 'failed';
+        failure = cancelled ? ((await cancelled.json().catch(() => ({})))?.error ?? `status_${cancelled.status}`) : 'no_ride';
+        reply = failure === 'ride_settling' ? texts.cancelSettling : texts.cancelFailed;
+      }
+    } else {
+      // The email change confirmation, as Profile's "Resend email" does it.
+      const email = user.new_email || null;
+      const sent = email
+        ? await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/resend?redirect_to=${encodeURIComponent(EMAIL_CHANGED_PAGE_URL)}`, {
+            method: 'POST',
+            headers: { Authorization: authHeader, apikey: Deno.env.get('SUPABASE_ANON_KEY')!, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'email_change', email }),
+          })
+        : null;
+      if (sent?.ok && email) {
+        reply = texts.resent.replace('{email}', email);
+      } else {
+        status = 'failed';
+        failure = sent ? `status_${sent.status}` : 'no_pending_email';
+        reply = texts.resendFailed;
+      }
+    }
+    if (status === 'failed') await admin.from('help_actions').update({ status, failure }).eq('id', actionId);
+
+    // The card now shows what happened.
+    const { data: holder } = await admin
+      .from('help_messages')
+      .select('id, cards')
+      .eq('conversation_id', action.conversation_id)
+      .contains('cards', [{ actionId }])
+      .maybeSingle();
+    const cards = ((holder?.cards ?? []) as HelpCard[]).map((card) => ('actionId' in card && card.actionId === actionId ? { ...card, status } : card));
+    if (holder) await admin.from('help_messages').update({ cards }).eq('id', holder.id);
+
+    const now = new Date().toISOString();
+    const { data: message } = await admin
+      .from('help_messages')
+      .insert({ conversation_id: action.conversation_id, user_id: user.id, role: 'assistant', content: reply, created_at: now })
+      .select(MESSAGE_COLUMNS)
+      .single();
+    // Done: the conversation carries on; quiet for 10 minutes, it closes as usual.
+    const { data: updated } = await admin
+      .from('help_conversations')
+      .update({ last_message_at: now, answered_at: now })
+      .eq('id', action.conversation_id)
+      .select(CONVERSATION_COLUMNS)
+      .single();
+    return jsonResponse({ status, message, card: holder ? { messageId: holder.id, cards } : null, conversation: updated });
+  }
+
   // "Was this helpful?" on the closing card: once per resolved conversation.
   if (body.action === 'rate') {
     const value = body.value === 'up' || body.value === 'down' ? body.value : null;
@@ -957,7 +1164,7 @@ Deno.serve(async (req) => {
   const [{ data: conversation }, { count: recent }] = await Promise.all([
     admin
       .from('help_conversations')
-      .select('id, user_id, state, title, followup_asked, answered_at, previous_conversation_id')
+      .select('id, user_id, state, title, closed_at, person_requests, answered_at, previous_conversation_id')
       .eq('id', conversationId)
       .maybeSingle(),
     admin
@@ -968,6 +1175,14 @@ Deno.serve(async (req) => {
       .gt('created_at', new Date(Date.now() - 60 * 60_000).toISOString()),
   ]);
   if (!conversation || conversation.user_id !== user.id) return jsonResponse({ error: 'not_found' }, 404);
+  // "Oh, one more thing" within 10 minutes of the closing: the same conversation carries on.
+  if (canReopen(conversation.state, conversation.closed_at, Date.now())) {
+    await admin
+      .from('help_conversations')
+      .update({ state: 'active', closed_at: null, resolved_at: null, resolved_by: null })
+      .eq('id', conversation.id);
+    conversation.state = 'active';
+  }
   // Archived (resolved or closed): read-only - "I still need help with this" starts a new one.
   if (conversation.state !== 'active' && conversation.state !== 'handed_over') return jsonResponse({ error: 'conversation_closed' }, 409);
   if ((recent ?? 0) >= HELP_RATE_LIMIT_PER_HOUR) {
@@ -975,7 +1190,7 @@ Deno.serve(async (req) => {
   }
 
   const emergency = detectEmergency(userText);
-  const base = { admin, userId: user.id, conversation, userText, language, emergency };
+  const base = { admin, userId: user.id, conversation, userText, language, emergency, pendingEmailChange: user.new_email || null };
 
   if (body.stream !== true) {
     const outcome = await send(base);

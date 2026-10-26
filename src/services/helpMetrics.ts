@@ -1,11 +1,16 @@
 import { supabase } from './supabase';
 
 // The help assistant's figures for the admin (admin_help_metrics in
-// supabase/migrations/20261027000000_help_conversation_states.sql), and the support settings the
-// admin edits.
+// supabase/migrations/20261027010000_help_ai_first.sql), and the support settings the admin edits.
 
 export type HelpMetrics = {
   conversations: number;
+  // Conversations that never went to a person.
+  without_person: number;
+  // What the assistant did on the passenger's behalf (a confirmation card they tapped).
+  assistant_actions: Partial<Record<'cancel_ride' | 'resend_email_change', number>>;
+  // Passengers who asked for a person a second time.
+  asked_person_twice: number;
   resolved_by_assistant: number;
   resolved_by_team: number;
   closed_no_reply: number;
