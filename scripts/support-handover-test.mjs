@@ -131,15 +131,16 @@ try {
   const info = await handover(ben, { action: 'info', conversationId: benId });
   check(
     'the team languages, WhatsApp and the call-back times are on offer',
-    info.status === 200 && JSON.stringify(info.data.teamLanguages) === '["en","fr","es"]' && info.data.whatsapp === true && info.data.openNow === true && info.data.callbackSlots.length > 0,
+    info.status === 200 && JSON.stringify(info.data.teamLanguages) === '["en","fr","es","it","nl"]' && info.data.whatsapp === true && info.data.openNow === true && info.data.callbackSlots.length > 0,
     JSON.stringify({ languages: info.data?.teamLanguages, open: info.data?.openNow, slots: info.data?.callbackSlots?.length })
   );
-  const whatsapp = await handover(ben, { action: 'create', conversationId: benId, reason: 'not_solved', language: 'fr', channel: 'whatsapp' });
+  // Dutch: one of the team languages the app itself isn't in.
+  const whatsapp = await handover(ben, { action: 'create', conversationId: benId, reason: 'not_solved', language: 'nl', channel: 'whatsapp' });
   const reference = whatsapp.data?.reference;
   check(
     'WhatsApp: only the ticket reference, in the chosen language, to the configured number',
     whatsapp.status === 200 &&
-      whatsapp.data.whatsapp?.text === `Bonjour FLOQQ, j’ai besoin d’aide. Ticket #${reference}` &&
+      whatsapp.data.whatsapp?.text === `Hallo FLOQQ, ik heb hulp nodig. Ticket #${reference}` &&
       whatsapp.data.whatsapp?.digits === '34600000000' &&
       /^[A-Z2-9]{4,5}$/.test(reference ?? ''),
     JSON.stringify(whatsapp.data?.whatsapp)
@@ -149,7 +150,7 @@ try {
   check(
     'the ticket: reason, language, channel, ride, and a short English summary for the team',
     benTicket?.category === 'not_solved' &&
-      benTicket.language === 'fr' &&
+      benTicket.language === 'nl' &&
       benTicket.channel === 'whatsapp' &&
       benTicket.request_id === ben.rideId &&
       benTicket.status === 'open' &&

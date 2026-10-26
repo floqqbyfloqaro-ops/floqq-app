@@ -193,13 +193,16 @@ export function isUrgent(facts: UrgencyFacts, nowMs: number): boolean {
 
 // --- WhatsApp: only the ticket reference, never ride details or personal data ---
 
-export const TEAM_LANGUAGES = ['en', 'fr', 'es'] as const;
+// The languages the team can reply in - wider than the app's own (en, fr, es).
+export const TEAM_LANGUAGES = ['en', 'fr', 'es', 'it', 'nl'] as const;
 export type TeamLanguage = (typeof TEAM_LANGUAGES)[number];
 
 const WHATSAPP_TEXT: Record<TeamLanguage, (reference: string) => string> = {
   en: (reference) => `Hi FLOQQ, I need help. Ticket #${reference}`,
   fr: (reference) => `Bonjour FLOQQ, j’ai besoin d’aide. Ticket #${reference}`,
   es: (reference) => `Hola FLOQQ, necesito ayuda. Ticket #${reference}`,
+  it: (reference) => `Ciao FLOQQ, ho bisogno di aiuto. Ticket #${reference}`,
+  nl: (reference) => `Hallo FLOQQ, ik heb hulp nodig. Ticket #${reference}`,
 };
 
 export function whatsappMessage(language: string, reference: string): string {

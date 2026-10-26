@@ -34,7 +34,11 @@ export type HelpMessage = {
   feedback?: 'up' | 'down' | null;
 };
 
-export const helpLanguageFor = (language: string): HelpLanguage => (language.startsWith('fr') ? 'fr' : language.startsWith('es') ? 'es' : 'en');
+// "Talk to a person": the team also replies in Italian and Dutch (the app itself is en/fr/es).
+export const TEAM_LANGUAGES = ['en', 'fr', 'es', 'it', 'nl'] as const;
+export type TeamLanguage = (typeof TEAM_LANGUAGES)[number];
+
+export const helpLanguageFor =(language: string): HelpLanguage => (language.startsWith('fr') ? 'fr' : language.startsWith('es') ? 'es' : 'en');
 
 async function errorCode(error: unknown): Promise<string | null> {
   const context = (error as { context?: Response } | null)?.context;
@@ -153,7 +157,7 @@ export async function fetchHelpTopic(topic: HelpTopic, language: HelpLanguage) {
 export type CallbackSlot = { at: string; day: 'today' | 'tomorrow'; time: string };
 
 export type SupportInfo = {
-  teamLanguages: HelpLanguage[];
+  teamLanguages: TeamLanguage[];
   openNow: boolean;
   nextOpenAt: string | null;
   whatsapp: boolean;
@@ -172,7 +176,7 @@ export async function fetchSupportInfo(conversationId: string) {
 export type TicketRequest = {
   conversationId: string;
   reason: string;
-  language: HelpLanguage;
+  language: TeamLanguage;
   channel: 'whatsapp' | 'callback';
   // E.164, call back only.
   phone?: string;

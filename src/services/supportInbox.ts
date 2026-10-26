@@ -1,3 +1,4 @@
+import type { TeamLanguage } from './helpChat';
 import { supabase } from './supabase';
 
 // Support tickets (supabase/migrations/20261023040000_support_tickets.sql and
@@ -20,7 +21,7 @@ export type SupportTicket = {
   conversation_id: string | null;
   request_id: string | null;
   category: string;
-  language: 'en' | 'fr' | 'es';
+  language: TeamLanguage;
   channel: TicketChannel;
   callback_phone: string | null;
   callback_at: string | null;
@@ -39,7 +40,7 @@ export type SupportTicket = {
 const TICKET_COLUMNS =
   'id, reference, user_id, conversation_id, request_id, category, language, channel, callback_phone, callback_at, status, urgent, summary, created_at, updated_at, resolved_at, resolution_category, first_contact_at, call_attempts, last_call_at';
 
-export type TicketFilters = { status: TicketStatus | 'active' | 'all'; channel: TicketChannel | 'all'; language: 'en' | 'fr' | 'es' | 'all' };
+export type TicketFilters = { status: TicketStatus | 'active' | 'all'; channel: TicketChannel | 'all'; language: TeamLanguage | 'all' };
 
 // Urgent first, then oldest first: who has been waiting longest.
 export function fetchTickets(filters: TicketFilters) {

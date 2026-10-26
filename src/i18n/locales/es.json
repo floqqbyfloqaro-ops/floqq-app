@@ -682,7 +682,9 @@
     "languageName": {
       "en": "Inglés",
       "fr": "Francés",
-      "es": "Español"
+      "es": "Español",
+      "it": "Italiano",
+      "nl": "Neerlandés"
     },
     "continue": "Continuar",
     "back": "Atrás",
@@ -956,7 +958,9 @@
     "language": {
       "en": "Inglés",
       "fr": "Francés",
-      "es": "Español"
+      "es": "Español",
+      "it": "Italiano",
+      "nl": "Neerlandés"
     },
     "published": "Publicado",
     "draft": "Borrador",

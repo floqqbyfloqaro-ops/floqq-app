@@ -2,14 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { TEAM_LANGUAGES as LANGUAGES } from '../services/helpChat';
 import { fetchSupportSettings, saveSupportSettings, SupportSettings } from '../services/helpMetrics';
 import { baseText, borders, colors, radii, spacing } from '../theme/colors';
 import AuthTextInput from './AuthTextInput';
 import Card from './Card';
 import ErrorNotice from './ErrorNotice';
 import PrimaryButton from './PrimaryButton';
-
-const LANGUAGES = ['en', 'fr', 'es'] as const;
 
 // Admin dashboard, Help tab: the support settings - the team's WhatsApp number (WhatsApp is offered
 // to passengers as soon as it is set), where new-ticket alerts go, the languages the team speaks,

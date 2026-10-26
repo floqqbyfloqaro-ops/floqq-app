@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { TEAM_LANGUAGES } from '../services/helpChat';
 import { fetchTickets, SupportTicket, TicketFilters } from '../services/supportInbox';
 import { baseText, borders, colors, radii, spacing } from '../theme/colors';
 import { formatBarcelonaDateTime } from '../utils/formatDateTime';
@@ -19,7 +20,7 @@ type Props = {
 
 const STATUS_FILTERS: TicketFilters['status'][] = ['active', 'open', 'in_progress', 'no_answer', 'resolved', 'all'];
 const CHANNEL_FILTERS: TicketFilters['channel'][] = ['all', 'callback', 'whatsapp'];
-const LANGUAGE_FILTERS: TicketFilters['language'][] = ['all', 'en', 'fr', 'es'];
+const LANGUAGE_FILTERS: TicketFilters['language'][] = ['all', ...TEAM_LANGUAGES];
 
 export const ticketStatusPill = (status: SupportTicket['status']) =>
   status === 'resolved' ? 'Group Confirmed' : status === 'no_answer' ? 'Cancelled' : 'Searching';
