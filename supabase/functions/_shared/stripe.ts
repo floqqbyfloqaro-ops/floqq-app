@@ -18,12 +18,6 @@ export function assertTestKey(name: string, value: string): void {
   }
 }
 
-// The payments prototype (card saving, holds, captures, payouts) is off unless the
-// PAYMENTS_ENABLED secret is exactly "true". The older service-fee Checkout flow doesn't use this.
-export function paymentsEnabled(): boolean {
-  return Deno.env.get('PAYMENTS_ENABLED') === 'true';
-}
-
 // Returns a Stripe client, or null if STRIPE_SECRET_KEY isn't configured. Throws LiveKeyError
 // on a live key.
 export function createStripeClient(): Stripe | null {

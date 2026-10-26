@@ -11,7 +11,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
-import { PAYMENTS_ENABLED } from '../constants';
+import TestModeBadge from '../components/TestModeBadge';
 import { CARD_SETUP_SUPPORTED, presentCardSetupSheet } from '../services/cardSetup';
 import { RESEND_COOLDOWN_SECONDS } from '../services/emailVerification';
 import {
@@ -142,15 +142,13 @@ export default function ProfileScreen({ onBack, onOpenHelp }: Props) {
     setCard(savedCard);
   }, [t]);
 
-  // With the payments prototype off (PAYMENTS_ENABLED), Profile has no payment methods section.
   useEffect(() => {
-    if (PAYMENTS_ENABLED) loadCard();
+    loadCard();
   }, [loadCard]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    if (PAYMENTS_ENABLED) loadCard();
-    else setIsRefreshing(false);
+    loadCard();
     loadAccount();
   };
 
@@ -318,54 +316,51 @@ export default function ProfileScreen({ onBack, onOpenHelp }: Props) {
               </Card>
             ) : null}
 
-            {PAYMENTS_ENABLED ? (
-              <>
-                <Text style={styles.sectionTitle}>{t('profile.paymentMethodsTitle')}</Text>
-                <Text style={styles.intro}>{t('profile.paymentMethodsIntro')}</Text>
+            <Text style={styles.sectionTitle}>{t('profile.paymentMethodsTitle')}</Text>
+            <TestModeBadge />
+            <Text style={styles.intro}>{t('profile.paymentMethodsIntro')}</Text>
 
-                {errorMessage ? <ErrorNotice message={errorMessage} onRetry={loadCard} retryLabel={t('common.retry')} /> : null}
+            {errorMessage ? <ErrorNotice message={errorMessage} onRetry={loadCard} retryLabel={t('common.retry')} /> : null}
 
-                {isLoading ? (
-                  <Card accessible accessibilityLabel={t('admin.loading')}>
-                    <Skeleton width={160} height={22} style={styles.skeletonGap} />
-                    <Skeleton width={100} height={14} />
-                  </Card>
+            {isLoading ? (
+              <Card accessible accessibilityLabel={t('admin.loading')}>
+                <Skeleton width={160} height={22} style={styles.skeletonGap} />
+                <Skeleton width={100} height={14} />
+              </Card>
+            ) : (
+              <Card>
+                {card ? (
+                  <View style={styles.cardDetails}>
+                    {walletKey ? <Text style={styles.walletText}>{t(walletKey)}</Text> : null}
+                    <Text style={styles.cardLine}>
+                      {t('profile.cardLine', { brand: capitalize(card.brand), last4: card.last4 })}
+                    </Text>
+                    <Text style={styles.expiryText}>
+                      {t('profile.cardExpiry', {
+                        month: String(card.expMonth).padStart(2, '0'),
+                        year: card.expYear,
+                      })}
+                    </Text>
+                  </View>
                 ) : (
-                  <Card>
-                    {card ? (
-                      <View style={styles.cardDetails}>
-                        {walletKey ? <Text style={styles.walletText}>{t(walletKey)}</Text> : null}
-                        <Text style={styles.cardLine}>
-                          {t('profile.cardLine', { brand: capitalize(card.brand), last4: card.last4 })}
-                        </Text>
-                        <Text style={styles.expiryText}>
-                          {t('profile.cardExpiry', {
-                            month: String(card.expMonth).padStart(2, '0'),
-                            year: card.expYear,
-                          })}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.noCardText}>{t('profile.noCard')}</Text>
-                    )}
-
-                    {notice ? (
-                      <Text style={styles.noticeText} accessibilityLiveRegion="polite">
-                        {notice}
-                      </Text>
-                    ) : null}
-
-                    {!CARD_SETUP_SUPPORTED ? (
-                      <Text style={styles.noticeText}>{t('profile.webNotSupported')}</Text>
-                    ) : card ? (
-                      <SecondaryButton label={t('profile.replaceCard')} onPress={handleSetupCard} disabled={isSaving} />
-                    ) : (
-                      <PrimaryButton label={t('profile.addCard')} onPress={handleSetupCard} loading={isSaving} />
-                    )}
-                  </Card>
+                  <Text style={styles.noCardText}>{t('profile.noCard')}</Text>
                 )}
-              </>
-            ) : null}
+
+                {notice ? (
+                  <Text style={styles.noticeText} accessibilityLiveRegion="polite">
+                    {notice}
+                  </Text>
+                ) : null}
+
+                {!CARD_SETUP_SUPPORTED ? (
+                  <Text style={styles.noticeText}>{t('profile.webNotSupported')}</Text>
+                ) : card ? (
+                  <SecondaryButton label={t('profile.replaceCard')} onPress={handleSetupCard} disabled={isSaving} />
+                ) : (
+                  <PrimaryButton label={t('profile.addCard')} onPress={handleSetupCard} loading={isSaving} />
+                )}
+              </Card>
+            )}
 
             <View style={styles.helpSection}>
               <Text style={styles.sectionTitle}>{t('profile.helpTitle')}</Text>

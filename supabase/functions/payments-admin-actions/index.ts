@@ -14,7 +14,7 @@ import Stripe from 'npm:stripe@17';
 
 import { isAdminUser } from '../_shared/auth.ts';
 import { settleGroup } from '../_shared/settlement.ts';
-import { createStripeClient, LiveKeyError, paymentsEnabled } from '../_shared/stripe.ts';
+import { createStripeClient, LiveKeyError } from '../_shared/stripe.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,10 +37,6 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
-  if (!paymentsEnabled()) {
-    return jsonResponse({ error: 'Payments are disabled.' }, 403);
-  }
-
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
     return jsonResponse({ error: 'Unauthorized' }, 401);

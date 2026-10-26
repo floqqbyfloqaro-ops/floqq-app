@@ -17,7 +17,6 @@ import { readyIso } from '../_shared/readyTimeRule.ts';
 import { evaluateReceipt } from '../_shared/receiptChecks.ts';
 import { recordReceipt } from '../_shared/receipts.ts';
 import { ReceiptScanError, RECEIPT_SCAN_MODEL, scanReceipt, sniffImageType } from '../_shared/receiptScan.ts';
-import { paymentsEnabled } from '../_shared/stripe.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,10 +48,6 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
   }
-  if (!paymentsEnabled()) {
-    return jsonResponse({ error: 'Payments are disabled.' }, 403);
-  }
-
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
     return jsonResponse({ error: 'Unauthorized' }, 401);

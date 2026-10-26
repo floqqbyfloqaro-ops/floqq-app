@@ -18,7 +18,6 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import DateOfBirthGate from './src/screens/DateOfBirthGate';
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeSplashScreen from './src/screens/WelcomeSplashScreen';
-import { PAYMENTS_ENABLED } from './src/constants';
 import SlideInScreen from './src/components/SlideInScreen';
 import WebAppFrame from './src/components/WebAppFrame';
 import { fetchIsAdmin } from './src/services/adminRole';
@@ -79,7 +78,7 @@ function AppContent() {
     handledLinkRef.current = linkingUrl;
 
     // Returning from a bank's 3D Secure page while saving a card - Stripe's link, not ours.
-    if (PAYMENTS_ENABLED && linkingUrl.includes('stripe-redirect')) {
+    if (linkingUrl.includes('stripe-redirect')) {
       handleStripeRedirect(linkingUrl);
       return;
     }

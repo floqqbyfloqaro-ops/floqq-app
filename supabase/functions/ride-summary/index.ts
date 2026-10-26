@@ -10,7 +10,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { estimatedSharesCents, PLATFORM_FEE_CENTS } from '../_shared/holdMath.ts';
-import { paymentsEnabled } from '../_shared/stripe.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -84,7 +83,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
   const validReceipt = receipt && receipt.status !== 'REJECTED' ? receipt : null;
 
-  // What FLOQQ actually did with this passenger's card (payments on).
+  // What FLOQQ actually did with this passenger's card.
   const { data: payment } = await adminClient
     .from('ride_payments')
     .select('payment_status, platform_fee_cents, final_share_cents, captured_cents, captured_at')
@@ -112,7 +111,6 @@ Deno.serve(async (req) => {
       completedSource: mine.completed_source,
       completionSeenAt: mine.completion_seen_at,
       groupCompletedAt: group.completed_at,
-      paymentsEnabled: paymentsEnabled(),
       isPayer,
       platformFeeCents: payment?.platform_fee_cents ?? PLATFORM_FEE_CENTS,
       estimatedTotalCents,

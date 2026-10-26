@@ -20,7 +20,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { settleCancelledSeat, syncGroupHolds } from '../_shared/holds.ts';
 import { rescoreGroup } from '../_shared/rescoreGroup.ts';
-import { createStripeClient, paymentsEnabled } from '../_shared/stripe.ts';
+import { createStripeClient } from '../_shared/stripe.ts';
 
 function jsonResponse(body: unknown, status: number) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
   // still an offer ("Match found") can have holds too: nothing is charged there - the leaving
   // passenger's hold is simply released by syncGroupHolds below.
   let stripe: ReturnType<typeof createStripeClient> = null;
-  if (result.group_id && paymentsEnabled()) {
+  if (result.group_id) {
     try {
       stripe = createStripeClient();
     } catch (err) {

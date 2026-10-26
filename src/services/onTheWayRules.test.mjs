@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { ON_THE_WAY_HOURS, rideInProgress, shareInfoKey } from './onTheWayRules.ts';
+import { ON_THE_WAY_HOURS, rideInProgress } from './onTheWayRules.ts';
 
 const STARTED = '2026-10-22T18:00:00Z';
 const at = (iso) => new Date(iso).getTime();
@@ -32,18 +32,13 @@ test('never without a confirmed group', () => {
   }
 });
 
-test('the info card says "secured" only with payments on', () => {
-  assert.equal(shareInfoKey(true), 'share_secured_info');
-  assert.equal(shareInfoKey(false), 'share_calculated_info');
-});
-
-test('the "secured" and "calculated" texts say what they should in every language', () => {
+test('the On the way texts exist in every language, without the old payments-off variant', () => {
   for (const language of ['en', 'fr', 'es']) {
     const texts = JSON.parse(readFileSync(new URL(`../i18n/locales/${language}.json`, import.meta.url), 'utf8'));
-    for (const key of ['on_the_way_title', 'on_the_way_subtitle', 'estimated_share', 'final_share_note', 'share_secured_info', 'share_calculated_info']) {
+    for (const key of ['on_the_way_title', 'on_the_way_subtitle', 'estimated_share', 'final_share_note', 'share_secured_info']) {
       assert.equal(typeof texts[key], 'string', `${language}: ${key}`);
     }
-    assert.notEqual(texts.share_secured_info, texts.share_calculated_info, language);
+    assert.equal(texts.share_calculated_info, undefined, language);
   }
 });
 

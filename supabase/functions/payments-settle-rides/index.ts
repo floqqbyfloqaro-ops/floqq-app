@@ -7,7 +7,7 @@
 //     not finished, a refused transfer, a payout the admin still has to approve).
 //   - Called by the admin with { groupId } to run the same steps for one group right away. It
 //     still only charges once that group's dispute window is over.
-// Does nothing while PAYMENTS_ENABLED is off. Deployed with --no-verify-jwt: authenticates via
+// Deployed with --no-verify-jwt: authenticates via
 // the cron secret header or the admin's JWT (see _shared/auth.ts), like payments-sync-holds.
 
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
@@ -19,7 +19,7 @@ import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { handleMissingReceipts } from '../_shared/missingReceipts.ts';
 import { scheduleSettlement, SETTLEABLE_RECEIPT_STATUSES } from '../_shared/receipts.ts';
 import { SettleResult, settleGroup } from '../_shared/settlement.ts';
-import { createStripeClient, LiveKeyError, paymentsEnabled } from '../_shared/stripe.ts';
+import { createStripeClient, LiveKeyError } from '../_shared/stripe.ts';
 
 const LOCK_ID = 4;
 
@@ -89,10 +89,6 @@ Deno.serve(monitored('payments-settle-rides', async (req) => {
   if (!(await isAuthorized(req, adminClient))) {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
-  if (!paymentsEnabled()) {
-    return jsonResponse({ skipped: 'payments_disabled' });
-  }
-
   let stripe: Stripe | null;
   try {
     stripe = createStripeClient();

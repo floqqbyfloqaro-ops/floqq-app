@@ -13,7 +13,7 @@ import { sendDueHoldNotifications, syncGroupHolds } from './holds.ts';
 import { syncGroupPayer } from './payer.ts';
 import { sendPush } from './push.ts';
 import { rescoreGroup } from './rescoreGroup.ts';
-import { createStripeClient, paymentsEnabled } from './stripe.ts';
+import { createStripeClient } from './stripe.ts';
 
 const MINUTE_MS = 60_000;
 
@@ -21,10 +21,9 @@ export function offerExpiresAt(now: Date): string {
   return new Date(now.getTime() + MATCH_OFFER_TIMEOUT_MINUTES * MINUTE_MS).toISOString();
 }
 
-// Stripe for the functions that only need it to keep holds in step: null with payments off or
-// not usable - the offer itself never depends on it.
+// Stripe for the functions that only need it to keep holds in step: null if it isn't usable -
+// the offer itself never depends on it.
 export function stripeForOffers(): Stripe | null {
-  if (!paymentsEnabled()) return null;
   try {
     return createStripeClient();
   } catch (err) {
@@ -61,7 +60,7 @@ export async function announceOffer(adminClient: SupabaseClient, groupId: string
   return true;
 }
 
-// Confirms the group once every passenger in it has secured their spot. With payments on, the
+// Confirms the group once every passenger in it has secured their spot. The
 // usual confirmed-group bookkeeping follows right away (holds, the designated payer, and
 // "reserve your seat" for anyone whose hold couldn't be placed yet).
 export async function confirmOfferIfComplete(
@@ -108,7 +107,7 @@ export type OfferRemoval = { removed: boolean; dissolved: boolean };
 // Takes one passenger out of an offer and puts their ride back to searching: "Not for me"
 // ('match_declined'), no answer in time ('offer_expired'), or their flight now lands at another
 // terminal than the group's ('terminal_changed'). What's left is rescored - or
-// dissolved, below two passengers or when it no longer fits - and with payments on the leaver's
+// dissolved, below two passengers or when it no longer fits - and the leaver's
 // hold is released and the others' adjusted.
 export async function removeFromOffer(
   adminClient: SupabaseClient,

@@ -27,9 +27,8 @@ export type MatchOffer = {
   totalFareCents: number | null;
   myShareCents: number | null;
   feeCents: number;
-  // What "Secure my spot" reserves on the card (share + fee + buffer) when payments are on.
+  // What "Secure my spot" reserves on the card (share + fee + buffer).
   holdCents: number | null;
-  paymentsEnabled: boolean;
   // A card hold is only possible from this moment; before it, securing reserves nothing yet.
   holdOpensAt: string;
   // The caller's own reservation for this group, if they started one.
@@ -58,7 +57,7 @@ export type SecureSpotResponse = {
 };
 
 // "Secure my spot" (secure-spot Edge Function). Never charges anything by itself and is safe to
-// repeat - with payments on, the reservation is then placed through placeRideHold.
+// repeat - the reservation is then placed through placeRideHold.
 export async function secureSpot(requestId: string) {
   const { data, error } = await supabase.functions.invoke('secure-spot', { body: { requestId } });
   if (error) {

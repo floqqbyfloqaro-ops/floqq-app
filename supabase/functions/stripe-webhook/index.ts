@@ -1,6 +1,6 @@
 // Receives Stripe's events and is the only place that turns them into database state:
-//   - Checkout events for the FLOQQ service fee (see create-service-fee-checkout) mark the
-//     corresponding passenger_requests row paid.
+//   - Checkout events for the former separate FLOQQ service fee (that flow is gone; this only
+//     still records a session that was already open) mark the passenger_requests row paid.
 //   - setup_intent.succeeded (see payments-setup-card) records the passenger's saved card.
 //   - payment_intent.* events for ride holds (see payments-place-hold) update ride_payments.
 // Stripe calls this directly with no Supabase session, so it must be deployed with

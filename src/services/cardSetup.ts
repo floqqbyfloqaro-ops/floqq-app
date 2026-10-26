@@ -12,8 +12,8 @@ import type { CardSetupSession } from './payments';
 
 export const CARD_SETUP_SUPPORTED = true;
 
-// Loaded lazily so the native Stripe module is only touched once payments are actually used - with
-// PAYMENTS_ENABLED off, app startup never depends on it.
+// Loaded lazily so the native Stripe module is only touched once payments are actually used - app
+// startup never depends on it.
 function loadStripe(): typeof import('@stripe/stripe-react-native') {
   return require('@stripe/stripe-react-native');
 }

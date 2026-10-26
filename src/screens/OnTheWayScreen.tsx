@@ -8,9 +8,7 @@ import Card from '../components/Card';
 import PrimaryButton from '../components/PrimaryButton';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
-import { PAYMENTS_ENABLED } from '../constants';
 import { fetchMatchOffer } from '../services/matchOffer';
-import { shareInfoKey } from '../services/onTheWayRules';
 import { markArrived } from '../services/rideCompletion';
 import { formatCents } from '../services/payments';
 import { baseText, borders, colors, radii, spacing } from '../theme/colors';
@@ -69,7 +67,6 @@ export default function OnTheWayScreen({ requestId, onBack, onShowDetails, onArr
   }, [requestId]);
 
   const heroHeight = width * HERO_ASPECT * HERO_VISIBLE;
-  const infoKey = shareInfoKey(PAYMENTS_ENABLED);
 
   return (
     <View style={styles.screen}>
@@ -126,13 +123,9 @@ export default function OnTheWayScreen({ requestId, onBack, onShowDetails, onArr
           <Card style={styles.card}>
             <View style={styles.infoRow}>
               <View style={styles.infoIcon}>
-                <Ionicons
-                  name={PAYMENTS_ENABLED ? 'shield-checkmark-outline' : 'calculator-outline'}
-                  size={22}
-                  color={colors.accentPrimaryStrong}
-                />
+                <Ionicons name="shield-checkmark-outline" size={22} color={colors.accentPrimaryStrong} />
               </View>
-              <Text style={styles.infoText}>{t(infoKey)}</Text>
+              <Text style={styles.infoText}>{t('share_secured_info')}</Text>
             </View>
           </Card>
 

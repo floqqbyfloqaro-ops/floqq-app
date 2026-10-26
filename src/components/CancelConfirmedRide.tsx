@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { PAYMENTS_ENABLED, SERVICE_FEE_EUR } from '../constants';
-import { cancelPassengerRequest, ServiceFeeStatus } from '../services/passengerRequests';
+import { cancelPassengerRequest } from '../services/passengerRequests';
 import { fetchMyRidePayment, formatCents } from '../services/payments';
 import { baseText, spacing } from '../theme/colors';
 import ErrorNotice from './ErrorNotice';
@@ -13,15 +12,14 @@ import SecondaryButton from './SecondaryButton';
 type Props = {
   requestId: string;
   groupId: string;
-  serviceFeeStatus: ServiceFeeStatus;
   onCancelled: () => void;
 };
 
 // A passenger can always cancel their ride, also once the group is confirmed. Before confirming,
-// this spells out exactly what it costs: with payments on, a reserved seat is released in full up to
-// 24 hours before the ride (free_cancel_until), and after that keeps only the FLOQQ fee and
-// releases the rest; without a reservation nothing is charged.
-export default function CancelConfirmedRide({ requestId, groupId, serviceFeeStatus, onCancelled }: Props) {
+// this spells out exactly what it costs: a reserved seat is released in full up to 24 hours before
+// the ride (free_cancel_until), and after that keeps only the FLOQQ fee and releases the rest;
+// without a reservation nothing is charged.
+export default function CancelConfirmedRide({ requestId, groupId, onCancelled }: Props) {
   const { t } = useTranslation();
 
   const [warning, setWarning] = useState<string | null>(null);
@@ -29,16 +27,8 @@ export default function CancelConfirmedRide({ requestId, groupId, serviceFeeStat
   const [isCancelling, setIsCancelling] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const fee = SERVICE_FEE_EUR.toFixed(2);
-
   const handleStart = async () => {
     setErrorMessage(null);
-
-    if (!PAYMENTS_ENABLED) {
-      setWarning(serviceFeeStatus === 'paid' ? t('myRide.cancelLegacyFee', { fee }) : t('myRide.cancelNoCharge'));
-      return;
-    }
-
     setIsPreparing(true);
     const { data: payment } = await fetchMyRidePayment(requestId, groupId);
     setIsPreparing(false);
