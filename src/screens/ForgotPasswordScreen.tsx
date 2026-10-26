@@ -6,7 +6,7 @@ import AuthTextInput from '../components/AuthTextInput';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
-import { supabase } from '../services/supabase';
+import { sendPasswordResetLink } from '../services/profile';
 import { baseText, colors, overlays, spacing } from '../theme/colors';
 
 type Props = {
@@ -37,13 +37,10 @@ export default function ForgotPasswordScreen({ onBackToLogin }: Props) {
     // reliably be handed back to the app without a real dev/standalone build. It's hosted off
     // Supabase's own domain deliberately: Supabase sandboxes (forces text/plain + CSP) any redirect
     // target that lives on *.supabase.co itself, which broke rendering when it was an Edge Function.
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: 'https://floqqbyfloqaro-ops.github.io/floqq-app/reset-password.html',
-    });
+    const { error } = await sendPasswordResetLink(email);
     setIsSubmitting(false);
 
     if (error) {
-      console.warn('resetPasswordForEmail failed', error);
       setSendError(t('auth.resetLinkError'));
       return;
     }

@@ -63,7 +63,7 @@
     "confirmPasswordPlaceholder": "Confirm new password",
     "updatePasswordButton": "Update password",
     "passwordMismatchError": "Passwords don't match.",
-    "passwordTooShortError": "Password must be at least 6 characters.",
+    "passwordTooShortError": "Password must be at least 8 characters.",
     "loginError": "We couldn't log you in. Check your email and password and try again.",
     "signUpError": "We couldn't create your account. Please try again.",
     "resetLinkError": "We couldn't send the reset link. Check your email and try again.",
@@ -1357,5 +1357,33 @@
     "undo": "Undo",
     "arrivalError": "That didn't go through. Please try again.",
     "memberArrived": "At the meeting point"
+  },
+  "changePassword": {
+    "title": "Change password",
+    "row": "Change password",
+    "signedInWithApple": "Signed in with Apple",
+    "signedInWithGoogle": "Signed in with Google",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "rules": "At least {{min}} characters, different from your current password.",
+    "tooShort": "Use at least 8 characters.",
+    "tooLong": "Use at most 72 characters.",
+    "sameAsCurrent": "Choose a password different from your current one.",
+    "mismatch": "The passwords don't match.",
+    "wrongCurrent": "That's not your current password.",
+    "wrongCurrentLeft_one": "That's not your current password. 1 try left.",
+    "wrongCurrentLeft_other": "That's not your current password. {{count}} tries left.",
+    "locked": "Too many wrong tries. Please wait and try again at {{time}}.",
+    "failed": "We couldn't change your password. Please try again.",
+    "save": "Save",
+    "forgot": "Forgot your current password?",
+    "resetSent": "We sent a link to {{email}} to reset your password.",
+    "success": "Your password has been updated",
+    "strength": {
+      "weak": "Weak",
+      "fair": "OK",
+      "strong": "Strong"
+    }
   }
 }

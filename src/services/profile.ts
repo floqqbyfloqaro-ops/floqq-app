@@ -1,3 +1,5 @@
+import { getLocales } from 'expo-localization';
+
 import i18n from '../i18n';
 import { SignInProvider, signInProviderFrom } from './profileRules';
 import { supabase } from './supabase';
@@ -107,4 +109,45 @@ export async function cancelEmailChange() {
   const { error } = await supabase.rpc('cancel_my_email_change');
   if (error) console.warn('cancel_my_email_change failed', error);
   return { error };
+}
+
+// Where the "Forgot password?" email link lands: docs/reset-password.html on GitHub Pages (see
+// ForgotPasswordScreen for why it isn't the app). Must be in Supabase's URL allow-list.
+export const RESET_PASSWORD_PAGE_URL = 'https://floqqbyfloqaro-ops.github.io/floqq-app/reset-password.html';
+
+export async function sendPasswordResetLink(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: RESET_PASSWORD_PAGE_URL });
+  if (error) console.warn('resetPasswordForEmail failed', error);
+  return { error };
+}
+
+export type PasswordChangeResult =
+  | { status: 'changed' }
+  | { status: 'wrong_current'; attemptsLeft: number | null }
+  | { status: 'locked'; retryAt: string }
+  | { status: 'too_short' | 'same_as_current' | 'no_password' | 'failed' };
+
+// Through the change-password Edge Function, which has Supabase Auth check the current password,
+// signs out the passenger's other devices and emails them. The email follows the phone's own
+// language setting (the app may show English for a language it doesn't have; the email has more).
+// The passwords are never logged here.
+export async function changePassword(currentPassword: string, newPassword: string): Promise<PasswordChangeResult> {
+  const { data, error } = await supabase.functions.invoke('change-password', {
+    body: { currentPassword, newPassword, language: getLocales()[0]?.languageCode ?? 'en' },
+  });
+  if (!error && data?.ok) return { status: 'changed' };
+  const body = (error ? await (error as { context?: Response }).context?.json().catch(() => null) : data) ?? {};
+  switch (body.error) {
+    case 'wrong_current_password':
+      return { status: 'wrong_current', attemptsLeft: typeof body.attemptsLeft === 'number' ? body.attemptsLeft : null };
+    case 'locked':
+      return { status: 'locked', retryAt: body.retryAt };
+    case 'too_short':
+    case 'same_as_current':
+    case 'no_password':
+      return { status: body.error };
+    default:
+      console.warn('change-password failed', body.error ?? error?.message);
+      return { status: 'failed' };
+  }
 }
