@@ -14,7 +14,7 @@ import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
-import { MAX_PASSENGERS_PER_TAXI, PAYMENTS_ENABLED, READY_TIME_FLAG_MINUTES } from '../constants';
+import { MAX_PASSENGERS_PER_TAXI, READY_TIME_FLAG_MINUTES } from '../constants';
 import {
   addGroupMember,
   confirmRideTookPlace,
@@ -148,7 +148,7 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
     }
 
 
-    if (PAYMENTS_ENABLED && groupResult.data?.payer_request_id) {
+    if (groupResult.data?.payer_request_id) {
       const payerUserId = groupResult.data.payer_user_id;
       const payout = payerUserId ? (await fetchPayoutStatusForUser(payerUserId)).data?.payout_onboarding_status : null;
       setPayer({
@@ -159,13 +159,11 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
       setPayer(null);
     }
 
-    if (PAYMENTS_ENABLED) {
-      const [receiptResult, sharesResult] = await Promise.all([fetchRideReceipt(groupId), fetchReceiptShares(groupId)]);
-      if (receiptResult.error) console.warn('fetchRideReceipt failed', receiptResult.error);
-      if (sharesResult.error) console.warn('fetchReceiptShares failed', sharesResult.error);
-      setReceipt(receiptResult.data ?? null);
-      setReceiptShares(Object.fromEntries((sharesResult.data ?? []).map((row) => [row.request_id, row])));
-    }
+    const [receiptResult, sharesResult] = await Promise.all([fetchRideReceipt(groupId), fetchReceiptShares(groupId)]);
+    if (receiptResult.error) console.warn('fetchRideReceipt failed', receiptResult.error);
+    if (sharesResult.error) console.warn('fetchReceiptShares failed', sharesResult.error);
+    setReceipt(receiptResult.data ?? null);
+    setReceiptShares(Object.fromEntries((sharesResult.data ?? []).map((row) => [row.request_id, row])));
 
     const list = membersResult.data ?? [];
     setMembers(list);
@@ -251,12 +249,10 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
 
     setGroupStatus('confirmed');
 
-    // Payments prototype: create the passengers' seat reservations right away (the 5-minute
-    // payments-sync-holds job would otherwise pick the group up on its next run).
-    if (PAYMENTS_ENABLED) {
-      const { error: syncError } = await syncGroupHolds(groupId);
-      if (syncError) console.warn('syncGroupHolds failed', syncError);
-    }
+    // Create the passengers' seat reservations right away (the 5-minute payments-sync-holds job
+    // would otherwise pick the group up on its next run).
+    const { error: syncError } = await syncGroupHolds(groupId);
+    if (syncError) console.warn('syncGroupHolds failed', syncError);
   };
 
   const handleToggleAdding = async () => {
@@ -513,14 +509,12 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
 
             {receipt ? <AdminReceiptReview groupId={groupId} receipt={receipt} onChanged={loadData} /> : null}
 
-            {PAYMENTS_ENABLED ? (
-              <AdminGroupPayments
-                groupId={groupId}
-                receipt={receipt}
-                payerRequestId={payer?.requestId ?? null}
-                payerPayout={payer?.payout ?? null}
-              />
-            ) : null}
+            <AdminGroupPayments
+              groupId={groupId}
+              receipt={receipt}
+              payerRequestId={payer?.requestId ?? null}
+              payerPayout={payer?.payout ?? null}
+            />
 
             {pendingAction ? (
               <Card style={styles.actionConfirmCard}>

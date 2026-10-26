@@ -1,10 +1,8 @@
 // "Match found" screen: the passenger taps "Secure my spot" on the group offered to them (an
-// unconfirmed taxi group). What that means depends on the payments prototype:
-//   - PAYMENTS_ENABLED off: the acceptance is simply recorded.
-//   - on, and the ride is too far away for a card hold (holds open HOLD_LEAD_DAYS before the
-//     ride): the acceptance is recorded; the reservation is asked for when the window opens, as
-//     for any confirmed group.
-//   - on, and a hold is possible: the passenger's ride payment row is prepared here (estimated
+// unconfirmed taxi group). What that means depends on how far away the ride is:
+//   - too far away for a card hold (holds open HOLD_LEAD_DAYS before the ride): the acceptance is
+//     recorded; the reservation is asked for when the window opens, as for any confirmed group.
+//   - a hold is possible: the passenger's ride payment row is prepared here (estimated
 //     share + platform fee + buffer - the fee is part of the hold, one card transaction) and the
 //     app goes on to payments-place-hold with it. The spot counts as secured only once Stripe
 //     says the hold is placed (applyHoldState in _shared/holds.ts) - never on the app's word.
@@ -20,7 +18,6 @@ import { markSpotSecured } from '../_shared/holds.ts';
 import { readyIso } from '../_shared/readyTimeRule.ts';
 import { confirmOfferIfComplete, stripeForOffers } from '../_shared/offers.ts';
 import { freeCancelUntilMs } from '../_shared/settlementMath.ts';
-import { paymentsEnabled } from '../_shared/stripe.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -95,12 +92,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ status: 'CONFIRMED' });
   }
   if (mine.spot_secured_group_id === group.id) {
-    return jsonResponse({ status: 'SECURED' });
-  }
-
-  if (!paymentsEnabled()) {
-    await markSpotSecured(adminClient, requestId, group.id);
-    await confirmOfferIfComplete(adminClient, null, group.id);
     return jsonResponse({ status: 'SECURED' });
   }
 

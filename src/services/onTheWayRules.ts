@@ -26,8 +26,3 @@ export function rideInProgress(ride: RideProgress, nowMs: number, hours: number 
   const startedMs = new Date(ride.rideStartedAt).getTime();
   return nowMs >= startedMs && nowMs < startedMs + hours * HOUR_MS;
 }
-
-// The info card's text: "secured" only when payments are on - with them off nothing is secured.
-export function shareInfoKey(paymentsEnabled: boolean): 'share_secured_info' | 'share_calculated_info' {
-  return paymentsEnabled ? 'share_secured_info' : 'share_calculated_info';
-}

@@ -13,6 +13,7 @@ import RouteMap from '../components/RouteMap';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
+import TestModeBadge from '../components/TestModeBadge';
 import { PLATFORM_FEE_CENTS } from '../constants';
 import { authenticateHold, CARD_SETUP_SUPPORTED, stripeReturnUrl } from '../services/cardSetup';
 import {
@@ -159,8 +160,7 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
     return loaded;
   }, [request.id]);
 
-  // "Secure my spot". With payments off (or a ride too far away for a card hold) the server just
-  // records it. Otherwise the reservation is placed on the saved card; whether that worked is
+  // "Secure my spot". For a ride too far away for a card hold the server just records it. Otherwise the reservation is placed on the saved card; whether that worked is
   // always read back from the server, never assumed here.
   const handleSecure = async () => {
     if (securingRef.current) return;
@@ -422,7 +422,7 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
                 </View>
                 {offer.myHoldStatus === 'HOLD_PLACED' && offer.holdCents != null ? (
                   <Text style={styles.securedNote}>{t('hold_placed_message', { amount: formatCents(offer.holdCents) })}</Text>
-                ) : offer.paymentsEnabled && offer.holdCents != null && holdComesLater ? (
+                ) : offer.holdCents != null && holdComesLater ? (
                   <Text style={styles.securedNote}>
                     {t('payments.opensOn', { amount: formatCents(offer.holdCents), date: dateTime(offer.holdOpensAt) })}
                   </Text>
@@ -442,8 +442,9 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
               </Card>
             ) : (
               <>
+                <TestModeBadge />
                 {/* What securing does to the card, shown before the passenger taps. */}
-                {offer.paymentsEnabled && offer.holdCents != null && offer.myShareCents != null ? (
+                {offer.holdCents != null && offer.myShareCents != null ? (
                   <Text style={styles.reserveNote}>
                     {holdComesLater
                       ? t('payments.opensOn', { amount: formatCents(offer.holdCents), date: dateTime(offer.holdOpensAt) })

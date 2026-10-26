@@ -8,6 +8,7 @@ import { baseText, colors, spacing } from '../theme/colors';
 import ErrorNotice from './ErrorNotice';
 import PrimaryButton from './PrimaryButton';
 import SecondaryButton from './SecondaryButton';
+import TestModeBadge from './TestModeBadge';
 
 type Props = {
   requestId: string;
@@ -196,6 +197,7 @@ export default function RideHoldCard({ requestId, groupId, isPayer, onOpenProfil
 
   return (
     <View>
+      <TestModeBadge />
       <Text style={styles.title}>{t('payments.reserveTitle')}</Text>
       <Text style={styles.note}>
         {t('payments.reserveExplainer', {

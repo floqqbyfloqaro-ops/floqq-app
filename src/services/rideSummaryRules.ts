@@ -4,7 +4,6 @@
 
 // What the ride-summary Edge Function reports for one passenger (supabase/functions/ride-summary).
 export type RideSummaryFacts = {
-  paymentsEnabled: boolean;
   isPayer: boolean;
   platformFeeCents: number;
   estimatedTotalCents: number | null;
@@ -16,9 +15,9 @@ export type RideSummaryFacts = {
     payerShareCents: number | null;
     reimbursementCents: number | null;
   } | null;
-  // What FLOQQ did with this passenger's card (payments on).
+  // What FLOQQ did with this passenger's card.
   payment: { status: string; finalShareCents: number | null; capturedCents: number | null } | null;
-  // Payments off: the separate FLOQQ fee payment.
+  // Older rides only: the FLOQQ fee paid on its own through the former service-fee Checkout.
   serviceFeeStatus: 'unpaid' | 'pending' | 'paid' | null;
   // The payer's reimbursement, once it exists.
   payout: { amountCents: number; status: string } | null;
@@ -54,22 +53,14 @@ export function rideSummaryView(facts: RideSummaryFacts): RideSummaryView {
   const captured = isCaptured(facts);
   const captureFailed = facts.payment?.status === 'CAPTURE_FAILED';
 
-  // The taxi fare: the receipt's total, or the estimate. With payments off there is never a
-  // receipt, so the estimate stays an estimate and nothing is "pending".
+  // The taxi fare: the receipt's total, or the estimate.
   const fare: SummaryLine = receipt
     ? { amountCents: receipt.totalCents, isEstimate: receipt.status === 'ESTIMATED', status: null }
-    : {
-        amountCents: facts.estimatedTotalCents,
-        isEstimate: true,
-        status: facts.paymentsEnabled ? 'pending' : null,
-      };
+    : { amountCents: facts.estimatedTotalCents, isEstimate: true, status: 'pending' };
 
   // Your share.
   let share: SummaryLine;
-  if (!facts.paymentsEnabled) {
-    // Settled among the passengers in the taxi: FLOQQ never charges it, so no status.
-    share = { amountCents: facts.estimatedShareCents, isEstimate: true, status: null };
-  } else if (facts.isPayer) {
+  if (facts.isPayer) {
     // The payer paid the driver themselves.
     const own = receipt?.payerShareCents ?? null;
     share = {
@@ -89,30 +80,19 @@ export function rideSummaryView(facts: RideSummaryFacts): RideSummaryView {
     };
   }
 
-  // The FLOQQ fee.
-  let feeStatus: LineStatus;
-  if (facts.paymentsEnabled) {
-    feeStatus = captured ? 'paid' : captureFailed ? 'failed' : 'pending';
-  } else {
-    feeStatus = facts.serviceFeeStatus === 'paid' ? 'paid' : facts.serviceFeeStatus === 'pending' ? 'pending' : 'notPaid';
-  }
+  // The FLOQQ fee: part of the card charge - or, on an older ride, paid on its own.
+  const legacyFeePaid = !captured && facts.serviceFeeStatus === 'paid';
+  const feeStatus: LineStatus = captured || legacyFeePaid ? 'paid' : captureFailed ? 'failed' : 'pending';
   const fee: SummaryLine = { amountCents: facts.platformFeeCents, isEstimate: false, status: feeStatus };
 
   // Total paid through FLOQQ: what was captured from the card (share + fee, or the fee alone for
-  // the payer) - or, with payments off, the fee if it was paid.
-  const totalPaidCents = facts.paymentsEnabled
-    ? captured
-      ? (facts.payment!.capturedCents as number)
-      : 0
-    : feeStatus === 'paid'
-      ? facts.platformFeeCents
-      : 0;
+  // the payer), or an older ride's separately paid fee.
+  const totalPaidCents = captured ? (facts.payment!.capturedCents as number) : legacyFeePaid ? facts.platformFeeCents : 0;
 
-  const payerReturnCents = facts.isPayer && facts.paymentsEnabled ? (facts.payout?.amountCents ?? receipt?.reimbursementCents ?? null) : null;
+  const payerReturnCents = facts.isPayer ? (facts.payout?.amountCents ?? receipt?.reimbursementCents ?? null) : null;
   const payerReturn = payerReturnCents != null ? { amountCents: payerReturnCents, sent: facts.payout?.status === 'SENT' } : null;
 
-  const showPendingNote =
-    facts.paymentsEnabled && [fare.status, share.status, fee.status].some((status) => status === 'pending');
+  const showPendingNote = [fare.status, share.status, fee.status].some((status) => status === 'pending');
 
   return { fare, share, fee, totalPaidCents, showPendingNote, payerReturn };
 }

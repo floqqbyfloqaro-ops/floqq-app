@@ -34,7 +34,6 @@ import StatusPill from '../components/StatusPill';
 import {
   ADMIN_HISTORY_DEFAULT_WINDOW_DAYS,
   MAX_PASSENGERS_PER_TAXI,
-  PAYMENTS_ENABLED,
   READY_TIME_FLAG_MINUTES,
 } from '../constants';
 import {
@@ -224,7 +223,7 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
         setGroupTerminals(terminalByGroup);
       }
 
-      if (PAYMENTS_ENABLED && activeGroups.length > 0) {
+      if (activeGroups.length > 0) {
         const { summaries, error: summariesError } = await fetchGroupPaymentSummaries(activeGroups.map((g) => g.id));
         if (summariesError) {
           console.warn('fetchGroupPaymentSummaries failed', summariesError);
@@ -563,7 +562,7 @@ export default function AdminScreen({ isAdmin, onBack }: Props) {
         <AdminAirlineTerminals warningsOnly refreshKey={paymentIssuesKey} />
         <AdminAccounts warningsOnly refreshKey={paymentIssuesKey} onOpenAccounts={() => setActiveTab('accounts')} />
         <AdminRatings warningsOnly refreshKey={paymentIssuesKey} onOpenHistory={() => setActiveTab('history')} />
-        {PAYMENTS_ENABLED ? <AdminPaymentIssues onOpenGroup={setOpenGroupId} refreshKey={paymentIssuesKey} /> : null}
+        <AdminPaymentIssues onOpenGroup={setOpenGroupId} refreshKey={paymentIssuesKey} />
         <View style={styles.suggestionsSection}>
           <PrimaryButton
             label={t('admin.suggestGroups')}

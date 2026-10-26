@@ -6,7 +6,6 @@ import { test } from 'node:test';
 import { isFlaggedRating, ratingNeedsFollowUp, rideSummaryView, topReasons } from './rideSummaryRules.ts';
 
 const base = {
-  paymentsEnabled: true,
   isPayer: false,
   platformFeeCents: 249,
   estimatedTotalCents: 7500,
@@ -19,19 +18,17 @@ const base = {
 const view = (overrides) => rideSummaryView({ ...base, ...overrides });
 const statuses = (v) => [v.fare.status, v.share.status, v.fee.status];
 
-test('payments off: nothing is "Paid" except a fee that really was paid, and nothing is pending', () => {
-  const unpaid = view({ paymentsEnabled: false, payment: null, serviceFeeStatus: 'unpaid' });
-  assert.equal(statuses(unpaid).includes('paid'), false);
-  assert.deepEqual([unpaid.fare.status, unpaid.share.status], [null, null]);
-  assert.equal(unpaid.fare.isEstimate, true);
-  assert.equal(unpaid.share.isEstimate, true);
-  assert.equal(unpaid.totalPaidCents, 0);
-  assert.equal(unpaid.showPendingNote, false);
+test('no reservation: nothing is "Paid"', () => {
+  const v = view({ payment: null });
+  assert.equal(statuses(v).includes('paid'), false);
+  assert.equal(v.totalPaidCents, 0);
+});
 
-  const feePaid = view({ paymentsEnabled: false, payment: null, serviceFeeStatus: 'paid' });
-  assert.equal(feePaid.fee.status, 'paid');
-  assert.equal(feePaid.share.status, null);
-  assert.equal(feePaid.totalPaidCents, 249);
+test('an older ride whose fee was paid on its own: only the fee is "Paid"', () => {
+  const v = view({ payment: null, serviceFeeStatus: 'paid' });
+  assert.equal(v.fee.status, 'paid');
+  assert.notEqual(v.share.status, 'paid');
+  assert.equal(v.totalPaidCents, 249);
 });
 
 test('payments on, before the receipt: estimates, everything pending, nothing paid', () => {

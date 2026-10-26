@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AppState, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import CancelConfirmedRide from '../components/CancelConfirmedRide';
 import Card from '../components/Card';
@@ -12,14 +12,12 @@ import RideHoldCard from '../components/RideHoldCard';
 import ScreenBackground from '../components/ScreenBackground';
 import Skeleton from '../components/Skeleton';
 import StatusPill from '../components/StatusPill';
-import { PAYMENTS_ENABLED, SERVICE_FEE_EUR } from '../constants';
 import { FindGroupOpenSource } from '../services/findGroup';
 import { subscribeToRide } from '../services/matchOffer';
 import { MeetingPointSummary, meetingPointText, wordingLanguageFor } from '../services/meetingPointRules';
 import { fetchMeetingPointSummary, shippedText } from '../services/meetingPoints';
 import { rideInProgress } from '../services/onTheWayRules';
 import { fetchMyTrips, MyTrip } from '../services/rideCompletion';
-import { createServiceFeeCheckout } from '../services/payments';
 import { fetchMyGroupStatus, fetchMyLatestRequest, MyPassengerRequest, MyTaxiGroup } from '../services/passengerRequests';
 import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
 import FindingMatchScreen from './FindingMatchScreen';
@@ -52,9 +50,7 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
   const [group, setGroup] = useState<MyTaxiGroup | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isPaying, setIsPaying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [meetingPoint, setMeetingPoint] = useState<MeetingPointSummary | null>(null);
   // "Find your group": how it was opened (for the audit trail) and where its back button leads.
@@ -154,9 +150,8 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
     };
   }, [meetingPointId]);
 
-  // Stripe Checkout opens in the system browser, so the most reliable moment to pick up the
-  // webhook's result is when the passenger switches back into the app - not a deep link, which
-  // may fire before the webhook has finished updating the row.
+  // Re-read on every return to the app (e.g. from a bank's 3D Secure page or Stripe's payout
+  // setup): Stripe's webhook may have changed the ride's state in the meantime.
   const wasBackgrounded = useRef(false);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -226,22 +221,6 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
       setSubScreen(isActiveRide ? 'findingMatch' : null);
     }
   }, [subScreen, groupId, groupStatus, isActiveRide]);
-
-  const handlePay = async () => {
-    if (!request) return;
-    setCheckoutError(null);
-    setIsPaying(true);
-    const { url, error } = await createServiceFeeCheckout(request.id);
-    setIsPaying(false);
-
-    if (error || !url) {
-      console.warn('createServiceFeeCheckout failed', error);
-      setCheckoutError(t('myRide.checkoutError'));
-      return;
-    }
-
-    await Linking.openURL(url);
-  };
 
   const handleCardPress = () => {
     if (!request || request.status === 'cancelled' || request.status === 'expired') return;
@@ -392,9 +371,8 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
               <StatusPill status="Searching" label={t('myRide.statusPending')} />
             ) : group.status === 'unconfirmed' ? (
               <StatusPill status="Searching" label={t('myRide.statusUnconfirmed')} />
-            ) : PAYMENTS_ENABLED ? (
-              // Payments prototype: the FLOQQ fee is part of the seat reservation (card hold), so the
-              // separate service-fee Checkout below is replaced while PAYMENTS_ENABLED is on.
+            ) : (
+              // The FLOQQ fee is part of the seat reservation (card hold).
               <>
                 <StatusPill status="Group Confirmed" label={t('myRide.statusConfirmed')} />
                 <RideHoldCard
@@ -404,24 +382,6 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
                   onOpenProfile={onOpenProfile}
                 />
                 <PayerCard requestId={request.id} group={group} arrivalAt={request.arrival_at} />
-              </>
-            ) : request.service_fee_status === 'paid' ? (
-              <StatusPill status="Group Confirmed" label={t('myRide.statusPaid')} />
-            ) : (
-              <>
-                <StatusPill status="Group Confirmed" label={t('myRide.statusConfirmed')} />
-                <Text style={styles.feeNote}>{t('myRide.feeNote', { amount: SERVICE_FEE_EUR.toFixed(2) })}</Text>
-                {request.service_fee_status === 'pending' ? (
-                  <Text style={styles.pendingNote}>{t('myRide.pendingNote')}</Text>
-                ) : null}
-                {checkoutError ? (
-                  <ErrorNotice message={checkoutError} onRetry={handlePay} retryLabel={t('common.retry')} />
-                ) : null}
-                <PrimaryButton
-                  label={t('myRide.payButton', { amount: SERVICE_FEE_EUR.toFixed(2) })}
-                  onPress={handlePay}
-                  loading={isPaying}
-                />
               </>
             )}
             {group?.status === 'confirmed' && meetingPoint ? (
@@ -441,7 +401,6 @@ export default function MyRideScreen({ onBack, onCreateRequest, onOpenProfile, o
               <CancelConfirmedRide
                 requestId={request.id}
                 groupId={group.id}
-                serviceFeeStatus={request.service_fee_status}
                 onCancelled={loadData}
               />
             ) : null}
@@ -546,15 +505,6 @@ const styles = StyleSheet.create({
   },
   cancelledCard: {
     marginBottom: spacing.x6,
-  },
-  feeNote: {
-    ...baseText.bodySmall,
-    marginTop: spacing.x3,
-    marginBottom: spacing.x3,
-  },
-  pendingNote: {
-    ...baseText.caption,
-    marginBottom: spacing.x3,
   },
   findGroupButton: {
     marginTop: spacing.x4,

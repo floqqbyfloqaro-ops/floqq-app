@@ -4,7 +4,7 @@
 //     behind one who never showed up. Marks that passenger as a no-show, takes them out of the
 //     group and recalculates the fare estimate for whoever is left
 //     (system_remove_no_show_member - only once the wait is over, and only if two passengers
-//     remain; see 20261011000000_group_badge_and_meetup.sql). With payments on, the no-show's
+//     remain; see 20261011000000_group_badge_and_meetup.sql). The no-show's
 //     reservation is released in full - nothing is charged for a seat they were removed from by
 //     other passengers; the admin sees the no-show and decides what follows - and the others'
 //     reservations are adjusted to the new shares.

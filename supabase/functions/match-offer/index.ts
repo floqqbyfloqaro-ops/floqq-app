@@ -18,7 +18,6 @@ import { profileFirstNames, shownFirstName } from '../_shared/firstNames.ts';
 import { computeRoutePolyline, lookupNeighborhood } from '../_shared/googleRoutes.ts';
 import { estimatedSharesCents, holdAmountCents, holdWindow, PLATFORM_FEE_CENTS, rideDepartureMs } from '../_shared/holdMath.ts';
 import { readyIso } from '../_shared/readyTimeRule.ts';
-import { paymentsEnabled } from '../_shared/stripe.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -158,18 +157,15 @@ Deno.serve(async (req) => {
   const myShareCents = shares?.get(requestId) ?? null;
 
   // "Secure my spot": whether it reserves money on the card, and from when that's possible.
-  const withPayments = paymentsEnabled();
   // The group meets when its last member is ready.
   const meetingMs = rideDepartureMs(members.map(readyIso));
   const { opensAt: holdOpensAt } = holdWindow(meetingMs, Date.now());
-  const { data: myPayment } = withPayments
-    ? await adminClient
-        .from('ride_payments')
-        .select('payment_status')
-        .eq('request_id', requestId)
-        .eq('group_id', group.id)
-        .maybeSingle()
-    : { data: null };
+  const { data: myPayment } = await adminClient
+    .from('ride_payments')
+    .select('payment_status')
+    .eq('request_id', requestId)
+    .eq('group_id', group.id)
+    .maybeSingle();
 
   return jsonResponse({
     offer: {
@@ -180,7 +176,6 @@ Deno.serve(async (req) => {
       myShareCents,
       feeCents: PLATFORM_FEE_CENTS,
       holdCents: myShareCents != null ? holdAmountCents(myShareCents) : null,
-      paymentsEnabled: withPayments,
       holdOpensAt: holdOpensAt.toISOString(),
       myHoldStatus: myPayment?.payment_status ?? null,
       airport: { lat: AIRPORT.lat, lng: AIRPORT.lng, name: AIRPORT.name },

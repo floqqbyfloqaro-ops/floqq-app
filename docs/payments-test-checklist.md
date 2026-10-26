@@ -1,8 +1,7 @@
 # Payments prototype: end-to-end test checklist
 
 A manual test of the whole payment flow with 3 test accounts and Stripe test cards. Stripe must be
-in the sandbox and payments switched on (`PAYMENTS_ENABLED=true` in Supabase and
-`EXPO_PUBLIC_PAYMENTS_ENABLED=true` in the app's `.env`).
+in the sandbox (test keys). Payments are always on - there is no switch any more.
 
 Plan about 4.5 hours from start to finish, most of it waiting: the ride has to start before a
 receipt can be sent, and the cards are charged 2 hours after the receipt is accepted.

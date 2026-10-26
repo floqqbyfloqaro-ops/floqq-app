@@ -11,6 +11,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
+import TestModeBadge from '../components/TestModeBadge';
 import { CARD_SETUP_SUPPORTED, presentCardSetupSheet } from '../services/cardSetup';
 import { RESEND_COOLDOWN_SECONDS } from '../services/emailVerification';
 import {
@@ -316,6 +317,7 @@ export default function ProfileScreen({ onBack, onOpenHelp }: Props) {
             ) : null}
 
             <Text style={styles.sectionTitle}>{t('profile.paymentMethodsTitle')}</Text>
+            <TestModeBadge />
             <Text style={styles.intro}>{t('profile.paymentMethodsIntro')}</Text>
 
             {errorMessage ? <ErrorNotice message={errorMessage} onRetry={loadCard} retryLabel={t('common.retry')} /> : null}

@@ -18,6 +18,7 @@ import ErrorNotice from './ErrorNotice';
 import PrimaryButton from './PrimaryButton';
 import ReceiptCard from './ReceiptCard';
 import SecondaryButton from './SecondaryButton';
+import TestModeBadge from './TestModeBadge';
 
 type Props = {
   requestId: string;
@@ -106,6 +107,7 @@ export default function PayerCard({ requestId, group, arrivalAt }: Props) {
 
   return (
     <View style={styles.section}>
+      <TestModeBadge />
       <Text style={styles.title}>{t('payer.title')}</Text>
       {preview ? <Text style={styles.preview}>{preview}</Text> : null}
       {feeCents != null ? <Text style={styles.note}>{t('payer.feeOnly', { fee: formatCents(feeCents) })}</Text> : null}

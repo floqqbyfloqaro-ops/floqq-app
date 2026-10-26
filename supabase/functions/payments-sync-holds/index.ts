@@ -8,7 +8,7 @@
 //   Both also send the push notifications that are due (reserve your seat / reminder / removed /
 //   group dissolved - see _shared/holds.ts and _shared/push.ts), and (phase 4) keep each
 //   confirmed group's designated payer valid - see _shared/payer.ts.
-// Does nothing while PAYMENTS_ENABLED is off. Deployed with --no-verify-jwt: authenticates via
+// Deployed with --no-verify-jwt: authenticates via
 // the cron secret header or the admin's JWT (see _shared/auth.ts), like match-and-group.
 
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
@@ -28,7 +28,7 @@ import { acquireLock, releaseLock } from '../_shared/matchLock.ts';
 import { syncGroupPayer } from '../_shared/payer.ts';
 import { sendPush } from '../_shared/push.ts';
 import { rescoreGroup } from '../_shared/rescoreGroup.ts';
-import { createStripeClient, LiveKeyError, paymentsEnabled } from '../_shared/stripe.ts';
+import { createStripeClient, LiveKeyError } from '../_shared/stripe.ts';
 
 const LOCK_ID = 3;
 
@@ -148,10 +148,6 @@ Deno.serve(monitored('payments-sync-holds', async (req) => {
   if (!(await isAuthorized(req, adminClient))) {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
-  if (!paymentsEnabled()) {
-    return jsonResponse({ skipped: 'payments_disabled' });
-  }
-
   let stripe: Stripe | null;
   try {
     stripe = createStripeClient();
