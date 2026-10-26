@@ -112,6 +112,8 @@ test('WhatsApp: only the ticket reference, in the chosen language', () => {
   assert.equal(whatsappMessage('en', 'A7K2'), 'Hi FLOQQ, I need help. Ticket #A7K2');
   assert.equal(whatsappMessage('fr', 'A7K2'), 'Bonjour FLOQQ, j’ai besoin d’aide. Ticket #A7K2');
   assert.equal(whatsappMessage('es', 'A7K2'), 'Hola FLOQQ, necesito ayuda. Ticket #A7K2');
+  assert.equal(whatsappMessage('it', 'A7K2'), 'Ciao FLOQQ, ho bisogno di aiuto. Ticket #A7K2');
+  assert.equal(whatsappMessage('nl', 'A7K2'), 'Hallo FLOQQ, ik heb hulp nodig. Ticket #A7K2');
   assert.equal(whatsappMessage('de', 'A7K2'), 'Hi FLOQQ, I need help. Ticket #A7K2');
   assert.equal(whatsappDigits('+34 612 34 56 78'), '34612345678');
   assert.equal(whatsappDigits('0034 612345678'), '34612345678');

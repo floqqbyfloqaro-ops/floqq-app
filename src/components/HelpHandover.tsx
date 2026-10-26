@@ -6,7 +6,15 @@ import { KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, 
 import type { CountryCode } from 'libphonenumber-js';
 
 import { useReduceMotion } from '../hooks/useReduceMotion';
-import { CallbackSlot, createSupportTicket, CreatedTicket, fetchSupportInfo, HelpLanguage, SupportInfo } from '../services/helpChat';
+import {
+  CallbackSlot,
+  createSupportTicket,
+  CreatedTicket,
+  fetchSupportInfo,
+  HelpLanguage,
+  SupportInfo,
+  TeamLanguage,
+} from '../services/helpChat';
 import { toE164 } from '../services/phoneRules';
 import { baseText, borders, colors, overlays, radii, spacing } from '../theme/colors';
 import { barcelonaDateParts, barcelonaWeekday } from '../utils/formatDateTime';
@@ -53,7 +61,7 @@ export default function HelpHandover({ conversationId, reason, appLanguage, chan
   const reduceMotion = useReduceMotion();
   const [info, setInfo] = useState<SupportInfo | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [language, setLanguage] = useState<HelpLanguage>(appLanguage);
+  const [language, setLanguage] = useState<TeamLanguage>(appLanguage);
   const [languageChosen, setLanguageChosen] = useState(changeChannel);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [country, setCountry] = useState<CountryCode>('ES');

@@ -686,7 +686,9 @@
     "languageName": {
       "en": "Anglais",
       "fr": "Français",
-      "es": "Espagnol"
+      "es": "Espagnol",
+      "it": "Italien",
+      "nl": "Néerlandais"
     },
     "continue": "Continuer",
     "back": "Retour",
@@ -960,7 +962,9 @@
     "language": {
       "en": "Anglais",
       "fr": "Français",
-      "es": "Espagnol"
+      "es": "Espagnol",
+      "it": "Italien",
+      "nl": "Néerlandais"
     },
     "published": "Publié",
     "draft": "Brouillon",
