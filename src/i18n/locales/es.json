@@ -1448,5 +1448,17 @@
       "fair": "Aceptable",
       "strong": "Fuerte"
     }
+  },
+  "avatar": {
+    "chooseTitle": "Elige tu avatar",
+    "chooseSubtitle": "Así te verá tu grupo. Puedes cambiarlo cuando quieras en tu perfil.",
+    "optionLabel": "Avatar {{number}} de {{count}}",
+    "optionLabelSelected": "Avatar {{number}} de {{count}}, seleccionado",
+    "continueButton": "Continuar",
+    "backToDetails": "Volver a tus datos",
+    "editLabel": "Cambiar tu avatar",
+    "done": "Listo",
+    "updated": "Avatar actualizado",
+    "updateError": "No hemos podido guardar tu avatar. Inténtalo de nuevo."
   }
 }

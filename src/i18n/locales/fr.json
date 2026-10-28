@@ -1452,5 +1452,17 @@
       "fair": "Correct",
       "strong": "Fort"
     }
+  },
+  "avatar": {
+    "chooseTitle": "Choisissez votre avatar",
+    "chooseSubtitle": "C’est ainsi que votre groupe vous verra. Vous pourrez le changer à tout moment dans votre profil.",
+    "optionLabel": "Avatar {{number}} sur {{count}}",
+    "optionLabelSelected": "Avatar {{number}} sur {{count}}, sélectionné",
+    "continueButton": "Continuer",
+    "backToDetails": "Retour à vos informations",
+    "editLabel": "Changer votre avatar",
+    "done": "Terminé",
+    "updated": "Avatar mis à jour",
+    "updateError": "Nous n’avons pas pu enregistrer votre avatar. Veuillez réessayer."
   }
 }

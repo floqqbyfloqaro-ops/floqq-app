@@ -34,6 +34,7 @@ import { arrowVisible, guidanceShowsPhoto, guidanceState } from '../services/gui
 import { rideInProgress } from '../services/onTheWayRules';
 import { memberSharingStatus } from '../services/locationSharingRules';
 import { subscribeToRide } from '../services/matchOffer';
+import { useMyAvatarId } from '../services/myAvatar';
 import { MyPassengerRequest } from '../services/passengerRequests';
 import { baseText, borders, colors, overlays, radii, spacing } from '../theme/colors';
 import { barcelonaDateParts } from '../utils/formatDateTime';
@@ -81,6 +82,7 @@ function KeepScreenAwake() {
 // Not the same file as GroupDetailScreen.tsx, which is the admin-facing fare-split/confirm screen.
 export default function GroupDetailsScreen({ request, onBack, openedFrom = 'button', onRideStarted }: Props) {
   const { t } = useTranslation();
+  const myAvatarId = useMyAvatarId();
 
   const openedAt = useRef(Date.now());
   const [meetup, setMeetup] = useState<Meetup | null>(null);
@@ -474,11 +476,11 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
 
                 <Card style={styles.card}>
                   <Text style={styles.cardLabel}>{t('findGroup.membersLabel')}</Text>
-                  {meetup.members.map((member, index) => {
+                  {meetup.members.map((member) => {
                     const status = memberStatus(member);
                     return (
                       <View key={member.requestId} style={styles.memberRow}>
-                        <Avatar index={index} size={44} />
+                        <Avatar avatarId={member.isMe ? myAvatarId : member.avatarId} size="medium" />
                         <View style={styles.memberText}>
                           <Text style={styles.memberName}>{memberName(member)}</Text>
                           <View style={styles.statusRow}>

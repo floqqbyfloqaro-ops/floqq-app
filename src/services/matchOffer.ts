@@ -5,6 +5,8 @@ export type MatchOfferMember = {
   // Drop-off order along the route, starting at 1.
   order: number;
   firstName: string | null;
+  // Their chosen avatar; null: the neutral default.
+  avatarId: number | null;
   // The caller's own address; for everyone else only the neighbourhood (null if unknown).
   destination: string | null;
   // Other passengers' drop-offs are rounded to about 100 m by the server.

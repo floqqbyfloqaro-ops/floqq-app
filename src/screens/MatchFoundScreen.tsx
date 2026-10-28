@@ -25,6 +25,7 @@ import {
   secureSpot,
   subscribeToRide,
 } from '../services/matchOffer';
+import { useMyAvatarId } from '../services/myAvatar';
 import type { MyPassengerRequest } from '../services/passengerRequests';
 import { formatCents, placeRideHold } from '../services/payments';
 import { baseText, borders, colors, overlays, radii, spacing } from '../theme/colors';
@@ -116,6 +117,8 @@ function OfferCountdown({ expiresAt }: { expiresAt: string }) {
 // is gone.
 export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfile, onFindGroup, onLeft }: Props) {
   const { t } = useTranslation();
+  // The passenger's own avatar as they just chose it, not as the offer last loaded it.
+  const myAvatarId = useMyAvatarId();
   const insets = useSafeAreaInsets();
 
   const [offer, setOffer] = useState<MatchOffer | null>(null);
@@ -371,7 +374,7 @@ export default function MatchFoundScreen({ request, onBack, onEdit, onOpenProfil
                     accessible
                     accessibilityLabel={[name, destination, status.label, readyLabel].filter(Boolean).join(', ')}
                   >
-                    <Avatar index={member.order - 1} size={AVATAR_SIZE} />
+                    <Avatar avatarId={member.isMe ? myAvatarId : member.avatarId} size="medium" />
                     <View style={styles.memberText}>
                       <View style={styles.memberNameRow}>
                         <Text style={styles.memberName}>{name}</Text>

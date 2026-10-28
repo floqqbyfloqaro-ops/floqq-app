@@ -5,12 +5,14 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 
 import { ticketStatusPill } from '../components/AdminSupportInbox';
 import AuthTextInput from '../components/AuthTextInput';
+import Avatar from '../components/Avatar';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
 import StatusPill from '../components/StatusPill';
+import { useAvatarIds } from '../services/adminAvatars';
 import { formatCents } from '../services/payments';
 import {
   CALL_LATER_MINUTES,
@@ -47,6 +49,7 @@ const ACTION_ERRORS: Record<string, string> = {
 export default function SupportTicketScreen({ ticketId, onBack }: Props) {
   const { t } = useTranslation();
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
+  const avatars = useAvatarIds([ticket?.user_id]);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [events, setEvents] = useState<TicketEvent[]>([]);
   const [ride, setRide] = useState<TicketRide | null>(null);
@@ -133,6 +136,7 @@ export default function SupportTicketScreen({ ticketId, onBack }: Props) {
         {ticket ? (
           <>
             <View style={styles.titleRow}>
+              <Avatar avatarId={avatars.get(ticket.user_id)} size="medium" />
               <Text style={styles.title} accessibilityRole="header">
                 #{ticket.reference}
               </Text>

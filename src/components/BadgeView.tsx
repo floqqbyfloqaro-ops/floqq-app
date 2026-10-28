@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { confirmFound, continueWithout, Meetup, MeetupMember, startRide } from '../services/findGroup';
+import { useMyAvatarId } from '../services/myAvatar';
 import { baseText, colors, radii, spacing } from '../theme/colors';
 import Avatar from './Avatar';
 import Card from './Card';
@@ -32,6 +33,7 @@ type Step = 'idle' | 'confirmContinue' | 'confirmTaxi';
 // remain. Needs no location at all.
 export default function BadgeView({ meetup, myRequestId, now, onChanged }: Props) {
   const { t } = useTranslation();
+  const myAvatarId = useMyAvatarId();
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('idle');
@@ -112,9 +114,9 @@ export default function BadgeView({ meetup, myRequestId, now, onChanged }: Props
 
       <Card style={styles.card}>
         <Text style={styles.cardLabel}>{t('badge.membersLabel')}</Text>
-        {meetup.members.map((member, index) => (
+        {meetup.members.map((member) => (
           <View key={member.requestId} style={styles.memberRow}>
-            <Avatar index={index} size={40} />
+            <Avatar avatarId={member.isMe ? myAvatarId : member.avatarId} size="medium" />
             <Text style={styles.memberName}>{nameOf(member)}</Text>
             <Text style={[styles.memberStatus, member.foundAt != null && styles.memberStatusFound]}>
               {t(member.foundAt != null ? 'badge.memberFound' : 'badge.memberNotYet')}

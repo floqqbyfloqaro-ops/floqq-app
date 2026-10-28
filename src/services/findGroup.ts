@@ -7,6 +7,8 @@ export type MeetupMember = {
   requestId: string;
   isMe: boolean;
   firstName: string | null;
+  // Their chosen avatar; null: the neutral default.
+  avatarId: number | null;
   // When this member lands: their flight's latest estimate, otherwise their ride's arrival time.
   expectedLandingAt: string;
   // When this member confirmed "I've found my group"; null: not yet.

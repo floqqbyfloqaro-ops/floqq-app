@@ -11,10 +11,12 @@ import {
   FoundAccount,
   ProfileEvent,
 } from '../services/adminAccounts';
+import { useAvatarIds } from '../services/adminAvatars';
 import { isPlausibleEmail } from '../services/profileRules';
 import { baseText, colors, spacing } from '../theme/colors';
 import { formatBarcelonaDateTime } from '../utils/formatDateTime';
 import AuthTextInput from './AuthTextInput';
+import Avatar from './Avatar';
 import Card from './Card';
 import DateOfBirthField, { formatDateOfBirth } from './DateOfBirthField';
 import ErrorNotice from './ErrorNotice';
@@ -73,6 +75,7 @@ export default function AdminAccounts({ warningsOnly = false, refreshKey = 0, on
     `${account.first_name} ${account.last_name}`.trim() || account.email;
 
   const stillUnderAge = flagged.filter((account) => account.still_under_age);
+  const avatars = useAvatarIds(warningsOnly ? [] : [...flagged.map((account) => account.user_id), found?.user_id]);
 
   if (warningsOnly) {
     if (stillUnderAge.length === 0) return null;
@@ -173,7 +176,10 @@ export default function AdminAccounts({ warningsOnly = false, refreshKey = 0, on
             }}
             accessibilityLabel={`${nameOf(account)}, ${account.email}`}
           >
-            <Text style={styles.name}>{nameOf(account)}</Text>
+            <View style={styles.identity}>
+              <Avatar avatarId={avatars.get(account.user_id)} size="small" />
+              <Text style={styles.identityName}>{nameOf(account)}</Text>
+            </View>
             <Text style={styles.meta}>{account.email}</Text>
             <Text style={styles.meta}>
               {t('adminAccounts.bornFlagged', {
@@ -205,7 +211,10 @@ export default function AdminAccounts({ warningsOnly = false, refreshKey = 0, on
 
       {found ? (
         <Card style={styles.row}>
-          <Text style={styles.name}>{nameOf(found)}</Text>
+          <View style={styles.identity}>
+            <Avatar avatarId={avatars.get(found.user_id)} size="small" />
+            <Text style={styles.identityName}>{nameOf(found)}</Text>
+          </View>
           <Text style={styles.meta}>{found.email}</Text>
           <Text style={styles.meta}>{t('adminAccounts.provider', { provider: found.provider })}</Text>
           <Text style={styles.field}>{t('adminAccounts.dateOfBirth', { date: date(found.date_of_birth) })}</Text>
@@ -287,10 +296,16 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.x4,
   },
-  name: {
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.x2,
+    marginBottom: spacing.x1,
+  },
+  identityName: {
     ...baseText.body,
     fontWeight: '600',
-    marginBottom: spacing.x1,
+    flexShrink: 1,
   },
   meta: {
     ...baseText.caption,

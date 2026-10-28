@@ -217,6 +217,8 @@ export function fetchReceiptFlags(groupIds: string[]) {
 
 export type TaxiGroupMember = {
   id: string;
+  // The passenger's account, for their avatar.
+  user_id: string | null;
   passenger_name: string | null;
   flight_number: string;
   arrival_at: string;
@@ -241,7 +243,7 @@ export function fetchGroupMembers(groupId: string) {
   return supabase
     .from('passenger_requests')
     .select(
-      'id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, distance_km, extra_detour_minutes, waiting_minutes, individual_score, arrival_terminal, terminal_conflict, ready_at, flight_estimated_arrival_at'
+      'id, user_id, passenger_name, flight_number, arrival_at, arrival_time_source, created_at, destination_address, bags_count, distance_km, extra_detour_minutes, waiting_minutes, individual_score, arrival_terminal, terminal_conflict, ready_at, flight_estimated_arrival_at'
     )
     .eq('group_id', groupId);
 }
