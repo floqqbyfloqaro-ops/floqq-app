@@ -1,28 +1,62 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image, StyleSheet, View, ViewStyle } from 'react-native';
 
-import { borders, colors, elevation, radii } from '../theme/colors';
+import { avatarFor } from '../avatars/avatarRules';
+import { AVATARS } from '../avatars/registry';
+import { borders, colors, overlays, radii } from '../theme/colors';
 
-// Passengers have no photos (there is no avatar concept in the schema), so these are generic
-// placeholders - picked by position, not a likeness of anyone.
-const PLACEHOLDER_AVATARS = [
-  require('../../assets/avatars/avatar-1.png'),
-  require('../../assets/avatars/avatar-2.png'),
-  require('../../assets/avatars/avatar-3.png'),
-];
+export type AvatarSize = 'small' | 'medium' | 'large';
 
-export const AVATAR_COUNT = PLACEHOLDER_AVATARS.length;
+const SIZES: Record<AvatarSize, number> = {
+  small: 32,
+  medium: 44,
+  large: 88,
+};
 
 type Props = {
-  // Which placeholder to show; wraps around.
-  index: number;
-  size?: number;
+  // The passenger's chosen avatar (profiles.avatar_id). Missing or unknown: the neutral default.
+  avatarId: number | null | undefined;
+  // A named size everywhere; a number only where a layout computes it (the picker's grid).
+  size?: AvatarSize | number;
+  // What stands in without an avatar: the FLOQQ glyph, or a person's silhouette for someone the
+  // app doesn't know yet (the candidates while a match is being searched).
+  placeholder?: 'glyph' | 'silhouette';
+  // A small dot on the edge, e.g. a member who is sharing their location. A theme colour.
+  statusColor?: string;
   style?: ViewStyle;
 };
 
-export default function Avatar({ index, size = 56, style }: Props) {
+// The one way the app shows a passenger: their avatar, cropped to a circle. Every screen uses
+// this; none loads avatar images itself. Decorative for screen readers - the name next to it says
+// who it is.
+export default function Avatar({ avatarId, size = 'medium', placeholder = 'glyph', statusColor, style }: Props) {
+  const side = typeof size === 'number' ? size : SIZES[size];
+  const avatar = avatarFor(AVATARS, avatarId);
+  const dot = Math.max(8, Math.round(side * 0.26));
+
   return (
-    <View style={[styles.frame, { width: size, height: size }, style]}>
-      <Image source={PLACEHOLDER_AVATARS[index % AVATAR_COUNT]} style={styles.image} resizeMode="cover" />
+    <View
+      style={[{ width: side, height: side }, style]}
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+    >
+      <View style={[styles.frame, { width: side, height: side }]}>
+        {avatar ? (
+          <Image source={avatar.source} style={styles.image} resizeMode="cover" fadeDuration={0} />
+        ) : placeholder === 'silhouette' ? (
+          <Ionicons name="person" size={side * 0.5} color={colors.textDisabled} />
+        ) : (
+          <Image
+            source={require('../../assets/icon-adaptive-fg.png')}
+            style={{ width: side * 1.4, height: side * 1.4 }}
+            resizeMode="contain"
+            fadeDuration={0}
+          />
+        )}
+      </View>
+      {statusColor ? (
+        <View style={[styles.dot, { width: dot, height: dot, backgroundColor: statusColor }]} />
+      ) : null}
     </View>
   );
 }
@@ -30,16 +64,23 @@ export default function Avatar({ index, size = 56, style }: Props) {
 const styles = StyleSheet.create({
   frame: {
     borderRadius: radii.pill,
-    backgroundColor: colors.surfaceCard,
+    backgroundColor: colors.surfaceCardSolid,
     borderWidth: borders.regular,
-    borderColor: colors.borderSubtle,
+    borderColor: overlays.overlayWhite16,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    ...elevation.resting,
   },
   image: {
     width: '100%',
     height: '100%',
+  },
+  dot: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    borderRadius: radii.pill,
+    borderWidth: 2,
+    borderColor: colors.bgElevated,
   },
 });

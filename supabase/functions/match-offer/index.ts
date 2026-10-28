@@ -14,6 +14,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { AIRPORT } from '../_shared/constants.ts';
+import { profileAvatarIds, shownAvatarId } from '../_shared/avatars.ts';
 import { profileFirstNames, shownFirstName } from '../_shared/firstNames.ts';
 import { computeRoutePolyline, lookupNeighborhood } from '../_shared/googleRoutes.ts';
 import { estimatedSharesCents, holdAmountCents, holdWindow, PLATFORM_FEE_CENTS, rideDepartureMs } from '../_shared/holdMath.ts';
@@ -117,7 +118,10 @@ Deno.serve(async (req) => {
   if (!members.some((m) => m.id === requestId)) {
     return jsonResponse({ offer: null, reason: 'no_group' });
   }
-  const firstNames = await profileFirstNames(adminClient, members.map((m) => m.user_id));
+  const [firstNames, avatars] = await Promise.all([
+    profileFirstNames(adminClient, members.map((m) => m.user_id)),
+    profileAvatarIds(adminClient, members.map((m) => m.user_id)),
+  ]);
 
   // Neighbourhoods the others will see, looked up once per destination.
   await Promise.all(
@@ -187,6 +191,7 @@ Deno.serve(async (req) => {
           isMe,
           order: index + 1,
           firstName: shownFirstName(firstNames, member),
+          avatarId: shownAvatarId(avatars, member),
           destination: isMe ? member.destination_address : member.destination_neighborhood,
           lat: !hasPoint ? null : isMe ? member.destination_lat : roundCoordinate(member.destination_lat!),
           lng: !hasPoint ? null : isMe ? member.destination_lng : roundCoordinate(member.destination_lng!),

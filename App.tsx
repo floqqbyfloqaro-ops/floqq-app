@@ -1,6 +1,7 @@
 import './src/i18n';
 
 import type { Session } from '@supabase/supabase-js';
+import { Asset } from 'expo-asset';
 import * as Linking from 'expo-linking';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
@@ -19,6 +20,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import DateOfBirthGate from './src/screens/DateOfBirthGate';
 import SignUpScreen from './src/screens/SignUpScreen';
 import WelcomeSplashScreen from './src/screens/WelcomeSplashScreen';
+import { AVATARS } from './src/avatars/registry';
 import SlideInScreen from './src/components/SlideInScreen';
 import WebAppFrame from './src/components/WebAppFrame';
 import { fetchIsAdmin } from './src/services/adminRole';
@@ -26,6 +28,7 @@ import { handleStripeRedirect } from './src/services/cardSetup';
 import { parseEmailVerifiedLink } from './src/services/emailVerification';
 import type { FindGroupOpenSource } from './src/services/findGroup';
 import { shouldOpenFindGroupNow } from './src/services/findGroupAutoOpen';
+import { loadMyAvatar } from './src/services/myAvatar';
 import { hasUnseenCompletedRide } from './src/services/rideCompletion';
 import { registerPushToken, useTappedNotification } from './src/services/pushNotifications';
 import { hasCompletedOnboarding, setOnboardingCompleted } from './src/services/onboarding';
@@ -120,6 +123,19 @@ function AppContent() {
   useEffect(() => {
     if (userId) registerPushToken();
   }, [userId]);
+
+  // The passenger's own avatar, for every screen that shows it.
+  useEffect(() => {
+    loadMyAvatar(userId ?? null);
+  }, [userId]);
+
+  // The avatars ship with the app; loading them while the splash is up means lists never show an
+  // empty circle first.
+  useEffect(() => {
+    Asset.loadAsync(AVATARS.map((avatar) => avatar.source as number)).catch((error) =>
+      console.warn('preloading avatars failed', error)
+    );
+  }, []);
 
   // A tapped notification (also one that launched the app) opens the screen it points at.
   const tappedNotification = useTappedNotification();

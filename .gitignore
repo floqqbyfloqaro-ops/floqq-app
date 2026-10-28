@@ -43,3 +43,6 @@ yarn-error.*
 
 # Supabase CLI local cache
 supabase/.temp/
+
+# Original avatar artwork (large, not bundled; the app uses assets/avatars/*.jpg)
+/design/avatars-source/

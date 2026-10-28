@@ -4,7 +4,9 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { HelpAction, HelpMessage, isConfirmCard } from '../services/helpChat';
 import { plainText } from '../services/helpMarkdown';
+import { useMyAvatarId } from '../services/myAvatar';
 import { baseText, borders, colors, radii, spacing } from '../theme/colors';
+import Avatar from './Avatar';
 import HelpActionButtons from './HelpActionButtons';
 import HelpAvatar from './HelpAvatar';
 import HelpConfirmCard from './HelpConfirmCard';
@@ -26,22 +28,26 @@ type Props = {
 };
 
 // One message in the help chat: the assistant's on the left with the F glyph, the passenger's on the
-// right in the accent colour. Under an answer: its cards and its buttons. ("Was this helpful?" is
+// right in the accent colour, with their avatar. Under an answer: its cards and its buttons. ("Was this helpful?" is
 // asked once, on the closing card - not under every answer.)
 function HelpMessageRow({ message, firstInGroup, lastInGroup, streaming = false, onAction, onDecide }: Props) {
   const { t, i18n } = useTranslation();
   const isUser = message.role === 'user';
+  const myAvatarId = useMyAvatarId();
   const time = new Date(message.created_at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
 
   if (isUser) {
     return (
       <View style={[styles.userRow, firstInGroup && styles.groupGap]}>
-        <View style={styles.userBubble} accessible accessibilityLabel={t('help.youSaid', { text: message.content, time })}>
-          <Text style={styles.userText} selectable>
-            {message.content}
-          </Text>
+        <View style={styles.userColumn}>
+          <View style={styles.userBubble} accessible accessibilityLabel={t('help.youSaid', { text: message.content, time })}>
+            <Text style={styles.userText} selectable>
+              {message.content}
+            </Text>
+          </View>
+          {lastInGroup ? <Text style={[styles.time, styles.timeRight]}>{time}</Text> : null}
         </View>
-        {lastInGroup ? <Text style={[styles.time, styles.timeRight]}>{time}</Text> : null}
+        <View style={styles.avatarSlot}>{firstInGroup ? <Avatar avatarId={myAvatarId} size="small" /> : null}</View>
       </View>
     );
   }
@@ -81,11 +87,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.x3,
   },
   userRow: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    gap: spacing.x2,
     marginTop: spacing.x1,
   },
-  userBubble: {
+  userColumn: {
+    flexShrink: 1,
     maxWidth: '82%',
+    alignItems: 'flex-end',
+  },
+  userBubble: {
     paddingVertical: spacing.x2,
     paddingHorizontal: spacing.x3,
     borderRadius: radii.lg,

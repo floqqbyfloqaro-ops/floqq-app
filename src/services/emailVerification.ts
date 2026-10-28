@@ -17,10 +17,18 @@ export const RESEND_COOLDOWN_SECONDS = 60;
 // The language is stored on the account so the (single, per-project) Supabase email template can
 // pick EN/ES/FR via {{ .Data.language }} - see supabase/templates/confirm-signup.html. First name,
 // last name and date of birth ('YYYY-MM-DD') become the account's profile; the server refuses the
-// sign-up outright for a date of birth under 18 (profiles migration).
-export type SignUpDetails = { firstName: string; lastName: string; email: string; password: string; dateOfBirth: string };
+// sign-up outright for a date of birth under 18 (profiles migration). The avatar chosen on the
+// sign-up step too (avatars migration).
+export type SignUpDetails = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  dateOfBirth: string;
+  avatarId: number;
+};
 
-export function signUpWithEmail({ firstName, lastName, email, password, dateOfBirth }: SignUpDetails) {
+export function signUpWithEmail({ firstName, lastName, email, password, dateOfBirth, avatarId }: SignUpDetails) {
   return supabase.auth.signUp({
     email,
     password,
@@ -30,6 +38,7 @@ export function signUpWithEmail({ firstName, lastName, email, password, dateOfBi
         last_name: lastName,
         full_name: `${firstName} ${lastName}`,
         date_of_birth: dateOfBirth,
+        avatar_id: avatarId,
         language: i18n.language,
       },
       emailRedirectTo: EMAIL_VERIFIED_PAGE_URL,

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import Avatar from '../components/Avatar';
+import AvatarPickerSheet from '../components/AvatarPickerSheet';
 import Card from '../components/Card';
 import { formatDateOfBirth } from '../components/DateOfBirthField';
 import EditProfileForm from '../components/EditProfileForm';
@@ -23,8 +24,9 @@ import {
   MyProfile,
   resendEmailChange,
 } from '../services/profile';
+import { useMyAvatarId } from '../services/myAvatar';
 import { createCardSetupSession, fetchSavedCard, SavedCard } from '../services/payments';
-import { baseText, colors, overlays, spacing } from '../theme/colors';
+import { baseText, colors, overlays, radii, spacing } from '../theme/colors';
 
 type Props = {
   onBack: () => void;
@@ -66,6 +68,8 @@ export default function ProfileScreen({ onBack, onOpenHelp, onChangePassword }: 
   const [isAccountLoading, setIsAccountLoading] = useState(true);
   const [accountLoadFailed, setAccountLoadFailed] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isChoosingAvatar, setIsChoosingAvatar] = useState(false);
+  const myAvatarId = useMyAvatarId();
   const [profileNotice, setProfileNotice] = useState<string | null>(null);
   const [emailAction, setEmailAction] = useState<'resend' | 'cancel' | null>(null);
   const [emailActionMessage, setEmailActionMessage] = useState<string | null>(null);
@@ -243,14 +247,24 @@ export default function ProfileScreen({ onBack, onOpenHelp, onChangePassword }: 
 
             {isAccountLoading ? (
               <Card style={styles.accountCard} accessible accessibilityLabel={t('admin.loading')}>
-                <Skeleton width={72} height={72} style={styles.skeletonGap} />
+                <Skeleton width={88} height={88} radius={radii.pill} style={styles.skeletonGap} />
                 <Skeleton width={180} height={22} style={styles.skeletonGap} />
                 <Skeleton width={220} height={14} />
               </Card>
             ) : profile && account ? (
               <Card style={styles.accountCard}>
                 <View style={styles.identity}>
-                  <Avatar index={0} size={72} />
+                  <Pressable
+                    onPress={() => setIsChoosingAvatar(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('avatar.editLabel')}
+                    style={({ pressed }) => pressed && styles.avatarPressed}
+                  >
+                    <Avatar avatarId={myAvatarId} size="large" />
+                    <View style={styles.avatarEditBadge}>
+                      <Ionicons name="pencil" size={14} color={colors.white} />
+                    </View>
+                  </Pressable>
                   <Text style={styles.name}>
                     {`${profile.firstName} ${profile.lastName}`.trim() || t('profile.nameMissing')}
                   </Text>
@@ -395,6 +409,7 @@ export default function ProfileScreen({ onBack, onOpenHelp, onChangePassword }: 
           </>
         )}
       </ScrollView>
+      <AvatarPickerSheet visible={isChoosingAvatar} onClose={() => setIsChoosingAvatar(false)} />
     </ScreenBackground>
   );
 }
@@ -425,6 +440,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.x3,
     marginBottom: spacing.x4,
+  },
+  avatarPressed: {
+    opacity: 0.8,
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 28,
+    height: 28,
+    borderRadius: radii.pill,
+    backgroundColor: colors.accentPrimary,
+    borderWidth: 2,
+    borderColor: colors.surfaceCardSolid,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   name: {
     ...baseText.h3,

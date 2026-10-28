@@ -1452,5 +1452,17 @@
       "fair": "OK",
       "strong": "Strong"
     }
+  },
+  "avatar": {
+    "chooseTitle": "Choose your avatar",
+    "chooseSubtitle": "This is how your group will see you. You can change it any time in your profile.",
+    "optionLabel": "Avatar {{number}} of {{count}}",
+    "optionLabelSelected": "Avatar {{number}} of {{count}}, selected",
+    "continueButton": "Continue",
+    "backToDetails": "Back to your details",
+    "editLabel": "Change your avatar",
+    "done": "Done",
+    "updated": "Avatar updated",
+    "updateError": "We couldn’t save your avatar. Please try again."
   }
 }

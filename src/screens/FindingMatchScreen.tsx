@@ -3,12 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import Avatar, { AVATAR_COUNT } from '../components/Avatar';
+import Avatar from '../components/Avatar';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import MatchingCountdown from '../components/MatchingCountdown';
 import ScreenBackground from '../components/ScreenBackground';
 import SecondaryButton from '../components/SecondaryButton';
+import { useMyAvatarId } from '../services/myAvatar';
 import { cancelPassengerRequest, MyPassengerRequest } from '../services/passengerRequests';
 import { baseText, borders, colors, elevation, motion, overlays, radii, spacing } from '../theme/colors';
 import { easingStandard } from '../utils/animation';
@@ -20,14 +21,13 @@ type Props = {
   onCancelled: () => void;
 };
 
-// No real per-passenger candidate data is reachable from the client while searching: the
-// corridor-match DB function isn't security-definer, so RLS limits a passenger's query to their
-// own row. The avatars are generic placeholders (see Avatar), not a claim that this many
-// travelers have actually been found.
-const AVATAR_INDICES = Array.from({ length: AVATAR_COUNT }, (_, index) => index);
-
+// The passenger's own avatar in the middle, the travelers being looked for on either side. No
+// real per-passenger candidate data is reachable from the client while searching (RLS limits a
+// passenger's query to their own row), so those are neutral silhouettes - never someone else's
+// real avatar, and not a claim that anyone has been found yet.
 export default function FindingMatchScreen({ request, onBack, onEdit, onCancelled }: Props) {
   const { t } = useTranslation();
+  const myAvatarId = useMyAvatarId();
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
@@ -127,11 +127,15 @@ export default function FindingMatchScreen({ request, onBack, onEdit, onCancelle
         <MatchingCountdown />
 
         <View style={styles.avatarRow}>
-          {AVATAR_INDICES.map((index) => (
-            <Animated.View key={index} style={[index === 1 && styles.avatarFrameRaised, breatheStyle]}>
-              <Avatar index={index} />
-            </Animated.View>
-          ))}
+          <Animated.View style={breatheStyle}>
+            <Avatar avatarId={null} placeholder="silhouette" size="medium" />
+          </Animated.View>
+          <Animated.View style={breatheStyle}>
+            <Avatar avatarId={myAvatarId} size="large" />
+          </Animated.View>
+          <Animated.View style={breatheStyle}>
+            <Avatar avatarId={null} placeholder="silhouette" size="medium" />
+          </Animated.View>
         </View>
 
         <View style={styles.centerStage}>
@@ -216,12 +220,9 @@ const styles = StyleSheet.create({
   },
   avatarRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     gap: spacing.x4,
     marginBottom: spacing.x8,
-  },
-  avatarFrameRaised: {
-    marginBottom: spacing.x3,
   },
   centerStage: {
     width: 160,

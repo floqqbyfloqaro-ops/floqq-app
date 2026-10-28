@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { randomAvatarId } from '../avatars/avatarRules';
+import { AVATAR_IDS } from '../avatars/registry';
 import AuthTextInput from '../components/AuthTextInput';
+import Avatar from '../components/Avatar';
+import AvatarPicker from '../components/AvatarPicker';
 import DateOfBirthField from '../components/DateOfBirthField';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
@@ -36,8 +40,12 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
+  // After the account details, "Choose your avatar" - with a random one already chosen, so the
+  // passenger can simply continue.
+  const [step, setStep] = useState<'details' | 'avatar'>('details');
+  const [avatarId, setAvatarId] = useState(() => randomAvatarId(AVATAR_IDS));
 
-  const handleSignUp = async () => {
+  const handleContinue = () => {
     setErrorMessage(null);
 
     const errors: typeof fieldErrors = {};
@@ -56,6 +64,11 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
       return;
     }
 
+    setStep('avatar');
+  };
+
+  const handleSignUp = async () => {
+    setErrorMessage(null);
     setIsSubmitting(true);
     const { data, error } = await signUpWithEmail({
       firstName: cleanPersonName(firstName),
@@ -63,6 +76,7 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
       email: email.trim(),
       password,
       dateOfBirth: dateOfBirth!,
+      avatarId,
     });
     setIsSubmitting(false);
 
@@ -92,6 +106,36 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
 
           {pendingVerificationEmail ? (
             <VerifyEmailNotice email={pendingVerificationEmail} onBackToLogin={onSwitchToLogin} justSent />
+          ) : step === 'avatar' ? (
+            <>
+            <Text style={[styles.title, styles.titleWithSubtitle]} accessibilityRole="header">
+              {t('avatar.chooseTitle')}
+            </Text>
+            <Text style={styles.subtitle}>{t('avatar.chooseSubtitle')}</Text>
+
+            <View style={styles.preview}>
+              <Avatar avatarId={avatarId} size="large" />
+            </View>
+            <View style={styles.picker}>
+              <AvatarPicker selectedId={avatarId} onSelect={setAvatarId} />
+            </View>
+
+            {errorMessage ? <ErrorNotice message={errorMessage} onRetry={handleSignUp} retryLabel={t('common.retry')} /> : null}
+
+            <PrimaryButton label={t('auth.signUpButton')} onPress={handleSignUp} loading={isSubmitting} />
+
+            <Pressable
+              onPress={() => {
+                setErrorMessage(null);
+                setStep('details');
+              }}
+              disabled={isSubmitting}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+            >
+              <Text style={styles.switchText}>{t('avatar.backToDetails')}</Text>
+            </Pressable>
+            </>
           ) : (
             <>
             <Text style={styles.title}>{t('auth.signUpTitle')}</Text>
@@ -148,9 +192,7 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
               autoComplete="new-password"
             />
 
-            {errorMessage ? <ErrorNotice message={errorMessage} onRetry={handleSignUp} retryLabel={t('common.retry')} /> : null}
-
-            <PrimaryButton label={t('auth.signUpButton')} onPress={handleSignUp} loading={isSubmitting} />
+            <PrimaryButton label={t('avatar.continueButton')} onPress={handleContinue} />
 
             <Pressable
               onPress={onSwitchToLogin}
@@ -193,6 +235,22 @@ const styles = StyleSheet.create({
     ...baseText.h1,
     textAlign: 'center',
     marginBottom: spacing.x8,
+  },
+  subtitle: {
+    ...baseText.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.x6,
+  },
+  titleWithSubtitle: {
+    marginBottom: spacing.x2,
+  },
+  preview: {
+    marginBottom: spacing.x6,
+  },
+  picker: {
+    alignSelf: 'stretch',
+    marginBottom: spacing.x6,
   },
   dateOfBirth: {
     alignSelf: 'stretch',

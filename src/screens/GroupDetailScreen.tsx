@@ -6,6 +6,7 @@ import AdminGroupPayments from '../components/AdminGroupPayments';
 import { adminWordingLanguage } from '../components/AdminMeetingPoints';
 import AdminReceiptReview from '../components/AdminReceiptReview';
 import AuthTextInput from '../components/AuthTextInput';
+import Avatar from '../components/Avatar';
 import Card from '../components/Card';
 import ErrorNotice from '../components/ErrorNotice';
 import PrimaryButton from '../components/PrimaryButton';
@@ -34,6 +35,7 @@ import {
   updateGroupTotalFare,
   updatePassengerDistance,
 } from '../services/adminGrouping';
+import { useAvatarIds } from '../services/adminAvatars';
 import { calculateFareSplit, FareSplitResult } from '../services/fareSplit';
 import { fetchRideReceipt, formatCents, RideReceipt, syncGroupHolds } from '../services/payments';
 import { MeetingPoint, meetingPointText } from '../services/meetingPointRules';
@@ -70,6 +72,7 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
   const { t, i18n } = useTranslation();
 
   const [members, setMembers] = useState<TaxiGroupMember[]>([]);
+  const avatars = useAvatarIds(members.map((member) => member.user_id));
   const [distanceInputs, setDistanceInputs] = useState<Record<string, string>>({});
   const [totalFareInput, setTotalFareInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -550,7 +553,10 @@ export default function GroupDetailScreen({ groupId, onBack }: Props) {
                   arrivalTimeSource={member.arrival_time_source}
                   createdAt={member.created_at}
                 />
-                <Text style={styles.memberTitle}>{memberDisplayName(member)}</Text>
+                <View style={styles.memberIdentity}>
+                  <Avatar avatarId={member.user_id ? avatars.get(member.user_id) : null} size="small" />
+                  <Text style={styles.memberName}>{memberDisplayName(member)}</Text>
+                </View>
                 <Text style={styles.memberSubtitle}>{member.destination_address}</Text>
                 <Text style={styles.memberScoreNote}>
                   {member.arrival_terminal
@@ -832,6 +838,17 @@ const styles = StyleSheet.create({
     ...baseText.body,
     fontWeight: '600',
     marginBottom: spacing.x1,
+  },
+  memberIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.x2,
+    marginBottom: spacing.x1,
+  },
+  memberName: {
+    ...baseText.body,
+    fontWeight: '600',
+    flexShrink: 1,
   },
   memberSubtitle: {
     ...baseText.caption,

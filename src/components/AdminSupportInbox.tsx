@@ -3,10 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useAvatarIds } from '../services/adminAvatars';
 import { TEAM_LANGUAGES } from '../services/helpChat';
 import { fetchTickets, SupportTicket, TicketFilters } from '../services/supportInbox';
 import { baseText, borders, colors, radii, spacing } from '../theme/colors';
 import { formatBarcelonaDateTime } from '../utils/formatDateTime';
+import Avatar from './Avatar';
 import Card from './Card';
 import ErrorNotice from './ErrorNotice';
 import Skeleton from './Skeleton';
@@ -41,6 +43,7 @@ export default function AdminSupportInbox({ onOpen, refreshKey }: Props) {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
+  const avatars = useAvatarIds(tickets.map((ticket) => ticket.user_id));
 
   const load = useCallback(async () => {
     const { data, error } = await fetchTickets(filters);
@@ -113,6 +116,7 @@ export default function AdminSupportInbox({ onOpen, refreshKey }: Props) {
               .join(', ')}
           >
             <View style={styles.titleRow}>
+              <Avatar avatarId={avatars.get(ticket.user_id)} size="small" />
               <Text style={styles.reference}>#{ticket.reference}</Text>
               {ticket.urgent ? (
                 <View style={styles.urgentBadge}>
