@@ -26,9 +26,11 @@ import { baseText, colors, overlays, spacing } from '../theme/colors';
 
 type Props = {
   onSwitchToLogin: () => void;
+  // The step it opens on; only the screen preview starts on 'avatar'.
+  initialStep?: 'details' | 'avatar';
 };
 
-export default function SignUpScreen({ onSwitchToLogin }: Props) {
+export default function SignUpScreen({ onSwitchToLogin, initialStep = 'details' }: Props) {
   const { t } = useTranslation();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -42,7 +44,7 @@ export default function SignUpScreen({ onSwitchToLogin }: Props) {
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
   // After the account details, "Choose your avatar" - with a random one already chosen, so the
   // passenger can simply continue.
-  const [step, setStep] = useState<'details' | 'avatar'>('details');
+  const [step, setStep] = useState<'details' | 'avatar'>(initialStep);
   const [avatarId, setAvatarId] = useState(() => randomAvatarId(AVATAR_IDS));
 
   const handleContinue = () => {

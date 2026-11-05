@@ -7,6 +7,7 @@
 
 import * as Linking from 'expo-linking';
 
+import { isPreviewMode, notifyPreviewAction } from '../preview/previewMode';
 import { colors, radii } from '../theme/colors';
 import type { CardSetupSession } from './payments';
 
@@ -21,6 +22,11 @@ function loadStripe(): typeof import('@stripe/stripe-react-native') {
 export type CardSetupResult = { status: 'saved' } | { status: 'cancelled' } | { status: 'failed'; message: string };
 
 export async function presentCardSetupSheet(session: CardSetupSession, merchantDisplayName: string): Promise<CardSetupResult> {
+  // The screen preview never opens Stripe.
+  if (isPreviewMode()) {
+    notifyPreviewAction();
+    return { status: 'cancelled' };
+  }
   // Second line of defense after the server's own check: never initialize Stripe with a live key.
   if (!session.publishableKey.startsWith('pk_test_')) {
     console.error('Refusing a non-test Stripe publishable key. This prototype is test mode only.');
@@ -90,6 +96,10 @@ export type HoldAuthResult = { status: 'done' } | { status: 'failed'; message: s
 // Shows the bank's 3D Secure step for a ride hold that needs it. "done" only means the step
 // finished - whether the hold was placed is read back from the server (Stripe's webhook).
 export async function authenticateHold(clientSecret: string, publishableKey: string): Promise<HoldAuthResult> {
+  if (isPreviewMode()) {
+    notifyPreviewAction();
+    return { status: 'failed', message: 'Screen preview.' };
+  }
   if (!publishableKey.startsWith('pk_test_')) {
     console.error('Refusing a non-test Stripe publishable key. This prototype is test mode only.');
     return { status: 'failed', message: 'Test mode only.' };
