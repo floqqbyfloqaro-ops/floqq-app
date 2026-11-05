@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 
 import { LOCATION_SEND_DISTANCE_METERS, LOCATION_SEND_INTERVAL_MS } from '../constants';
+import { isPreviewMode, notifyPreviewAction, previewData } from '../preview/previewMode';
 import { Fix, shouldSendPosition } from './locationSharingRules';
 import { supabase } from './supabase';
 
@@ -31,14 +32,20 @@ async function servicesEnabled(): Promise<boolean> {
   }
 }
 
-// What the app may use right now, without showing any system prompt.
+// What the app may use right now, without showing any system prompt. The screen preview's sample
+// location stands in for the phone's in all three of these.
 export async function getLocationAccess(): Promise<LocationAccess> {
+  if (isPreviewMode()) return previewData().location.access;
   if (!(await servicesEnabled())) return 'unavailable';
   return toAccess(await Location.getForegroundPermissionsAsync());
 }
 
 // Foreground ("when in use") only. Shows the system prompt if the passenger hasn't answered it yet.
 export async function requestLocationAccess(): Promise<LocationAccess> {
+  if (isPreviewMode()) {
+    notifyPreviewAction();
+    return previewData().location.access;
+  }
   if (!(await servicesEnabled())) return 'unavailable';
   return toAccess(await Location.requestForegroundPermissionsAsync());
 }
@@ -46,6 +53,11 @@ export async function requestLocationAccess(): Promise<LocationAccess> {
 // Reads the phone's position about once a second, for as long as the returned subscription lives.
 // Foreground only: it stops by itself when the app goes to the background.
 export function watchOwnPosition(onFix: (fix: Fix) => void): Promise<Location.LocationSubscription> {
+  if (isPreviewMode()) {
+    const fix = previewData().location.fix;
+    if (fix) onFix(fix);
+    return Promise.resolve({ remove() {} });
+  }
   return Location.watchPositionAsync(
     { accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 0 },
     (location) =>

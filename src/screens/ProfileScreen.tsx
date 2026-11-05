@@ -34,6 +34,8 @@ type Props = {
   onOpenHelp: () => void;
   // "Change password" (email accounts only).
   onChangePassword: () => void;
+  // Opens with the edit form; only the screen preview uses it.
+  initialEditing?: boolean;
 };
 
 // The card only counts as saved once Stripe's webhook has reached our server, which usually takes
@@ -58,7 +60,7 @@ function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-export default function ProfileScreen({ onBack, onOpenHelp, onChangePassword }: Props) {
+export default function ProfileScreen({ onBack, onOpenHelp, onChangePassword, initialEditing = false }: Props) {
   const { t, i18n } = useTranslation();
 
   // The passenger's own details: name and date of birth (profile), email and how they sign in
@@ -67,7 +69,7 @@ export default function ProfileScreen({ onBack, onOpenHelp, onChangePassword }: 
   const [account, setAccount] = useState<MyAccount | null>(null);
   const [isAccountLoading, setIsAccountLoading] = useState(true);
   const [accountLoadFailed, setAccountLoadFailed] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(initialEditing);
   const [isChoosingAvatar, setIsChoosingAvatar] = useState(false);
   const myAvatarId = useMyAvatarId();
   const [profileNotice, setProfileNotice] = useState<string | null>(null);

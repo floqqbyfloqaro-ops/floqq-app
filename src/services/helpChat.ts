@@ -1,5 +1,6 @@
 import { fetch as streamingFetch } from 'expo/fetch';
 
+import { isPreviewMode, notifyPreviewAction } from '../preview/previewMode';
 import type { HelpTopic } from './helpChips';
 import { supabase } from './supabase';
 
@@ -134,6 +135,12 @@ export async function sendHelpMessageStreamed(
   language: HelpLanguage,
   handlers: { onEmergency?: () => void; onText?: (text: string) => void; onReset?: () => void }
 ): Promise<{ answer: HelpAnswer | null; error: string | null }> {
+  // The screen preview never reaches the AI (this goes past the Supabase client, so it is stopped
+  // here).
+  if (isPreviewMode()) {
+    notifyPreviewAction();
+    return { answer: null, error: 'send_failed' };
+  }
   const { data: session } = await supabase.auth.getSession();
   const token = session.session?.access_token;
   if (!token) return { answer: null, error: 'send_failed' };

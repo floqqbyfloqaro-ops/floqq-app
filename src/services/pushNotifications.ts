@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import i18n from '../i18n';
+import { isPreviewMode } from '../preview/previewMode';
 import { supabase } from './supabase';
 
 // Push notifications (a match found, "You've landed", seat reservation reminders etc., sent by
@@ -24,6 +25,8 @@ Notifications.setNotificationHandler({
 
 // Registers this phone for the logged-in user, in the app's current language.
 export async function registerPushToken(): Promise<void> {
+  // Never during the screen preview.
+  if (isPreviewMode()) return;
   try {
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== 'granted') return;

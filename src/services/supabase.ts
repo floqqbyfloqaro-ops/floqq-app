@@ -10,7 +10,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Check your .env file.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// The screen preview (src/preview/) answers from sample data instead of this client while it is
+// on. Only development builds and test builds with EXPO_PUBLIC_SCREEN_PREVIEW=true contain it:
+// the condition is written out here (not imported) so a production build drops the require.
+const preview =
+  __DEV__ || process.env.EXPO_PUBLIC_SCREEN_PREVIEW === 'true'
+    ? (require('../preview/previewClient') as typeof import('../preview/previewClient'))
+    : null;
+preview?.installPreviewNetworkGuard();
+
+const client = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,
@@ -23,3 +32,5 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: 'implicit',
   },
 });
+
+export const supabase = preview ? preview.withPreview(client) : client;

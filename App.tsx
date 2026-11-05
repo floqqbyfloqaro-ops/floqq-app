@@ -4,8 +4,8 @@ import type { Session } from '@supabase/supabase-js';
 import { Asset } from 'expo-asset';
 import * as Linking from 'expo-linking';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, StyleSheet, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AdminScreen from './src/screens/AdminScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
@@ -23,6 +23,8 @@ import WelcomeSplashScreen from './src/screens/WelcomeSplashScreen';
 import { AVATARS } from './src/avatars/registry';
 import SlideInScreen from './src/components/SlideInScreen';
 import WebAppFrame from './src/components/WebAppFrame';
+import { isPreviewMode } from './src/preview/previewMode';
+import { baseText, colors, radii, spacing } from './src/theme/colors';
 import { fetchIsAdmin } from './src/services/adminRole';
 import { handleStripeRedirect } from './src/services/cardSetup';
 import { parseEmailVerifiedLink } from './src/services/emailVerification';
@@ -39,6 +41,14 @@ import { supabase } from './src/services/supabase';
 // isReady and this minimum timer both have to clear before we move on, so a fast session check
 // doesn't make the splash flash by instantly - and a slow one keeps the splash up until it's done.
 const MIN_SPLASH_MS = 4000;
+
+// The screen preview gallery (src/preview/): in development builds, and in test builds with
+// EXPO_PUBLIC_SCREEN_PREVIEW=true for an admin. Written out (not imported) so a production build
+// leaves the gallery out entirely.
+const ScreenPreviewGallery =
+  __DEV__ || process.env.EXPO_PUBLIC_SCREEN_PREVIEW === 'true'
+    ? (require('./src/preview/ScreenPreviewGallery') as typeof import('./src/preview/ScreenPreviewGallery')).default
+    : null;
 
 export default function App() {
   return (
@@ -160,7 +170,7 @@ function AppContent() {
     if (!userId) return;
     let cancelled = false;
     const check = async () => {
-      if (mainScreenRef.current !== 'home') return;
+      if (mainScreenRef.current !== 'home' || isPreviewMode()) return;
       const open = await shouldOpenFindGroupNow();
       if (!cancelled && open && mainScreenRef.current === 'home') {
         goToFindGroup('app_open');
@@ -207,7 +217,24 @@ function AppContent() {
 
   const canShowApp = isReady && minSplashElapsed;
 
+  const [showPreview, setShowPreview] = useState(false);
+  // Offered on the login screen and Home: in a development build to anyone, in a test build
+  // with the switch on only to an admin.
+  const canPreview = ScreenPreviewGallery != null && (__DEV__ || isAdmin) && !showOnboarding && (!session || mainScreen === 'home');
+
   const renderScreen = () => {
+    if (showPreview && ScreenPreviewGallery) {
+      return (
+        <ScreenPreviewGallery
+          onClose={() => {
+            setShowPreview(false);
+            // The preview showed a sample avatar.
+            loadMyAvatar(userId ?? null);
+          }}
+        />
+      );
+    }
+
     if (showOnboarding) {
       return (
         <OnboardingScreen
@@ -310,6 +337,7 @@ function AppContent() {
   return (
     <View style={styles.root}>
       {canShowApp ? renderScreen() : null}
+      {canShowApp && canPreview && !showPreview ? <ScreenPreviewButton onPress={() => setShowPreview(true)} /> : null}
       {isSplashGone ? null : (
         <View style={StyleSheet.absoluteFill} pointerEvents={canShowApp ? 'none' : 'auto'}>
           <WelcomeSplashScreen fadeOut={canShowApp} onFadeOutComplete={() => setIsSplashGone(true)} />
@@ -319,8 +347,37 @@ function AppContent() {
   );
 }
 
+function ScreenPreviewButton({ onPress }: { onPress: () => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      style={[styles.previewButton, { top: insets.top + spacing.x2 }]}
+      accessibilityRole="button"
+    >
+      <Text style={styles.previewButtonText}>Screen preview</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  previewButton: {
+    position: 'absolute',
+    right: spacing.x4,
+    paddingHorizontal: spacing.x3,
+    paddingVertical: spacing.x1,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.accentGold,
+    backgroundColor: colors.bgElevated,
+  },
+  previewButtonText: {
+    ...baseText.caption,
+    color: colors.accentGold,
+    fontWeight: '700',
   },
 });

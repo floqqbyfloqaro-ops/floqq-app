@@ -10,6 +10,12 @@
       "android": {
         "buildType": "apk"
       }
+    },
+    "production": {
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_SCREEN_PREVIEW": "false"
+      }
     }
   }
 }

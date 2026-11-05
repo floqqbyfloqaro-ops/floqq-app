@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { CountryCode } from 'libphonenumber-js';
 
@@ -21,6 +21,7 @@ import { barcelonaDateParts, barcelonaWeekday } from '../utils/formatDateTime';
 import AuthTextInput from './AuthTextInput';
 import CountryCodePicker from './CountryCodePicker';
 import ErrorNotice from './ErrorNotice';
+import Modal from './Modal';
 import HelpEmergencyCard from './HelpEmergencyCard';
 import PrimaryButton from './PrimaryButton';
 import Skeleton from './Skeleton';

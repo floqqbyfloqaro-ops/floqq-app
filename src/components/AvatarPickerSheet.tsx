@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { setMyAvatar, useMyAvatarId } from '../services/myAvatar';
 import { baseText, borders, colors, overlays, radii, spacing } from '../theme/colors';
 import AvatarPicker from './AvatarPicker';
+import Modal from './Modal';
 import PrimaryButton from './PrimaryButton';
 
 const CONFIRMATION_MS = 2000;

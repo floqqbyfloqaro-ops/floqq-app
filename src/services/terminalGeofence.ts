@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 
 import { TERMINAL_GEOFENCE_METERS } from '../constants';
+import { isPreviewMode } from '../preview/previewMode';
 import { supabase } from './supabase';
 import { ArrivalTerminal, terminalNear, TerminalLandmark } from './terminalRules';
 
@@ -15,6 +16,8 @@ const MAX_POSITION_ACCURACY_METERS = 200;
 //     guess: a terminal without a verified point simply gets no prefill.
 //   - The position is read once and compared on the phone. It is not sent anywhere or stored.
 export async function detectTerminalFromLocation(): Promise<ArrivalTerminal | null> {
+  // The screen preview never reads the location.
+  if (isPreviewMode()) return null;
   try {
     const permission = await Location.getForegroundPermissionsAsync();
     if (permission.status !== 'granted') return null;
