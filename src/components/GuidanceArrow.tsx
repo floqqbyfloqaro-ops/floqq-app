@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import { HEADING_MIN_ACCURACY, HEADING_SMOOTHING } from '../constants';
+import { isPreviewMode, previewData } from '../preview/previewMode';
 import { arrowRotation, continuousRotation, smoothHeading } from '../services/guidanceRules';
 import { baseText, borders, colors, elevation, motion, radii, spacing } from '../theme/colors';
 import { easingStandard } from '../utils/animation';
@@ -56,6 +57,13 @@ export default function GuidanceArrow({ bearing, onReliabilityChange }: Props) {
   turnArrowRef.current = turnArrow;
 
   useEffect(() => {
+    // The screen preview's sample compass reading stands in for the phone's.
+    if (isPreviewMode()) {
+      heading.current = previewData().location.heading;
+      setIsReliable(true);
+      turnArrowRef.current();
+      return;
+    }
     let cancelled = false;
     let subscription: Location.LocationSubscription | null = null;
     const noHeading = setTimeout(() => {

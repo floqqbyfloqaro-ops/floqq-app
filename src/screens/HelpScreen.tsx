@@ -62,6 +62,8 @@ type Props = {
   onShowBadge: () => void;
   // "Book a new ride" (a follow-up chip after a cancellation).
   onNewRide: () => void;
+  // Opens on "Your requests"; only the screen preview uses it.
+  openRequestsOnStart?: boolean;
 };
 
 type Item =
@@ -99,7 +101,7 @@ type Confirm = { kind: 'end' } | { kind: 'endTicket' } | { kind: 'close'; conver
 // conversation that knows the earlier one); writing below an archived one does the same. Typed
 // text is never lost, a message written offline goes out once the phone is back online, and when
 // the assistant can't be reached the suggested questions still get the knowledge base's answer.
-export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPaymentMethods, onShowBadge, onNewRide }: Props) {
+export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPaymentMethods, onShowBadge, onNewRide, openRequestsOnStart = false }: Props) {
   const { t, i18n } = useTranslation();
   const language = helpLanguageFor(i18n.language);
   const network = useNetworkState();
@@ -435,6 +437,11 @@ export default function HelpScreen({ onBack, onOpenMyRide, onEditRide, onOpenPay
     setRequests(conversations);
     setRequestTickets(tickets);
   };
+
+  // Once, when it opens.
+  useEffect(() => {
+    if (openRequestsOnStart) openRequests();
+  }, []);
 
   const openTicketFor = (id: string) => requestTickets.find((item) => item.conversation_id === id && item.status !== 'resolved') ?? null;
   // Waiting for our team first, then newest first (the order they came in).

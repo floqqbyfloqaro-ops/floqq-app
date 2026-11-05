@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { isPreviewMode, notifyPreviewAction } from '../preview/previewMode';
 import {
   fetchRidePayout,
   fetchRideReceipt,
@@ -73,6 +74,11 @@ export default function ReceiptCard({ groupId, arrivalAt, deadlineAt }: Props) {
 
   const handleTakePhoto = async () => {
     setErrorMessage(null);
+    // The screen preview never opens the camera.
+    if (isPreviewMode()) {
+      notifyPreviewAction();
+      return;
+    }
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
       setErrorMessage(t('receipt.cameraDenied'));

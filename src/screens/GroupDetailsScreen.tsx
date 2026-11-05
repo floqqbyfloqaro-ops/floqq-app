@@ -18,6 +18,7 @@ import SecondaryButton from '../components/SecondaryButton';
 import Skeleton from '../components/Skeleton';
 import { GUIDANCE } from '../constants';
 import { useGuidance } from '../hooks/useGuidance';
+import { isPreviewMode } from '../preview/previewMode';
 import { useLocationSharing } from '../hooks/useLocationSharing';
 import { useOwnLocation } from '../hooks/useOwnLocation';
 import {
@@ -60,7 +61,8 @@ const POINT_WAIT_MS = 60_000;
 // this group (our own explanation, shown before any system prompt), and their badge was already
 // opened for them once when they arrived.
 const consentKey = (groupId: string) => `findGroup.locationConsent.${groupId}`;
-const badgeOpenedKey = (groupId: string) => `findGroup.badgeOpened.${groupId}`;
+// (Exported for the screen preview, which sets it to show the screen with or without the badge.)
+export const badgeOpenedKey = (groupId: string) => `findGroup.badgeOpened.${groupId}`;
 
 // The screen stays on while the passenger is being guided: they are walking with a suitcase.
 function KeepScreenAwake() {
@@ -417,8 +419,9 @@ export default function GroupDetailsScreen({ request, onBack, openedFrom = 'butt
                   />
                 ) : null}
 
-                {/* Development builds only: never in a store build. */}
-                {__DEV__ && showGuidance ? (
+                {/* Development builds only: never in a store build, nor in the screen preview (it
+                    reads the real compass). */}
+                {__DEV__ && showGuidance && !isPreviewMode() ? (
                   <GuidanceDiagnostics
                     state={guidanceView}
                     locationAllowed={locationAllowed}

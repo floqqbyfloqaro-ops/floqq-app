@@ -19,6 +19,9 @@ type Props = {
   requestId: string;
   // "Done": back to the home screen. The ride stays in "My trips".
   onDone: () => void;
+  // Opens with this many stars chosen (and the follow-up sheet, when they need one); only the
+  // screen preview uses it.
+  initialStars?: number;
 };
 
 // How often the summary is re-read while it still has something pending, on top of the live
@@ -36,17 +39,17 @@ const STATUS_KEYS: Record<Exclude<LineStatus, null>, string> = {
 // "Ride completed": this passenger's ride is over. A summary that never says "Paid" for anything
 // that wasn't charged (rideSummaryRules.ts), and an optional rating. Updates by itself when the
 // taxi receipt arrives or the share is charged.
-export default function RideCompletedScreen({ requestId, onDone }: Props) {
+export default function RideCompletedScreen({ requestId, onDone, initialStars }: Props) {
   const { t } = useTranslation();
   const [summary, setSummary] = useState<RideSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
 
-  const [stars, setStars] = useState(0);
+  const [stars, setStars] = useState(initialStars ?? 0);
   const [reasons, setReasons] = useState<RatingReason[]>([]);
   const [comment, setComment] = useState('');
-  const [showSheet, setShowSheet] = useState(false);
+  const [showSheet, setShowSheet] = useState(initialStars != null && ratingNeedsFollowUp(initialStars));
   const [isSaving, setIsSaving] = useState(false);
   const [ratingMessage, setRatingMessage] = useState<{ text: string; ok: boolean } | null>(null);
 

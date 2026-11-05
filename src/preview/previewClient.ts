@@ -1,11 +1,14 @@
-import { confirmMatchOffer, PREVIEW_USER, PREVIEW_USER_ID, PreviewData } from './fixtures';
+import { Linking } from 'react-native';
+
+import type { MeetupMember } from '../services/findGroup';
+import { confirmMatchOffer, PREVIEW_USER, PreviewData } from './fixtures';
 import { ACTION_DISABLED, isPreviewMode, notifyPreviewAction, previewData } from './previewMode';
 
 // The screen preview's stand-in for the server. supabase.ts wraps the real Supabase client with
 // withPreview(): while the preview is on, every database read, function call and login answers
 // from the sample data, and every write is refused (or, where the preview moves on to the next
 // screen, pretended) - nothing is sent. installPreviewNetworkGuard() is the safety net under it:
-// any other request to the internet fails while the preview is on.
+// any other request to the internet, or link to another app, fails while the preview is on.
 
 type Row = Record<string, unknown>;
 type Result = { data: unknown; error: { message: string; code?: string } | null; count: null; status: number; statusText: string };
@@ -13,9 +16,6 @@ type Result = { data: unknown; error: { message: string; code?: string } | null;
 const ok = (data: unknown): Result => ({ data, error: null, count: null, status: 200, statusText: 'OK' });
 const refused = (): Result => ({ data: null, error: { message: ACTION_DISABLED }, count: null, status: 403, statusText: ACTION_DISABLED });
 
-// Writes the preview pretends worked, so the screen moves on as it would (nothing is saved): a new
-// ride, and the avatar picker showing the new choice.
-const PRETENDED_WRITES = new Set(['insert:passenger_requests', 'insert:rpc:set_my_avatar']);
 const NOT_SAVED = 'Preview - not saved';
 
 // The database tables the screens read, as rows.
@@ -25,18 +25,35 @@ function tableRows(table: string, data: PreviewData): Row[] {
       return [data.request];
     case 'taxi_groups':
       return data.group ? [data.group] : [];
+    case 'meeting_points':
+      return data.meetup?.meetingPoint ? [data.meetup.meetingPoint] : [];
     case 'airline_terminals':
       return data.airlineTerminals;
     case 'profiles':
-      return [{ user_id: PREVIEW_USER_ID, avatar_id: data.avatarId, first_name: 'Alex', last_name: 'Martin' }];
+      return [data.profile];
+    case 'help_conversations':
+      return data.help.requests;
+    case 'support_tickets':
+      return data.help.tickets;
     default:
       console.warn(`[preview] no sample rows for table ${table}`);
       return [];
   }
 }
 
-// The database functions the screens read. Undefined: not a read - refused.
-function rpcValue(name: string, data: PreviewData): unknown {
+// Table writes: a new ride is pretended (the form moves on to "Finding your match"); anything else
+// is refused.
+function tableWrite(operation: string, table: string): Result {
+  if (operation === 'insert' && table === 'passenger_requests') {
+    notifyPreviewAction(NOT_SAVED);
+    return ok(null);
+  }
+  notifyPreviewAction();
+  return refused();
+}
+
+// The database functions the screens read. Undefined: not a read.
+function rpcRead(name: string, data: PreviewData): unknown {
   switch (name) {
     case 'get_my_active_request':
       return data.activeRequest ? [data.activeRequest] : [];
@@ -47,13 +64,69 @@ function rpcValue(name: string, data: PreviewData): unknown {
   }
 }
 
+// The database functions that write. Some are pretended - the sample data changes the way the
+// server would change it, so the screen shows what comes next - and the bookkeeping a screen does
+// by itself is skipped without a notice. Everything else is refused.
+function rpcWrite(name: string, args: Record<string, unknown>, data: PreviewData): Result {
+  const now = new Date().toISOString();
+  const pretend = (value: unknown = null) => {
+    notifyPreviewAction(NOT_SAVED);
+    return ok(value);
+  };
+  const updateMe = (fields: Partial<MeetupMember>) => {
+    if (!data.meetup) return;
+    data.meetup = { ...data.meetup, members: data.meetup.members.map((member) => (member.isMe ? { ...member, ...fields } : member)) };
+  };
+
+  switch (name) {
+    case 'mark_my_completion_seen':
+    case 'log_find_group_opened':
+    case 'log_location_sharing':
+      return ok(null);
+    case 'set_my_avatar':
+    case 'save_my_rating':
+      return pretend();
+    case 'update_my_name':
+      data.profile = { ...data.profile, first_name: String(args.p_first_name), last_name: String(args.p_last_name) };
+      return pretend();
+    // "Find your group": at the meeting point -> the badge; "I've found my group"; "We're in the
+    // taxi" -> On the way.
+    case 'member_mark_arrived':
+      updateMe({ arrivedAt: now });
+      return pretend({ arrived: true });
+    case 'member_undo_arrival':
+      updateMe({ arrivedAt: null });
+      return pretend({ undone: true });
+    case 'member_confirm_found':
+      updateMe({ foundAt: now });
+      return pretend({ confirmed: true });
+    case 'member_start_ride':
+      if (data.meetup) data.meetup = { ...data.meetup, rideStartedAt: now };
+      if (data.group) data.group = { ...data.group, ride_started_at: now };
+      return pretend({ started: true });
+    // "I've arrived" -> Ride completed.
+    case 'mark_my_ride_arrived':
+      data.request = { ...data.request, completed_at: now };
+      return pretend();
+    default:
+      notifyPreviewAction();
+      return refused();
+  }
+}
+
 // The Edge Functions the screens call. Null: refused.
-function invokeFunction(name: string, data: PreviewData): { data: unknown } | null {
+function invokeFunction(name: string, body: Record<string, unknown>, data: PreviewData): { data: unknown } | null {
   switch (name) {
     case 'flight-status':
       return { data: data.flightStatus };
     case 'match-offer':
       return { data: { offer: data.matchOffer } };
+    case 'find-group':
+      return { data: { meetup: data.meetup } };
+    case 'ride-summary':
+      return { data: { summary: data.rideSummary } };
+    case 'payments-get-card':
+      return { data: { card: data.savedCard } };
     case 'secure-spot':
       // "Secure my spot" -> Group confirmed. Nothing is reserved.
       if (data.matchOffer) data.matchOffer = confirmMatchOffer(data.matchOffer);
@@ -61,6 +134,38 @@ function invokeFunction(name: string, data: PreviewData): { data: unknown } | nu
       notifyPreviewAction('Preview - nothing reserved');
       return { data: { status: 'CONFIRMED' } };
     case 'decline-match':
+      notifyPreviewAction(NOT_SAVED);
+      return { data: {} };
+    case 'change-password':
+      notifyPreviewAction('Preview - password not changed');
+      return { data: { ok: true } };
+    case 'help-chat':
+      return helpChat(body, data);
+    default:
+      return null;
+  }
+}
+
+// The help assistant, without the AI: the sample conversation, the earlier requests and a sample
+// article for a suggested question. Sending a message is refused in helpChat.ts itself.
+function helpChat(body: Record<string, unknown>, data: PreviewData): { data: unknown } | null {
+  switch (body.action) {
+    case 'start':
+      return {
+        data: { conversationId: data.help.conversation.id, conversation: data.help.conversation, messages: data.help.messages, firstName: data.profile.first_name },
+      };
+    case 'open': {
+      const conversation = data.help.requests.find((request) => request.id === body.conversationId);
+      return conversation ? { data: { conversation, messages: data.help.archivedMessages } } : null;
+    }
+    case 'topic':
+      return {
+        data: {
+          title: 'Sample article',
+          content: 'This is where the FLOQQ help article for this question appears. In the preview it is sample text.',
+        },
+      };
+    case 'rate':
       notifyPreviewAction(NOT_SAVED);
       return { data: {} };
     default:
@@ -78,20 +183,14 @@ type Query = {
 
 const field = (row: Row, column: string) => row[column] ?? null;
 
-// A PostgREST query builder that answers from `rows` (or refuses a write). Filters the screens use
-// are applied; any other builder method is accepted and ignored.
-function fakeQuery(kind: string, rows: () => unknown) {
+// A PostgREST query builder that answers from `rows`, and hands a write (insert, update, upsert,
+// delete) to `write`. Filters the screens use are applied; any other builder method is accepted
+// and ignored.
+function fakeQuery(rows: () => unknown, write: (operation: string) => Result) {
   const query: Query = { filters: [], write: null, mode: 'many', limit: null, order: null };
 
   const run = (): Result => {
-    if (query.write) {
-      if (PRETENDED_WRITES.has(`${query.write}:${kind}`)) {
-        notifyPreviewAction(NOT_SAVED);
-        return ok(null);
-      }
-      notifyPreviewAction();
-      return refused();
-    }
+    if (query.write) return write(query.write);
     const value = rows();
     if (value === undefined) {
       notifyPreviewAction();
@@ -184,16 +283,16 @@ function createPreviewClient() {
   });
 
   return withRefusals({
-    from: (table: string) => fakeQuery(table, () => tableRows(table, previewData())),
-    rpc: (name: string) => {
-      const value = rpcValue(name, previewData());
-      const builder = fakeQuery(`rpc:${name}`, () => value) as { insert: () => object };
-      // A database function that isn't a read counts as a write: pretended or refused.
+    from: (table: string) => fakeQuery(() => tableRows(table, previewData()), (operation) => tableWrite(operation, table)),
+    rpc: (name: string, args: Record<string, unknown> = {}) => {
+      const value = rpcRead(name, previewData());
+      const builder = fakeQuery(() => value, () => rpcWrite(name, args, previewData())) as { insert: () => object };
+      // A database function that isn't a read counts as a write.
       return value === undefined ? builder.insert() : builder;
     },
     functions: withRefusals({
-      invoke: async (name: string) => {
-        const answer = invokeFunction(name, previewData());
+      invoke: async (name: string, options?: { body?: Record<string, unknown> }) => {
+        const answer = invokeFunction(name, options?.body ?? {}, previewData());
         if (answer) return { data: answer.data, error: null };
         notifyPreviewAction();
         return { data: null, error: new Error(ACTION_DISABLED) };
@@ -268,10 +367,19 @@ function googleAnswer(url: string): Response | null {
 let guardInstalled = false;
 
 // While the preview is on, fetch() only reaches the development server; the address search gets
-// the sample answers and everything else fails without being sent.
+// the sample answers and everything else fails without being sent. Links to other apps (Google
+// Maps, WhatsApp to the team, email, a phone call to 112) don't open either.
 export function installPreviewNetworkGuard() {
   if (guardInstalled) return;
   guardInstalled = true;
+
+  const realOpenURL = Linking.openURL.bind(Linking);
+  Linking.openURL = (url: string) => {
+    if (!isPreviewMode()) return realOpenURL(url);
+    notifyPreviewAction();
+    return Promise.resolve();
+  };
+
   const realFetch = globalThis.fetch;
   globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
     if (!isPreviewMode()) return realFetch(input, init);

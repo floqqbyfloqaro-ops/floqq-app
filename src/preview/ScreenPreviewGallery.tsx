@@ -29,13 +29,14 @@ export default function ScreenPreviewGallery({ onClose }: Props) {
     return stopPreview;
   }, []);
 
-  const openEntry = (id: string) => {
+  const openEntry = async (id: string) => {
     const entry = PREVIEW_ENTRIES.find((candidate) => candidate.id === id);
     if (!entry) return;
     // Fresh sample data each time: what a previous screen pretended to change is gone.
     const data = entry.data();
     startPreview(data);
     loadMyAvatar(PREVIEW_USER_ID);
+    await entry.prepare?.().catch(() => {});
     setOpen((previous) => ({ entry, data, key: (previous?.key ?? 0) + 1 }));
   };
 
