@@ -9,7 +9,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Linking,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -25,6 +24,7 @@ import HelpHandover from '../components/HelpHandover';
 import HelpMessageRow from '../components/HelpMessageRow';
 import HelpRequestItem from '../components/HelpRequestItem';
 import HelpTicketCard from '../components/HelpTicketCard';
+import Modal from '../components/Modal';
 import PrimaryButton from '../components/PrimaryButton';
 import SecondaryButton from '../components/SecondaryButton';
 import StatusPill from '../components/StatusPill';

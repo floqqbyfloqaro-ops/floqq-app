@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { FlatList, Keyboard, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { baseText, borders, colors, elevation, overlays, radii, spacing } from '../theme/colors';
+import Modal from './Modal';
 
 export type SelectOption<T extends string | number> = {
   label: string;

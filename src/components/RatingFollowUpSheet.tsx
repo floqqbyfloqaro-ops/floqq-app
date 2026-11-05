@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { RATING_COMMENT_MAX, RATING_REASONS, RatingReason } from '../services/rideSummaryRules';
 import { baseText, borders, colors, overlays, radii, spacing } from '../theme/colors';
 import AuthTextInput from './AuthTextInput';
+import Modal from './Modal';
 import PrimaryButton from './PrimaryButton';
 import SecondaryButton from './SecondaryButton';
 

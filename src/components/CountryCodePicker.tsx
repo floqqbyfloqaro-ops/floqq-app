@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { CountryCode } from 'libphonenumber-js';
 
 import { PhoneCountry, phoneCountries } from '../services/phoneRules';
 import { baseText, borders, colors, radii, spacing } from '../theme/colors';
 import AuthTextInput from './AuthTextInput';
+import Modal from './Modal';
 
 type Props = {
   value: CountryCode;
